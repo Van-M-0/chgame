@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"gameproto/clipb"
 	myproto "exportor/proto"
+	"gopkg.in/vmihailenco/msgpack.v2"
 )
 
-func main() {
-
+func testpb() {
 	p := &gameproto.Person{}
 
 	p.Name = "hello"
@@ -41,5 +41,78 @@ func main() {
 		return
 	}
 	fmt.Println("new message ", i)
+}
+
+func testmsg() {
+
+	gs := &myproto.GatewayMessage{
+		Direction: 1,
+	}
+
+	b, err := msgpack.Marshal(gs)
+	if err != nil {
+		fmt.Println("marshal msg error ", err)
+		return
+	}
+
+	fmt.Println(b)
+	fmt.Println(gs)
+
+	gh, err := myproto.NewRawMessage(myproto.GatewayCmdHeader)
+	if err != nil {
+		fmt.Println("marshal msg error", err)
+		return
+	}
+
+	err = msgpack.Unmarshal(b, gh)
+	if err != nil {
+		fmt.Println("unmarshal gateway heade error ", err)
+	}
+
+	msg, err := myproto.NewRawMessage(gh.(*myproto.GatewayMessage).Cmd)
+	if err != nil {
+		fmt.Println("new raw message rror")
+	}
+
+	newmsg := &myproto.GatewayMessage{
+		Msg: msg,
+	}
+	err = msgpack.Unmarshal(b, newmsg)
+
+	fmt.Println(newmsg.Msg)
+
+}
+
+func testmessage() {
+
+	type hello struct {
+		a int
+		str string
+	}
+
+	b, err := msgpack.Marshal(&hello{a:1010, str:"wewewe"})
+	if err != nil {
+		return
+	}
+
+	m := myproto.Message{
+		Cmd: 1012,
+		Magic: 12321,
+		Msg: b,
+	}
+
+	b1, _ := msgpack.Marshal(&m)
+
+	var m1 myproto.Message
+	msgpack.Unmarshal(b1, &m1)
+	fmt.Println("afdsfsdfsf ", m1)
+
+	fmt.Println("fsdfsd ------", m1.Msg)
+
+}
+
+func main() {
+	testmessage()
+	//testmsg()
 }
 

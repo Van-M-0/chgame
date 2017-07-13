@@ -24,11 +24,18 @@ func NewMessage(cmd int) (*Message, error) {
 	if t == nil {
 		return nil, fmt.Errorf("message not register %v ", cmd)
 	}
-	// return reflect.New(t.Elem()).Interface().(proto.Message), nil
 	return &Message{
 		Cmd: cmd,
 		Msg: reflect.New(t.Elem()),
 	}, nil
+}
+
+func NewRawMessage(cmd int) (interface{}, error) {
+	t := protoTypes[cmd]
+	if t == nil {
+		return nil, fmt.Errorf("message not register %v ", cmd)
+	}
+	return reflect.New(t.Elem()).Interface(), nil
 }
 
 func NewPbMessage(cmd int) (*Message, error) {

@@ -31,10 +31,7 @@ func (gw *gateway) Start() error {
 	gw.fserver = net.NewTcpServer(&defines.NetServerOption{
 		Host: gw.option.FrontHost,
 		ConnectCb: func(client network.ITcpClient) error {
-			addr := client.GetRemoteAddress()
-			if addr != nil {
-				return nil
-			}
+			client.GetRemoteAddress()
 			return nil
 		},
 		CloseCb: func(client network.ITcpClient) {
@@ -56,7 +53,6 @@ func (gw *gateway) Start() error {
 	gw.bserver = net.NewTcpServer(&defines.NetServerOption{
 		Host: gw.option.FrontHost,
 		ConnectCb: func(client network.ITcpClient) error {
-			gw.serManager.serConnected(client)
 			return nil
 		},
 		CloseCb: func(client network.ITcpClient) {
@@ -95,13 +91,16 @@ func (gw *gateway) authServer(client network.ITcpClient) error {
 		return err
 	}
 
-	if m.Cmd != proto.BaseCmdRegister2gate {
-		return errors.New("not reigister cmd")
+	if m.Magic != proto.MagicDirectionGate {
+		return errors.New("not gate direction")
 	}
-	if _, ok := m.Msg.(*proto.RegisterServer); !ok {
+
+	serInfo, ok := m.Msg.(*proto.RegisterServer)
+	if !ok {
 		return errors.New("cast register server info err")
 	}
-	return gw.serManager.addServer(client)
+
+	return gw.serManager.addServer(client, serInfo)
 }
 
 

@@ -35,19 +35,20 @@ func (pd *protoCodec) Encode(m *myproto.Message) error {
 		return nil
 	}
 
-	pd.cliHeader.Cmd = m.Cmd
-	pd.cliHeader.Len = len(body)
+	pd.cliHeader.Cmd = uint32(m.Cmd)
+	pd.cliHeader.Len = uint32(len(body))
 	pd.cliHeader.Code = 1000
 
 	header, err := proto.Marshal(pd.cliHeader)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 
-	data := make([]byte, 2 + len(header) + pd.cliHeader.Len)
-	binary.BigEndian.PutUint16(data[:2], len(header))
-	data = append(data, header)
-	data = append(data, body)
+	msgLen := 2 + uint32(len(header)) + pd.cliHeader.Len
+	data := make([]byte, msgLen)
+	binary.BigEndian.PutUint16(data[:2], uint16(len(header)))
+	data = append(data, header...)
+	data = append(data, body...)
 
 	if _, err := pd.conn.Write(data); err != nil {
 		return err
@@ -77,9 +78,9 @@ func (pd *protoCodec) Decode() (*myproto.Message, error) {
 	}
 
 	return &myproto.Message{
-		Cmd: pd.dcliHeader.Cmd,
-		Type: "pb",
-		Msg: myproto.NewPbMessage(pd.dcliHeader.Cmd),
+		Cmd:   pd.dcliHeader.Cmd,
+		Magic: "pb",
+		Msg:   myproto.NewPbMessage(pd.dcliHeader.Cmd),
 	}, nil
 }
 

@@ -32,7 +32,7 @@ func (client *tcpClient) GetId() uint32 {
 }
 
 func (client *tcpClient) Close() {
-	client.opt.CloseCb(client)
+	client.opt.CloseCb(client.(&network.ITcpClient))
 }
 
 func (client *tcpClient) Send(m *proto.Message) {

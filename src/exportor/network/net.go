@@ -24,7 +24,7 @@ type ITcpClient interface {
 	Close()	error
 	OnMessage(*proto.Message)
 	Send(*proto.Message) error
-	ActiveRead([]byte, size int) error
+	ActiveRead([]byte, int) error
 	GetCodec() ICodec
 }
 
