@@ -1,0 +1,6 @@
+syntax = "proto3";
+
+package gameproto;
+message Hello {
+  string name = 1;
+}
