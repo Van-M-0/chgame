@@ -122,11 +122,13 @@ func main() {
 	//tcpServer()
 
 	//send1(nil)
-	testredis()
+	//testredis()
 	//testps()
 
 	//testCommunicator()
 	//prototest()
+
+	testproto2()
 
 }
 

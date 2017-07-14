@@ -7,24 +7,22 @@ import (
 	"time"
 	"log"
 	"fmt"
-	"reflect"
 	"exportor/proto"
-	"strconv"
 )
 
 
 type cacheClient struct {
-	group 			string
-	communicator 	defines.ICommunicatorClient
-	ccConn 			redis.Conn
-	notify 			chan interface{}
+	group         string
+	communicator  defines.ICommunicatorClient
+	ccConn        redis.Conn
+	channelNotify chan interface{}
 }
 
 func newCacheClient(gr string) *cacheClient {
 	return &cacheClient{
-		group: gr,
-		communicator: communicator.NewCommunicator(nil),
-		notify: make(chan interface{}),
+		group:         gr,
+		communicator:  communicator.NewCommunicator(nil),
+		channelNotify: make(chan interface{}),
 	}
 }
 
@@ -44,12 +42,12 @@ func (cc *cacheClient) Start() {
 	}
 
 	cc.communicator.JoinChanel("dbLoadFinishChannel", false, func(data []byte) {
-		cc.notify <- data
+		cc.channelNotify <- data
 	})
 
 	go func() {
 		select {
-		case d := <- cc.notify:
+		case d := <- cc.channelNotify:
 			fmt.Println("d isl", d)
 		}
 	}()
@@ -65,7 +63,7 @@ func (cc *cacheClient) SetCacheNotify(notify defines.ICacheNotify) {
 }
 
 func (cc *cacheClient) GetUserId(name string) (uint32,error) {
-	id, err := redis.Int(cc.ccConn.Do("hget", "uids."+name+":Uid"))
+	id, err := redis.Int(cc.ccConn.Do("hget", accountId(name)))
 	return uint32(id), err
 }
 
@@ -77,7 +75,7 @@ func (cc *cacheClient) GetUserInfo(name string, user *proto.CacheUser) error {
 		return err
 	}
 
-	values, err := redis.Values(cc.ccConn.Do("HGETALL", "user."+strconv.Itoa(int(uid))))
+	values, err := redis.Values(cc.ccConn.Do("HGETALL", users(int(uid))))
 	if err != nil {
 		fmt.Println("get user info error", name, uid)
 		return err

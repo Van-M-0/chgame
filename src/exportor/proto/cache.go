@@ -7,16 +7,16 @@ type CacheUserId struct {
 
 // userid -> cacheuser
 type CacheUser struct {
-	Account 	string
-	Openid 		string
-	Pwd 		string
-	Uid 		int
-	Name 		string
-	Sex 		byte
-	HeadImg 	string
-	Diamond 	int
-	RoomCard 	int
-	Golden 		int64
+	Account 	string		`redis:"account"`
+	Openid 		string		`redis:"openid"`
+	Pwd 		string		`redis:"pwd"`
+	Uid 		int			`redis:"uid"`
+	Name 		string		`redis:"name"`
+	Sex 		byte		`redis:"sex"`
+	HeadImg 	string		`redis:"headimg"`
+	Diamond 	int			`redis:"diamond"`
+	RoomCard 	int			`redis:"roomcard"`
+	Gold 		int64		`redis:"gold"`
 }
 
 

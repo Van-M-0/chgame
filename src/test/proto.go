@@ -50,3 +50,28 @@ func prototest() {
 	mm, _ := proto.NewRawMessage(proto.GameCmdPlayerLogin)
 	fmt.Println(reflect.TypeOf(mm))
 }
+
+func testproto2() {
+	type a1 struct {
+		A 	string
+		B 	int
+	}
+
+	a := &a1 {
+		A: "hello",
+		B: 123,
+	}
+
+	b, err := msgpack.Marshal(a)
+	fmt.Println("fsdfsd", err, b)
+
+	var i interface{}
+	i = &a1 {}
+
+	err = msgpack.Unmarshal(b, i)
+	fmt.Println("111", err, i)
+
+	a2 := i.(*a1)
+	fmt.Println(a2)
+
+}
