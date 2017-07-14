@@ -2,6 +2,6 @@
 .idea/
 bin/
 tools/
-pkg/
+/pkg
 chcore.iml
 process.xlsx
