@@ -71,7 +71,12 @@ func (cm *communicator) Notify(chanel string, value ... interface{}) error {
 			return nil
 		}
 		defer c.Close()
-		c.Do("PUBLISH", chanel, value)
+		r, err := c.Do("PUBLISH", chanel, value)
+	fmt.Println("notify ... ", r, err)
+		if err != nil {
+			return err
+		}
+
 	//}()
 	return nil
 }

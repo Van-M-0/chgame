@@ -1,5 +1,6 @@
 package defines
 
+
 type IServer interface {
 	Start() error
 	Stop() error
@@ -9,11 +10,8 @@ type IGateway interface {
 	IServer
 }
 
-type ICommunicator interface {
-	IServer
-}
 
-type CommunicatorCb func(data []byte)
+type CommunicatorCb func([]byte)
 type ICommunicatorClient interface {
 	Notify(chanel string, v ...interface{})	error
 	JoinChanel(chanel string, reg bool, cb CommunicatorCb) error

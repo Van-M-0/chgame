@@ -17,7 +17,7 @@ type Stock struct {
 	OpenPrice   string `redis:"open_price"`
 	AskPrice    string `redis:"ask_price"`
 	ClosePrice  string `redis:"close_price"`
-	BidPrice    string `redis:"bid_price"`
+	BidPrice    string
 	Id 			int    `redis:"id"`
 }
 
