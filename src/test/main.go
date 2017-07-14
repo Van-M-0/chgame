@@ -6,6 +6,9 @@ import (
 	"gameproto/clipb"
 	myproto "exportor/proto"
 	"gopkg.in/vmihailenco/msgpack.v2"
+	"net"
+	"encoding/binary"
+	"io"
 )
 
 func testpb() {
@@ -43,6 +46,7 @@ func testpb() {
 	fmt.Println("new message ", i)
 }
 
+/*
 func testmsg() {
 
 	gs := &myproto.GatewayMessage{
@@ -82,7 +86,7 @@ func testmsg() {
 	fmt.Println(newmsg.Msg)
 
 }
-
+*/
 func testmessage() {
 
 	type hello struct {
@@ -112,7 +116,157 @@ func testmessage() {
 }
 
 func main() {
-	testmessage()
+	//testmessage()
 	//testmsg()
+
+	//tcpServer()
+
+	//send1(nil)
+	//testredis()
+	//testps()
+
+	//testCommunicator()
+	prototest()
+
 }
 
+
+func tcpServer() {
+	fmt.Println("tcp server port ", 9895)
+	l, err := net.Listen("tcp", ":9895")
+	if err != nil {
+		fmt.Println("listen error ", err)
+		return
+	}
+
+	defer l.Close()
+
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			fmt.Println("accept client error ", err)
+			return
+		}
+
+		go handleClient(conn)
+	}
+}
+
+func handleClient(conn net.Conn) {
+	defer func() {
+		conn.Close()
+	}()
+
+	byHeader := make([]byte, 2)
+	byBody := make([]byte, 65534)
+
+	for {
+		if _, err := io.ReadFull(conn, byHeader); err != nil {
+			fmt.Println("client read header error")
+			return
+		}
+		fmt.Println("recv header len ", byHeader)
+		msgLen := binary.BigEndian.Uint16(byHeader)
+		fmt.Println("recv msg len ", msgLen)
+		if _, err := io.ReadFull(conn, byBody[:msgLen]); err != nil {
+			fmt.Println("client read body error")
+			return
+		}
+
+		codecClient(byBody[:msgLen])
+
+		send1(conn)
+	}
+}
+
+func send1(conn net.Conn) {
+
+	type conf struct {
+		A 		string
+		I 		int
+	}
+
+	type simple2 struct {
+		Conf 		conf
+		Arr 		[3]int
+		Slice 		[]string
+	}
+
+	myproto.Register(1222, (*simple2)(nil))
+
+	s2 := &simple2{
+		Arr: [3]int{123, 456, 789},
+		Slice: []string{"hello", "你好"},
+		Conf: conf{
+			A: "conf-string",
+			I: 89,
+		},
+	}
+
+	b, err := msgpack.Marshal(s2)
+	if err != nil {
+		fmt.Println("marsha eror ", err)
+		return
+	}
+
+
+	byHeader := make([]byte, 2)
+	binary.BigEndian.PutUint16(byHeader, uint16(len(b)))
+
+	body := make([]byte, 2 + len(b))
+	copy(body[:2], byHeader)
+	copy(body[2:], b)
+
+	fmt.Println("header " , byHeader)
+	fmt.Println("body ", b)
+	//body = append(body, byHeader...)
+	//body = append(body, b...)
+
+	n, err := conn.Write(body)
+	if err != nil {
+		fmt.Println("write bytes ", b)
+	}
+	fmt.Println("send msg ", s2)
+	fmt.Println("send header data ", byHeader)
+	fmt.Println("send data ", n, body)
+
+	/*
+	ns2, _:= myproto.NewRawMessage(1222)
+
+	err = msgpack.Unmarshal(b, ns2)
+
+	cns2 := ns2.(*simple2)
+
+	fmt.Println("unmarsha error ", err, cns2.Slice, cns2.Arr, cns2.Conf.A, cns2.Conf.I)
+	*/
+}
+
+func codec1(msg []byte) {
+	type simple struct {
+		I 		int
+		Ui 		uint
+		A 		string
+	}
+
+	myproto.Register(1010, (*simple)(nil))
+
+	s1, _:= myproto.NewRawMessage(1010)
+
+	msgpack.Unmarshal(msg, s1)
+
+	nmsg, ok := s1.(*simple)
+	if !ok {
+		fmt.Println("cast simple error")
+	}
+
+	fmt.Println("unmarsha simple message s1 ", nmsg.I, nmsg.A, nmsg.Ui)
+}
+
+func codec2(msg []byte) {
+
+}
+
+
+func codecClient(msg []byte) {
+	codec1(msg)
+}

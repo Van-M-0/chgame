@@ -1,30 +1,31 @@
 package defines
 
 import (
-	"exportor/network"
 	"net"
 )
 
 type NetClientOption struct {
-	Host       string
-	Port       int
-	SendChSize int
-	Codec      network.ICodec
-	ConnectCb  network.ClientConnectCb
-	CloseCb    network.ClientCloseCb
-	MsgCb      network.ClientMessageCb
-	AuthCb     network.AuthCb
+	Host       	string
+	SendChSize 	int
+	Codec      	ICodec
+	ConnectCb  	ClientConnectCb
+	CloseCb    	ClientCloseCb
+	MsgCb      	ClientMessageCb
+	AuthCb     	AuthCb
 }
 
 type NetServerOption struct {
+	GwHost		string
+	CmHost 		string
 	Host 		string
+
 	MaxRecvSize int
 	EncryptCode string
-	Codec       network.ICodec
-	ConnectCb   network.ClientConnectCb
-	CloseCb     network.ClientCloseCb
-	MsgCb       network.ClientMessageCb
-	AuthCb      network.AuthCb
+	Codec       ICodec
+	ConnectCb   ClientConnectCb
+	CloseCb     ClientCloseCb
+	MsgCb      	ClientMessageCb
+	AuthCb      AuthCb
 	listenConn  net.Conn
 }
 
@@ -33,4 +34,10 @@ type GatewayOption struct {
 	MaxClient   int
 
 	BackHost 	string
+}
+
+type CommunicatorOption struct {
+	Host 			string
+	ReadTimeout 	int
+	WriteTimeout	int
 }

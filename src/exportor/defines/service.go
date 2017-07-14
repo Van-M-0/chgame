@@ -1,4 +1,4 @@
-package service
+package defines
 
 
 type IService interface {

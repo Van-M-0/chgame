@@ -8,7 +8,7 @@ import (
 )
 
 type tcpServer struct {
-	netContext
+	*netContext
 	opt 			*defines.NetServerOption
 	closeChn 		chan int
 }
@@ -45,7 +45,7 @@ func (server *tcpServer) Start() error {
 	}
 }
 
-func (server *tcpServer) Stop() {
+func (server *tcpServer) Stop() error {
 
 }
 

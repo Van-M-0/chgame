@@ -2,6 +2,7 @@ package proto
 
 import "gameproto/clipb"
 
+// base proto 1 - 500
 const (
 	MagicDirectionGate 			= 1
 	MagicDirectionClient		= 2
@@ -30,4 +31,5 @@ func registerComm() {
 
 func init () {
 	registerComm()
+	registerPlayer()
 }

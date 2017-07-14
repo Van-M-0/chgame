@@ -1,8 +1,7 @@
-package network
+package defines
 
 import (
 	"exportor/proto"
-	"exportor/defines"
 )
 
 type ClientConnectCb func(ITcpClient) error
@@ -19,7 +18,7 @@ type ITcpClient interface {
 	INetContext
 	Id(uint32)
 	GetId() uint32
-	GetRemoteAddress() 	string
+	GetRemoteAddress() string
 	Connect() error
 	Close()	error
 	OnMessage(*proto.Message)
@@ -34,10 +33,9 @@ type ITcpServer interface {
 	Stop() error
 }
 
-
 type INet interface {
-	NewClient(opt *defines.NetClientOption) ITcpClient
-	NewServer(opt *defines.NetServerOption) ITcpServer
+	NewClient(opt *NetClientOption) ITcpClient
+	NewServer(opt *NetServerOption) ITcpServer
 }
 
 type ICodec interface {

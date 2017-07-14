@@ -5,6 +5,7 @@ import (
 	"exportor/proto"
 	"net"
 	"exportor/network"
+	"errors"
 )
 
 type tcpClient struct {
@@ -31,12 +32,31 @@ func (client *tcpClient) GetId() uint32 {
 	return client.id
 }
 
-func (client *tcpClient) Close() {
-	client.opt.CloseCb(client.(&network.ITcpClient))
+func (client *tcpClient) GetRemoteAddress() string {
+	return client.conn.RemoteAddr().String()
 }
 
-func (client *tcpClient) Send(m *proto.Message) {
+func (client *tcpClient) Connect() error {
+	conn, err := net.Dial("tcp", client.opt.Host)
+	if err != nil {
+		return err
+	}
+	client.conn = conn
+	return nil
+}
+
+func (client *tcpClient) Close() error {
+	client.opt.CloseCb(client.(&network.ITcpClient))
+	return nil
+}
+
+func (client *tcpClient) Send(m *proto.Message) error {
 	client.sendCh <- m
+	return nil
+}
+
+func (client *tcpClient) OnMessage(m *proto.Message) {
+
 }
 
 func (client *tcpClient) sendLoop() {
@@ -62,4 +82,8 @@ func (client *tcpClient) write(m *proto.Message) error {
 
 func (client *tcpClient) GetCodec() network.ICodec {
 	return client.opt.Codec
+}
+
+func (client *tcpClient) ActiveRead([]byte, int) error {
+	return errors.New("not implementiond")
 }

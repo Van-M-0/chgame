@@ -8,7 +8,7 @@ func (nt *netContext) Set(key string, val interface{}) {
 
 }
 
-func (nt *netContext) Get(key string) {
+func (nt *netContext) Get(key string) interface{} {
 	return nil
 }
 
