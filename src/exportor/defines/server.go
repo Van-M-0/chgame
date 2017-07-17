@@ -24,6 +24,7 @@ type ICacheNotify interface {
 type ICacheClient interface {
 	SetCacheNotify(ICacheNotify)
 	GetUserInfo(name string)
+	SetUserInfo(d interface{}, dbRet bool) error
 }
 
 type ICacheLoader interface {

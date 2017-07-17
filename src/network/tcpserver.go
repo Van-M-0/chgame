@@ -83,7 +83,7 @@ func (server *tcpServer) handleClient(conn net.Conn) {
 			continue
 		}
 
-		client.opt.MsgCb(m)
+		client.opt.MsgCb(client, m)
 	}
 
 }

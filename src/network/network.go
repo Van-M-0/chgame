@@ -6,18 +6,18 @@ import (
 	"network/codec"
 )
 
-func NewTcpServer(opt *defines.NetServerOption) network.ITcpServer {
+func NewTcpServer(opt *defines.NetServerOption) defines.ITcpServer {
 	return newServer(opt)
 }
 
-func NewTcpClient(opt *defines.NetClientOption) network.ITcpClient {
+func NewTcpClient(opt *defines.NetClientOption) defines.ITcpClient {
 	return newTcpClient(opt)
 }
 
-func NewClientCodec() network.ICodec {
+func NewClientCodec() defines.ICodec {
 	return codec.NewClientCodec()
 }
 
-func NewServerCodec() network.ICodec {
+func NewServerCodec() defines.ICodec {
 	return codec.NewServerCodec()
 }

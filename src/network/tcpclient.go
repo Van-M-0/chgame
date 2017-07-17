@@ -4,7 +4,6 @@ import (
 	"exportor/defines"
 	"exportor/proto"
 	"net"
-	"exportor/network"
 	"errors"
 )
 
@@ -46,7 +45,7 @@ func (client *tcpClient) Connect() error {
 }
 
 func (client *tcpClient) Close() error {
-	client.opt.CloseCb(client.(&network.ITcpClient))
+	client.opt.CloseCb(client.(&defines.ITcpClient))
 	return nil
 }
 
@@ -80,7 +79,7 @@ func (client *tcpClient) write(m *proto.Message) error {
 	return nil
 }
 
-func (client *tcpClient) GetCodec() network.ICodec {
+func (client *tcpClient) GetCodec() defines.ICodec {
 	return client.opt.Codec
 }
 

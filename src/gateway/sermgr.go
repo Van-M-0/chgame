@@ -1,17 +1,15 @@
 package gateway
 
 import (
-	"exportor/network"
 	"exportor/proto"
-	"sync/atomic"
 	"sync"
-	"errors"
+	"exportor/defines"
 )
 
 type serverInfo struct {
 	typo 		string
 	id 			uint32
-	cli 		network.ITcpClient
+	cli 		defines.ITcpClient
 }
 
 type serManager struct {
@@ -26,17 +24,17 @@ func newSerManager() *serManager {
 	}
 }
 
-func (mgr *serManager) serConnected(client network.ITcpClient) {
+func (mgr *serManager) serConnected(client defines.ITcpClient) {
 
 }
 
-func (mgr *serManager) serDisconnected(client network.ITcpClient) {
+func (mgr *serManager) serDisconnected(client defines.ITcpClient) {
 	mgr.Lock()
 	mgr.Unlock()
 	delete(mgr.sers, client.GetId())
 }
 
-func (mgr *serManager) serMessage(client network.ITcpClient, m *proto.Message) {
+func (mgr *serManager) serMessage(client defines.ITcpClient, m *proto.Message) {
 	if m.Magic == proto.MagicDirectionGate {
 		mgr.routeServer(client, m.Cmd, m.Msg)
 	} else if m.Magic == proto.MagicDirectionClient {
@@ -44,7 +42,7 @@ func (mgr *serManager) serMessage(client network.ITcpClient, m *proto.Message) {
 	}
 }
 
-func (mgr *serManager) addServer(client network.ITcpClient, m *proto.RegisterServer) error {
+func (mgr *serManager) addServer(client defines.ITcpClient, m *proto.RegisterServer) error {
 	mgr.Lock()
 	defer mgr.Unlock()
 
@@ -58,10 +56,10 @@ func (mgr *serManager) addServer(client network.ITcpClient, m *proto.RegisterSer
 	return nil
 }
 
-func (mgr *serManager) routeServer(client network.ITcpClient, md int, m interface{}) {
+func (mgr *serManager) routeServer(client defines.ITcpClient, md int, m interface{}) {
 
 }
 
-func (mgr *serManager) routeClient(client network.ITcpClient, m *proto.Message) {
+func (mgr *serManager) routeClient(client defines.ITcpClient, m *proto.Message) {
 
 }

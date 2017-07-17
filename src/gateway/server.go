@@ -2,7 +2,6 @@ package gateway
 
 import (
 	"exportor/defines"
-	"exportor/network"
 	net "network"
 	"exportor/proto"
 	"errors"
@@ -10,8 +9,8 @@ import (
 
 type gateway struct {
 	option 		*defines.GatewayOption
-	fserver 	network.ITcpServer
-	bserver 	network.ITcpServer
+	fserver 	defines.ITcpServer
+	bserver 	defines.ITcpServer
 	netOption 	*defines.NetServerOption
 	idGen 		uint32
 	cliManger 	*cliManager
@@ -30,17 +29,17 @@ func (gw *gateway) Start() error {
 
 	gw.fserver = net.NewTcpServer(&defines.NetServerOption{
 		Host: gw.option.FrontHost,
-		ConnectCb: func(client network.ITcpClient) error {
+		ConnectCb: func(client defines.ITcpClient) error {
 			client.GetRemoteAddress()
 			return nil
 		},
-		CloseCb: func(client network.ITcpClient) {
+		CloseCb: func(client defines.ITcpClient) {
 			gw.cliManger.cliDisconnect(client)
 		},
-		MsgCb: func(client network.ITcpClient, m *proto.Message) {
+		MsgCb: func(client defines.ITcpClient, m *proto.Message) {
 			gw.cliManger.cliMsg(client, m)
 		},
-		AuthCb: func(client network.ITcpClient) error {
+		AuthCb: func(client defines.ITcpClient) error {
 			gw.cliManger.cliConnect(client)
 			return nil
 		},
@@ -52,16 +51,16 @@ func (gw *gateway) Start() error {
 
 	gw.bserver = net.NewTcpServer(&defines.NetServerOption{
 		Host: gw.option.FrontHost,
-		ConnectCb: func(client network.ITcpClient) error {
+		ConnectCb: func(client defines.ITcpClient) error {
 			return nil
 		},
-		CloseCb: func(client network.ITcpClient) {
+		CloseCb: func(client defines.ITcpClient) {
 			gw.serManager.serDisconnected(client)
 		},
-		MsgCb: func(client network.ITcpClient, m *proto.Message) {
+		MsgCb: func(client defines.ITcpClient, m *proto.Message) {
 			gw.serManager.serMessage(client, m)
 		},
-		AuthCb: func(client network.ITcpClient) error {
+		AuthCb: func(client defines.ITcpClient) error {
 			gw.authServer(client)
 			return nil
 		},
@@ -75,7 +74,7 @@ func (gw *gateway) Start() error {
 	return nil
 }
 
-func (gw *gateway) authClient(client network.ITcpClient) error {
+func (gw *gateway) authClient(client defines.ITcpClient) error {
 	encrypt := make([]byte, 32)
 	if err := client.ActiveRead(encrypt, 32); err != nil {
 		return err
@@ -84,7 +83,7 @@ func (gw *gateway) authClient(client network.ITcpClient) error {
 	return nil
 }
 
-func (gw *gateway) authServer(client network.ITcpClient) error {
+func (gw *gateway) authServer(client defines.ITcpClient) error {
 	codec := client.GetCodec()
 	m, err := codec.Decode()
 	if err != nil {

@@ -1,4 +1,4 @@
-package proto
+package table
 
 type T_MyTest struct {
 	Account 	string 		`gorm:"size:20;type:char(20)"`

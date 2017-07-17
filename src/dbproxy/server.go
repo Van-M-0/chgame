@@ -6,6 +6,7 @@ import (
 	"communicator"
 	"exportor/proto"
 	"gopkg.in/vmihailenco/msgpack.v2"
+	"fmt"
 )
 
 
@@ -37,27 +38,21 @@ type dbProxyServer struct {
 	commClient  		defines.ICommunicatorClient
 	dbClient    		*dbClient
 	chNotify    		chan *notifier
-	chDbRet     		chan *dbret
-	chSaveCache 		chan *saveCache
-	chNotifyChannel 	chan *notifyChannel
+	chResNotify 		chan func()
 }
 
 func newDBProxyServer() *dbProxyServer {
 	return &dbProxyServer{
 		cacheClient: cacher.NewCacheClient("dbproxy"),
 		commClient:  communicator.NewCommunicator(nil),
-		chNotify:    make(chan *notifier),
-		chDbRet:     make(chan *dbret),
-		chSaveCache: make(chan *saveCache),
-		chNotifyChannel: make(chan *notifyChannel),
+		chNotify:    make(chan *notifier, 4096),
+		chResNotify: make(chan func(), 4096),
 	}
 }
 
 func (ds *dbProxyServer) Start() {
 	ds.handleNotify()
-	ds.handleDbRet()
-	ds.save2Cache()
-	ds.notifyChannel()
+	ds.handleNotifyRes()
 }
 
 func (ds *dbProxyServer) Stop() {
@@ -68,14 +63,15 @@ func (ds *dbProxyServer) joinChannel() {
 	ds.commClient.JoinChanel("loadUser", false, func(d []byte) {
 		m := ds.deserilize(castProxyLoadUser, d)
 		if m != nil {
-			m = m.(*proto.ProxyLoadUserInfo)
+			ds.chNotify <- &notifier{cmd: castProxyLoadUser, i: m.(*proto.NotifyRequest).Req}
+		} else {
+			fmt.Println("notify : cast loaduser err")
 		}
-		ds.chNotify <- &notifier{cmd: castProxyLoadUser, i: m}
 	})
 
 	ds.commClient.JoinChanel("createAccount", false, func(d []byte) {
-	})
 
+	})
 }
 
 func (ds *dbProxyServer) handleNotify() {
@@ -85,40 +81,29 @@ func (ds *dbProxyServer) handleNotify() {
 			switch n.cmd {
 			case castProxyLoadUser:
 				var userInfo proto.T_Users
-				ds.chDbRet <- &dbret{
-					cmd: n.cmd,
-					ret: ds.dbClient.GetUserInfo(n.i.(*proto.ProxyLoadUserInfo).Name, &userInfo),
-					i: &userInfo,
+				ret := ds.dbClient.GetUserInfo(n.i.(*proto.ProxyLoadUserInfo).Name, &userInfo)
+				ds.chResNotify <- func() {
+					err := ds.cacheClient.SetUserInfo(&userInfo, ret)
+					d, _ := msgpack.Marshal(&proto.NotifyResponse{
+						Err: err,
+						Res: &userInfo,
+					})
+					ds.commClient.Notify("loadUserFinish", d)
 				}
-			default:
 			}
 		}
 	}()
 }
 
-func (ds *dbProxyServer) handleDbRet() {
-	go func() {
-		select {
-		case r := <- ds.chDbRet:
-			switch r.cmd {
-			case castProxyLoadUser:
-			default:
-
+func (ds *dbProxyServer) handleNotifyRes() {
+	for i :=1; i < 3; i++ {
+		go func() {
+			select {
+			case fn := <- ds.chResNotify:
+				fn()
 			}
-		}
-	}()
-}
-
-func (ds *dbProxyServer) save2Cache() {
-	go func() {
-
-	}()
-}
-
-func (ds *dbProxyServer) notifyChannel() {
-	go func() {
-
-	}()
+		}()
+	}
 }
 
 func (ds *dbProxyServer) deserilize(cmd int, d []byte) interface{} {

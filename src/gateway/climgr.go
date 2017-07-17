@@ -3,26 +3,27 @@ package gateway
 import (
 	"exportor/network"
 	"exportor/proto"
+	"exportor/defines"
 )
 
 type cliManager struct {
-	clis 		map[uint32]network.ITcpClient
+	clis 		map[uint32]defines.ITcpClient
 }
 
 func newCliManager() *cliManager {
 	return &cliManager{
-		clis: make(map[uint32]network.ITcpClient),
+		clis: make(map[uint32]defines.ITcpClient),
 	}
 }
 
-func (mgr *cliManager) cliConnect(cli network.ITcpClient) error {
+func (mgr *cliManager) cliConnect(cli defines.ITcpClient) error {
 	return nil
 }
 
-func (mgr *cliManager) cliDisconnect(cli network.ITcpClient) {
+func (mgr *cliManager) cliDisconnect(cli defines.ITcpClient) {
 
 }
 
-func (mgr *cliManager) cliMsg(cli network.ITcpClient, m *proto.Message) {
+func (mgr *cliManager) cliMsg(cli defines.ITcpClient, m *proto.Message) {
 
 }
