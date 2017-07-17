@@ -5,6 +5,8 @@ import (
 	net "network"
 	"exportor/proto"
 	"errors"
+	"msgpacker"
+	"fmt"
 )
 
 type gateway struct {
@@ -37,11 +39,10 @@ func (gw *gateway) Start() error {
 			gw.cliManger.cliDisconnect(client)
 		},
 		MsgCb: func(client defines.ITcpClient, m *proto.Message) {
-			gw.cliManger.cliMsg(client, m)
+			gw.routeCliMessage(client, m)
 		},
 		AuthCb: func(client defines.ITcpClient) error {
-			gw.cliManger.cliConnect(client)
-			return nil
+			return gw.authClient(client)
 		},
 	})
 
@@ -50,7 +51,7 @@ func (gw *gateway) Start() error {
 	}
 
 	gw.bserver = net.NewTcpServer(&defines.NetServerOption{
-		Host: gw.option.FrontHost,
+		Host: gw.option.BackHost,
 		ConnectCb: func(client defines.ITcpClient) error {
 			return nil
 		},
@@ -75,34 +76,45 @@ func (gw *gateway) Start() error {
 }
 
 func (gw *gateway) authClient(client defines.ITcpClient) error {
-	encrypt := make([]byte, 32)
-	if err := client.ActiveRead(encrypt, 32); err != nil {
-		return err
-	}
 
 	return nil
 }
 
 func (gw *gateway) authServer(client defines.ITcpClient) error {
-	codec := client.GetCodec()
-	m, err := codec.Decode()
+
+	m, err := client.Auth()
 	if err != nil {
 		return err
 	}
 
-	if m.Magic != proto.MagicDirectionGate {
-		return errors.New("not gate direction")
+	var register proto.RegisterServer
+	if msgpacker.UnMarshal(m.Msg, &register) != nil {
+		return err
 	}
 
-	serInfo, ok := m.Msg.(*proto.RegisterServer)
-	if !ok {
-		return errors.New("cast register server info err")
-	}
-
-	return gw.serManager.addServer(client, serInfo)
+	return gw.serManager.addServer(client, &register)
 }
-
 
 func (gw *gateway) Stop() error {
 	return nil
+}
+
+func (gw *gateway) routeCliMessage(client defines.ITcpClient, message *proto.Message) {
+	cmd := message.Cmd
+	if cmd >= proto.CmdRange_Base_S && cmd <= proto.CmdRange_Base_E {
+		gw.handleClientMessage(client, message)
+	} else if cmd >= proto.CmdRange_Gate_S && cmd <= proto.CmdRange_Gate_E {
+		gw.handleClientMessage(client, message)
+	} else if cmd >= proto.CmdRange_Lobby_S && cmd <= proto.CmdRange_Lobby_E {
+		gw.serManager.client2Lobby(client, message)
+	} else if cmd >= proto.CmdRange_Game_S && cmd <= proto.CmdRange_Game_E {
+		gw.serManager.client2game(client, message)
+	}
+}
+
+func (gw *gateway) handleClientMessage(client defines.ITcpClient, message *proto.Message) {
+	switch message.Cmd {
+	default:
+		fmt.Println("invalid client cmd ", message.Cmd, client.GetRemoteAddress())
+	}
 }

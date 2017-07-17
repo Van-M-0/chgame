@@ -27,3 +27,11 @@ func (mgr *cliManager) cliDisconnect(cli defines.ITcpClient) {
 func (mgr *cliManager) cliMsg(cli defines.ITcpClient, m *proto.Message) {
 
 }
+
+func (mgr *cliManager) routeToClient(uid uint32, data []byte) error {
+	return nil
+}
+
+func (mgr *cliManager) bcToClient(uid []uint32, data []byte) error {
+	return nil
+}

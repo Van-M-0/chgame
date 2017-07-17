@@ -4,7 +4,6 @@ import (
 	"net"
 	"exportor/proto"
 	"io"
-	"fmt"
 	"github.com/ugorji/go/codec"
 	"gopkg.in/vmihailenco/msgpack.v2"
 	"encoding/binary"
@@ -17,7 +16,7 @@ type mpCodec struct {
 	header 		[2]byte
 }
 
-func NewServerCodec() *mpCodec {
+func NewMpCodec() *mpCodec {
 	return &mpCodec{
 		decode: new(codec.MsgpackHandle),
 	}
@@ -27,7 +26,7 @@ func (md *mpCodec) Conn(conn net.Conn) {
 	md.conn = conn
 }
 
-func (md *mpCodec) Encode(m *proto.Message) error {
+func (md *mpCodec) EncodeMsg(m *proto.Message) error {
 
 	body, err := msgpack.Marshal(m)
 	if err != nil {
@@ -37,8 +36,8 @@ func (md *mpCodec) Encode(m *proto.Message) error {
 	binary.BigEndian.PutUint16(md.header[:], uint16(len(body)))
 
 	data := make([]byte, len(body) + 2)
-	data = append(data, md.header[0:]...)
-	data = append(data, body[0:]...)
+	copy(data[:2], md.header[:])
+	copy(data[2:], body[:])
 
 	if _, err := md.conn.Write(data); err != nil {
 		return err
@@ -48,7 +47,7 @@ func (md *mpCodec) Encode(m *proto.Message) error {
 }
 
 
-func (md *mpCodec) Decode() (*proto.Message, error) {
+func (md *mpCodec) DecodeMsg() (*proto.Message, error) {
 
 	if _, err := io.ReadFull(md.conn, md.recvBuf[:2]); err != nil {
 		return nil, err
@@ -76,8 +75,10 @@ func (md *mpCodec) Decode() (*proto.Message, error) {
 	return m1, nil
 }
 
-func (md *mpCodec) DecodeRaw(size int) ([]byte, error) {
-	return nil, nil
+func (md *mpCodec) EncodeGate(message *proto.Message) error {
+	return nil
 }
 
-
+func (md *mpCodec) DecodeGate() (*proto.GateGameHeader, error) {
+	return nil, nil
+}

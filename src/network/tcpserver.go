@@ -23,12 +23,10 @@ func newServer(opt *defines.NetServerOption) *tcpServer {
 }
 
 func (server *tcpServer) Start() error {
-
 	l, err := net.Listen("tcp", server.opt.Host)
 	if err != nil {
 		return err
 	}
-
 	defer func() {
 		l.Close()
 	}()
@@ -46,44 +44,32 @@ func (server *tcpServer) Start() error {
 }
 
 func (server *tcpServer) Stop() error {
-
+	return nil
 }
 
 func (server *tcpServer) handleClient(conn net.Conn) {
-
-	client := newTcpClient(nil)
+	client := newTcpClient(&defines.NetClientOption{
+	})
 	client.configureConn(conn)
 
 	defer func() {
 		client.Close()
+		server.opt.CloseCb(client)
 	}()
 
-	if client.opt == nil {
-		client.opt = &defines.NetClientOption{
-			Codec: NewClientCodec(),
-		}
+	server.opt.ConnectCb(client)
+	if server.opt.AuthCb(client) != nil {
+		return
 	}
-
-	if client.opt != nil && client.opt.ConnectCb != nil {
-		client.opt.ConnectCb(client)
-	}
-
-	if client.opt != nil && client.opt.AuthCb != nil {
-		if err := client.opt.AuthCb(client); err != nil {
-			return
-		}
-	}
-
 	go client.sendLoop()
 
 	for {
-		m, err := client.opt.Codec.Decode()
+		m, err := client.readMessage()
 		if err != nil {
 			fmt.Println("decode msg error")
 			continue
 		}
-
-		client.opt.MsgCb(client, m)
+		server.opt.MsgCb(client, m)
 	}
-
 }
+

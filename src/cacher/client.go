@@ -8,6 +8,7 @@ import (
 	"log"
 	"fmt"
 	"exportor/proto"
+	"dbproxy/table"
 )
 
 
@@ -88,8 +89,25 @@ func (cc *cacheClient) GetUserInfo(name string, user *proto.CacheUser) error {
 	return nil
 }
 
-func (cc *cacheClient) GetUserProps(uid uint32, props string) (interface{}, error) {
+func (cc *cacheClient) SetUserInfo(d interface{}, dbRet bool) error {
+	userInfo := d.(*table.T_Users)
 
+	//todo: user int <-> int32
+	cu := &proto.CacheUser{
+		Account: userInfo.Account,
+		Name: userInfo.Name,
+		Uid: int(userInfo.Userid),
+	}
+
+	if _, err := cc.ccConn.Do("HMSET", redis.Args{users(cu.Uid)}.AddFlat(cu)...); err != nil {
+		log.Fatal(err)
+	}
+
+	return nil
+}
+
+func (cc *cacheClient) GetUserProps(uid uint32, props string) (interface{}, error) {
+	return nil, nil
 }
 
 // ICacheLoader

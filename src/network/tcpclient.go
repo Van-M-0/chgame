@@ -2,23 +2,36 @@ package network
 
 import (
 	"exportor/defines"
-	"exportor/proto"
 	"net"
 	"errors"
+	"fmt"
+	"io"
+	"msgpacker"
+	"exportor/proto"
 )
+
+
+type message struct {
+	cmd 	uint32
+	data 	interface{}
+}
 
 type tcpClient struct {
 	netContext
 	id 				uint32
 	conn 			net.Conn
 	opt 			*defines.NetClientOption
-	sendCh			chan *proto.Message
+	sendCh			chan *message
+	headerBuf 		[8]byte
+	packer 			*msgpacker.MsgPacker
+	authed 			bool
 }
 
 func newTcpClient(opt *defines.NetClientOption) *tcpClient {
 	client := &tcpClient{
 		opt: opt,
-		sendCh: make(chan *proto.Message, opt.SendChSize),
+		sendCh: make(chan *message, opt.SendChSize),
+		packer: msgpacker.NewMsgPacker(),
 	}
 	return client
 }
@@ -41,48 +54,82 @@ func (client *tcpClient) Connect() error {
 		return err
 	}
 	client.conn = conn
+	client.opt.ConnectCb(client)
+	if client.opt.AuthCb(client) != nil {
+		client.Close()
+		return errors.New("connect auth error")
+	}
+	client.sendLoop()
+	client.recvLoop()
+
 	return nil
 }
 
 func (client *tcpClient) Close() error {
-	client.opt.CloseCb(client.(&defines.ITcpClient))
+	if client.opt.CloseCb != nil {
+		client.opt.CloseCb(client.(&defines.ITcpClient))
+	}
 	return nil
 }
 
-func (client *tcpClient) Send(m *proto.Message) error {
-	client.sendCh <- m
+
+func (client *tcpClient) Send(cmd uint32, data interface{}) error {
+	client.sendCh <- &message{cmd: cmd, data: data}
 	return nil
-}
-
-func (client *tcpClient) OnMessage(m *proto.Message) {
-
 }
 
 func (client *tcpClient) sendLoop() {
 	for {
 		select {
 		case m:= <- client.sendCh:
-			client.write(m)
+			if raw, err :=client.packer.Pack(m.cmd, m.data); err != nil {
+				client.conn.Write(raw)
+			} else {
+				fmt.Println("send msg error ", m)
+			}
 		}
 	}
 }
 
+func (client *tcpClient) recvLoop() {
+	client.authed = true
+	go func() {
+		for {
+			m, err := client.readMessage()
+			if err != nil {
+				fmt.Println("decode msg error")
+				continue
+			}
+			client.opt.MsgCb(client, m)
+		}
+	}()
+}
+
+func (client *tcpClient) Auth() (*proto.Message, error) {
+	if client.authed {
+		return nil, errors.New("already authed")
+	}
+	return client.readMessage()
+}
+
+func (client *tcpClient) readMessage() (*proto.Message, error) {
+	if _, err := io.ReadFull(client.conn, client.headerBuf[:]); err != nil {
+		return nil, err
+	}
+
+	header, err := client.packer.Unpack(client.headerBuf[:])
+	if err != nil {
+		return nil, err
+	}
+
+	body := make([]byte, header.Len)
+	if _, err := io.ReadFull(client.conn, body[:]); err != nil {
+		return nil, err
+	}
+	header.Msg = body
+	return header, nil
+}
+
 func (client *tcpClient) configureConn(conn net.Conn) {
 	client.conn = conn
-}
-
-
-func (client *tcpClient) write(m *proto.Message) error {
-	if err := client.opt.Codec.Encode(m); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (client *tcpClient) GetCodec() defines.ICodec {
-	return client.opt.Codec
-}
-
-func (client *tcpClient) ActiveRead([]byte, int) error {
-	return errors.New("not implementiond")
 }

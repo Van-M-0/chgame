@@ -21,10 +21,8 @@ type ITcpClient interface {
 	GetRemoteAddress() string
 	Connect() error
 	Close()	error
-	OnMessage(*proto.Message)
-	Send(*proto.Message) error
-	ActiveRead([]byte, int) error
-	GetCodec() ICodec
+	Send(cmd uint32, data interface{}) error
+	Auth()(*proto.Message, error)
 }
 
 type ITcpServer interface {
@@ -39,7 +37,8 @@ type INet interface {
 }
 
 type ICodec interface {
-	Encode(m *proto.Message) error
-	Decode()(*proto.Message, error)
-	DecodeRaw(size int) ([]byte, error)
+	EncodeMsg(message *proto.Message) error
+	DecodeMsg() (*proto.Message, error)
+	EncodeGate(message *proto.Message) error
+	DecodeGate() (*proto.GateGameHeader, error)
 }

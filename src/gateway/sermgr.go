@@ -4,6 +4,8 @@ import (
 	"exportor/proto"
 	"sync"
 	"exportor/defines"
+	"fmt"
+	"msgpacker"
 )
 
 type serverInfo struct {
@@ -35,10 +37,32 @@ func (mgr *serManager) serDisconnected(client defines.ITcpClient) {
 }
 
 func (mgr *serManager) serMessage(client defines.ITcpClient, m *proto.Message) {
-	if m.Magic == proto.MagicDirectionGate {
-		mgr.routeServer(client, m.Cmd, m.Msg)
-	} else if m.Magic == proto.MagicDirectionClient {
-		mgr.routeClient(client, m)
+	if m.Cmd == proto.LobbyRouteClient {
+		header := &proto.LobbyGateHeader{}
+		err := msgpacker.UnMarshal(m.Msg, &header)
+		if err != nil {
+			fmt.Println("unmarshal lobby to client message error ", err)
+		}
+		if len(header.Uids) == 1 {
+
+		} else if len(header.Uids) > 1 {
+
+		}
+	} else if m.Cmd == proto.GameRouteClient {
+		header := &proto.GameGateHeader{}
+		err := msgpacker.UnMarshal(m.Msg, &header)
+		if err != nil {
+			fmt.Println("unmarshal lobby to client message error ", err)
+		}
+		if len(header.Uids) == 1 {
+
+		} else if len(header.Uids) > 1 {
+
+		}
+	} else if m.Cmd == proto.LobbyRouteGate {
+
+	} else if m.Cmd == proto.GameRouteGate {
+
 	}
 }
 
@@ -62,4 +86,38 @@ func (mgr *serManager) routeServer(client defines.ITcpClient, md int, m interfac
 
 func (mgr *serManager) routeClient(client defines.ITcpClient, m *proto.Message) {
 
+}
+
+func (mgr *serManager) client2Lobby(client defines.ITcpClient, message *proto.Message) {
+	lobbyId := client.Get("LobbyId").(uint32)
+	if gameId := client.Get("GameId"); gameId != nil {
+		fmt.Println("client route lobby not allowd")
+		return
+	}
+	lbMessage := &proto.GateLobbyHeader {
+		Uid: client.GetId(),
+		Type: proto.GateMsgTypePlayer,
+		Cmd: message.Cmd,
+		Msg: message.Msg,
+	}
+	if serInfo, ok := mgr.sers[lobbyId]; ok {
+		serInfo.cli.Send(proto.ClientRouteLobby, lbMessage)
+	} else {
+		fmt.Println("game server not alive, or should kick the client")
+	}
+}
+
+func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Message) {
+	gameId := client.Get("GameId").(uint32)
+	gwMessage := &proto.GateGameHeader {
+		Uid: client.GetId(),
+		Type: proto.GateMsgTypePlayer,
+		Cmd: message.Cmd,
+		Msg: message.Msg,
+	}
+	if serInfo, ok := mgr.sers[gameId]; ok {
+		serInfo.cli.Send(proto.ClientRouteGame, gwMessage)
+	} else {
+		fmt.Println("game server not alive, or should kick the client")
+	}
 }

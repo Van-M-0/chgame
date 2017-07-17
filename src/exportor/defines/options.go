@@ -4,10 +4,11 @@ import (
 	"net"
 )
 
+type CodecCreator func() ICodec
 type NetClientOption struct {
 	Host       	string
 	SendChSize 	int
-	Codec      	ICodec
+	//Codec      	ICodec
 	ConnectCb  	ClientConnectCb
 	CloseCb    	ClientCloseCb
 	MsgCb      	ClientMessageCb
@@ -21,7 +22,7 @@ type NetServerOption struct {
 
 	MaxRecvSize int
 	EncryptCode string
-	Codec       ICodec
+	//Codec       CodecCreator
 	ConnectCb   ClientConnectCb
 	CloseCb     ClientCloseCb
 	MsgCb      	ClientMessageCb

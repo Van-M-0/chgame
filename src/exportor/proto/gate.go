@@ -9,7 +9,29 @@ const (
 )
 
 type GateGameHeader struct {
+	//gw header
 	Uid 		uint32
 	Type 		int
-	Msg 		*Message
+	//client message
+	Cmd 		uint32
+	Msg 		[]byte
+}
+
+type GateLobbyHeader struct {
+	Uid			uint32
+	Type 		int
+	Cmd 		uint32
+	Msg 		[]byte
+}
+
+type LobbyGateHeader struct {
+	Uids 		[]uint32
+	Cmd 		uint32
+	Msg 		[]byte
+}
+
+type GameGateHeader struct {
+	Uids 		[]uint32
+	Cmd 		uint32
+	Msg 		[]byte
 }

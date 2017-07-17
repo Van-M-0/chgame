@@ -1,5 +1,5 @@
 package proto
-
+/*
 import (
 	"reflect"
 	"fmt"
@@ -48,3 +48,4 @@ func NewPbMessage(cmd int) (*Message, error) {
 		Msg: reflect.New(t.Elem()).Interface().(proto.Message),
 	}, nil
 }
+*/

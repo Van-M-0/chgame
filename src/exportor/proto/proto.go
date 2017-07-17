@@ -3,33 +3,42 @@ package proto
 import "gameproto/clipb"
 
 // base proto 1 - 500
+// gate way command 501 - 999
+// lobby proto 1000 - 2000
+// game proto 5000 - 6000
+
 const (
-	MagicDirectionGate 			= 1
-	MagicDirectionClient		= 2
+	CmdRange_Base_S 		= 1
+	CmdRange_Base_E 		= 500
+	CmdRange_Gate_S 		= 501
+	CmdRange_Gate_E 		= 1000
+	CmdRange_Lobby_S 		= 1001
+	CmdRange_Lobby_E 		= 2000
+	CmdRange_Game_S 		= 5001
+	CmdRange_Game_E 		= 6000
 )
 
 const (
-	BaseCmdHeader 				= 1
-	BaseCmdRegister2gate 		= 2
+	ClientRouteLobby			= 1
+	GateRouteLobby 				= 1
+
+	ClientRouteGame	 			= 3
+	GateRouteGame			 	= 4
+
+	LobbyRouteGate				= 2
+	GameRouteGate				= 4
+
+	LobbyRouteClient			= 5
+	GameRouteClient 			= 6
 )
+
 
 type Message struct {
-	Cmd   int
-	Magic int
-	Msg   interface{}
+	Len 	uint32
+	Cmd 	uint32
+	Msg 	[]byte
 }
 
 type RegisterServer struct {
 	Type 		string
-}
-
-
-func registerComm() {
-	Register(BaseCmdHeader, (*gameproto.CliMsgHeader)(nil))
-	Register(BaseCmdRegister2gate, (*RegisterServer)(nil))
-}
-
-func init () {
-	registerComm()
-	registerPlayer()
 }

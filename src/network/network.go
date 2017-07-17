@@ -14,6 +14,7 @@ func NewTcpClient(opt *defines.NetClientOption) defines.ITcpClient {
 	return newTcpClient(opt)
 }
 
+/*
 func NewClientCodec() defines.ICodec {
 	return codec.NewClientCodec()
 }
@@ -21,3 +22,9 @@ func NewClientCodec() defines.ICodec {
 func NewServerCodec() defines.ICodec {
 	return codec.NewServerCodec()
 }
+*/
+
+func NewClientCodec() defines.ICodec {
+	return codec.NewMpCodec()
+}
+

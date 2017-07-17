@@ -10,6 +10,9 @@ type IGateway interface {
 	IServer
 }
 
+type ILobby interface {
+	IServer
+}
 
 type CommunicatorCb func([]byte)
 type ICommunicatorClient interface {
