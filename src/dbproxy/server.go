@@ -42,7 +42,7 @@ type dbProxyServer struct {
 	chNotifyChannel 	chan *notifyChannel
 }
 
-func newDbProxyServer() *dbProxyServer {
+func newDBProxyServer() *dbProxyServer {
 	return &dbProxyServer{
 		cacheClient: cacher.NewCacheClient("dbproxy"),
 		commClient:  communicator.NewCommunicator(nil),
