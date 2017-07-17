@@ -7,6 +7,7 @@ import (
 	"exportor/proto"
 	"gopkg.in/vmihailenco/msgpack.v2"
 	"fmt"
+	"dbproxy/table"
 )
 
 
@@ -80,7 +81,7 @@ func (ds *dbProxyServer) handleNotify() {
 		case n := <- ds.chNotify:
 			switch n.cmd {
 			case castProxyLoadUser:
-				var userInfo proto.T_Users
+				var userInfo table.T_Users
 				ret := ds.dbClient.GetUserInfo(n.i.(*proto.ProxyLoadUserInfo).Name, &userInfo)
 				ds.chResNotify <- func() {
 					err := ds.cacheClient.SetUserInfo(&userInfo, ret)
