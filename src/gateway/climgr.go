@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"exportor/network"
 	"exportor/proto"
 	"exportor/defines"
 )

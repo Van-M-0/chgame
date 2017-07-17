@@ -1,5 +1,6 @@
 package main
 
+/*
 import (
 	"exportor/proto"
 	"gopkg.in/vmihailenco/msgpack.v2"
@@ -75,3 +76,4 @@ func testproto2() {
 	fmt.Println(a2)
 
 }
+*/

@@ -1,7 +1,6 @@
 package gateway
 
 import (
-	"exportor/server"
 	"exportor/defines"
 )
 

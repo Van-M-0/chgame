@@ -11,24 +11,29 @@ import (
 type lobby struct {
 	gwClient 		defines.ITcpClient
 	playerMgr 		*playerManager
+	opt 			*defines.LobbyOption
 }
 
-func newLobby() *lobby {
+func newLobby(option *defines.LobbyOption) *lobby {
 	return &lobby{
+		opt: option,
 		playerMgr: newPlayerManager(),
-		gw
 	}
 }
 
 func (lb *lobby) Start() error {
 
 	lb.gwClient = network.NewTcpClient(&defines.NetClientOption{
-		Host: ":8899",
+		Host: lb.opt.GwHost,
 		ConnectCb: func (client defines.ITcpClient) error {
+			fmt.Println("connect gate succcess, send auth info")
+			client.Send(proto.CmdRegisterServer, &proto.RegisterServer{
+				Type: "lobby",
+			})
 			return nil
 		},
 		CloseCb: func (client defines.ITcpClient) {
-
+			fmt.Println("closed gate success")
 		},
 		AuthCb: func (client defines.ITcpClient) error {
 			return nil
@@ -38,6 +43,8 @@ func (lb *lobby) Start() error {
 		},
 	})
 	lb.gwClient.Connect()
+
+	lb.playerMgr.setLobby(lb)
 
 	return nil
 }
@@ -71,6 +78,15 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 	}
 }
 
-func (lb *lobby) playerRouteGate(uid uint32, data interface{}) {
-
+func (lb *lobby) send2player(cmd uint32, uid uint32, data interface{}) {
+	body, err := msgpacker.Marshal(data)
+	if err != nil {
+		return
+	}
+	header := &proto.LobbyGateHeader{
+		Uids: []uint32{uid},
+		Cmd: cmd,
+		Msg: body,
+	}
+	lb.gwClient.Send(proto.LobbyRouteClient, &header)
 }

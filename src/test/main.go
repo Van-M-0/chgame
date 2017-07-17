@@ -1,16 +1,13 @@
 package main
 
 import (
-	"github.com/golang/protobuf/proto"
 	"fmt"
-	"gameproto/clipb"
-	myproto "exportor/proto"
 	"gopkg.in/vmihailenco/msgpack.v2"
 	"net"
 	"encoding/binary"
 	"io"
 )
-
+/*
 func testpb() {
 	p := &gameproto.Person{}
 
@@ -45,7 +42,7 @@ func testpb() {
 	}
 	fmt.Println("new message ", i)
 }
-
+*/
 /*
 func testmsg() {
 
@@ -87,6 +84,8 @@ func testmsg() {
 
 }
 */
+
+/*
 func testmessage() {
 
 	type hello struct {
@@ -114,6 +113,7 @@ func testmessage() {
 	fmt.Println("fsdfsd ------", m1.Msg)
 
 }
+*/
 
 func main() {
 	//testmessage()
@@ -128,8 +128,9 @@ func main() {
 	//testCommunicator()
 	//prototest()
 
-	testproto2()
+	//testproto2()
 
+	start_test()
 }
 
 
@@ -194,7 +195,7 @@ func send1(conn net.Conn) {
 		Slice 		[]string
 	}
 
-	myproto.Register(1222, (*simple2)(nil))
+	//myproto.Register(1222, (*simple2)(nil))
 
 	s2 := &simple2{
 		Arr: [3]int{123, 456, 789},
@@ -243,6 +244,7 @@ func send1(conn net.Conn) {
 	*/
 }
 
+/*
 func codec1(msg []byte) {
 	type simple struct {
 		I 		int
@@ -267,8 +269,8 @@ func codec1(msg []byte) {
 func codec2(msg []byte) {
 
 }
-
+*/
 
 func codecClient(msg []byte) {
-	codec1(msg)
+	//codec1(msg)
 }

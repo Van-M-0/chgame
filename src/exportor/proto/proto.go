@@ -1,7 +1,5 @@
 package proto
 
-import "gameproto/clipb"
-
 // base proto 1 - 500
 // gate way command 501 - 999
 // lobby proto 1000 - 2000
@@ -32,6 +30,9 @@ const (
 	GameRouteClient 			= 6
 )
 
+const (
+	CmdRegisterServer 			= 100
+)
 
 type Message struct {
 	Len 	uint32
@@ -41,4 +42,5 @@ type Message struct {
 
 type RegisterServer struct {
 	Type 		string
+
 }

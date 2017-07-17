@@ -4,7 +4,6 @@ import (
 	"exportor/defines"
 	net "network"
 	"exportor/proto"
-	"errors"
 	"msgpacker"
 	"fmt"
 )
@@ -32,13 +31,14 @@ func (gw *gateway) Start() error {
 	gw.fserver = net.NewTcpServer(&defines.NetServerOption{
 		Host: gw.option.FrontHost,
 		ConnectCb: func(client defines.ITcpClient) error {
-			client.GetRemoteAddress()
+			fmt.Println("client conect ", client.GetRemoteAddress())
 			return nil
 		},
 		CloseCb: func(client defines.ITcpClient) {
 			gw.cliManger.cliDisconnect(client)
 		},
 		MsgCb: func(client defines.ITcpClient, m *proto.Message) {
+			fmt.Println("handle client message ", m)
 			gw.routeCliMessage(client, m)
 		},
 		AuthCb: func(client defines.ITcpClient) error {
@@ -46,31 +46,33 @@ func (gw *gateway) Start() error {
 		},
 	})
 
-	if err := gw.fserver.Start(); err != nil {
-		return err
-	}
+	go func() {
+		err := gw.fserver.Start()
+		fmt.Println("fs server start ", err)
+	}()
 
 	gw.bserver = net.NewTcpServer(&defines.NetServerOption{
 		Host: gw.option.BackHost,
 		ConnectCb: func(client defines.ITcpClient) error {
+			fmt.Println("server connection connected")
 			return nil
 		},
 		CloseCb: func(client defines.ITcpClient) {
 			gw.serManager.serDisconnected(client)
 		},
 		MsgCb: func(client defines.ITcpClient, m *proto.Message) {
+			fmt.Println("handle bs server message ", m)
 			gw.serManager.serMessage(client, m)
 		},
 		AuthCb: func(client defines.ITcpClient) error {
-			gw.authServer(client)
-			return nil
+			return gw.authServer(client)
 		},
 	})
 
-	if err := gw.bserver.Start(); err != nil {
-		return err
-	}
-
+	func() {
+		err := gw.bserver.Start()
+		fmt.Println("bs server start ", err)
+	}()
 
 	return nil
 }

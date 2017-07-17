@@ -8,7 +8,6 @@ type CodecCreator func() ICodec
 type NetClientOption struct {
 	Host       	string
 	SendChSize 	int
-	//Codec      	ICodec
 	ConnectCb  	ClientConnectCb
 	CloseCb    	ClientCloseCb
 	MsgCb      	ClientMessageCb
@@ -22,7 +21,6 @@ type NetServerOption struct {
 
 	MaxRecvSize int
 	EncryptCode string
-	//Codec       CodecCreator
 	ConnectCb   ClientConnectCb
 	CloseCb     ClientCloseCb
 	MsgCb      	ClientMessageCb
@@ -35,6 +33,10 @@ type GatewayOption struct {
 	MaxClient   int
 
 	BackHost 	string
+}
+
+type LobbyOption struct {
+	GwHost 		string
 }
 
 type CommunicatorOption struct {

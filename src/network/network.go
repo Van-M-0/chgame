@@ -2,8 +2,7 @@ package network
 
 import (
 	"exportor/defines"
-	"exportor/network"
-	"network/codec"
+	//"network/codec"
 )
 
 func NewTcpServer(opt *defines.NetServerOption) defines.ITcpServer {
@@ -25,6 +24,7 @@ func NewServerCodec() defines.ICodec {
 */
 
 func NewClientCodec() defines.ICodec {
-	return codec.NewMpCodec()
+	//return codec.NewMpCodec()
+	return nil
 }
 

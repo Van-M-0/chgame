@@ -1,12 +1,8 @@
 package codec
-
+/*
 import (
 	"net"
 	"exportor/proto"
-	"io"
-	"github.com/ugorji/go/codec"
-	"gopkg.in/vmihailenco/msgpack.v2"
-	"encoding/binary"
 )
 
 type mpCodec struct {
@@ -27,7 +23,7 @@ func (md *mpCodec) Conn(conn net.Conn) {
 }
 
 func (md *mpCodec) EncodeMsg(m *proto.Message) error {
-
+/*
 	body, err := msgpack.Marshal(m)
 	if err != nil {
 		return err
@@ -42,13 +38,11 @@ func (md *mpCodec) EncodeMsg(m *proto.Message) error {
 	if _, err := md.conn.Write(data); err != nil {
 		return err
 	}
-
 	return nil
 }
 
 
 func (md *mpCodec) DecodeMsg() (*proto.Message, error) {
-
 	if _, err := io.ReadFull(md.conn, md.recvBuf[:2]); err != nil {
 		return nil, err
 	}
@@ -82,3 +76,4 @@ func (md *mpCodec) EncodeGate(message *proto.Message) error {
 func (md *mpCodec) DecodeGate() (*proto.GateGameHeader, error) {
 	return nil, nil
 }
+*/

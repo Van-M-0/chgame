@@ -2,7 +2,7 @@ package lobby
 
 import "exportor/defines"
 
-func NewLobby() defines.ILobby {
-	return newLobby()
+func NewLobby(option *defines.LobbyOption) defines.ILobby {
+	return newLobby(option)
 }
 

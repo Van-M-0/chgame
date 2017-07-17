@@ -1,5 +1,5 @@
 package codec
-
+/*
 import (
 	"github.com/golang/protobuf/proto"
 	myproto "exportor/proto"
@@ -29,7 +29,7 @@ func NewClientCodec() *protoCodec {
 }
 
 func (pd *protoCodec) Encode(m *myproto.Message) error {
-
+/*
 	body, err := proto.Marshal(m.Msg.(proto.Message))
 	if err != nil {
 		return nil
@@ -58,7 +58,6 @@ func (pd *protoCodec) Encode(m *myproto.Message) error {
 }
 
 func (pd *protoCodec) Decode() (*myproto.Message, error) {
-
 	if _, err := io.ReadFull(pd.conn, pd.recvBuf[:2]); err != nil {
 		return err
 	}
@@ -82,9 +81,11 @@ func (pd *protoCodec) Decode() (*myproto.Message, error) {
 		Magic: "pb",
 		Msg:   myproto.NewPbMessage(pd.dcliHeader.Cmd),
 	}, nil
+	return nil, nil
 }
 
 func (pd *protoCodec) DecodeRaw(size int) ([]byte, error) {
 
 	return nil, nil
 }
+*/

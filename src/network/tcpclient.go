@@ -51,15 +51,17 @@ func (client *tcpClient) GetRemoteAddress() string {
 func (client *tcpClient) Connect() error {
 	conn, err := net.Dial("tcp", client.opt.Host)
 	if err != nil {
+		fmt.Println("connect error", err)
 		return err
 	}
+	fmt.Println("connect addr ", client.opt.Host)
 	client.conn = conn
 	client.opt.ConnectCb(client)
 	if client.opt.AuthCb(client) != nil {
 		client.Close()
 		return errors.New("connect auth error")
 	}
-	client.sendLoop()
+	go client.sendLoop()
 	client.recvLoop()
 
 	return nil
@@ -67,21 +69,24 @@ func (client *tcpClient) Connect() error {
 
 func (client *tcpClient) Close() error {
 	if client.opt.CloseCb != nil {
-		client.opt.CloseCb(client.(&defines.ITcpClient))
+		client.opt.CloseCb(client)
 	}
 	return nil
 }
 
 
 func (client *tcpClient) Send(cmd uint32, data interface{}) error {
+	fmt.Println("send message 1", cmd, data)
 	client.sendCh <- &message{cmd: cmd, data: data}
 	return nil
 }
 
 func (client *tcpClient) sendLoop() {
+	fmt.Println("client send loop error 1")
 	for {
 		select {
 		case m:= <- client.sendCh:
+			fmt.Println("send message 2", m)
 			if raw, err :=client.packer.Pack(m.cmd, m.data); err != nil {
 				client.conn.Write(raw)
 			} else {
@@ -89,6 +94,7 @@ func (client *tcpClient) sendLoop() {
 			}
 		}
 	}
+	fmt.Println("client send loop error")
 }
 
 func (client *tcpClient) recvLoop() {
@@ -113,6 +119,7 @@ func (client *tcpClient) Auth() (*proto.Message, error) {
 }
 
 func (client *tcpClient) readMessage() (*proto.Message, error) {
+	fmt.Println("client recv message ")
 	if _, err := io.ReadFull(client.conn, client.headerBuf[:]); err != nil {
 		return nil, err
 	}

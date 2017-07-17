@@ -40,8 +40,5 @@ type RoomDestroyMsg struct {
 
 }
 
-func registerPlayer() {
-	Register(GameCmdPlayerLogin, (*PlayerLogin)(nil))
-}
 
 

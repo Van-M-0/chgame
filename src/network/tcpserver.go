@@ -3,7 +3,6 @@ package network
 import (
 	"exportor/defines"
 	"net"
-	"tools"
 	"fmt"
 )
 
@@ -31,16 +30,20 @@ func (server *tcpServer) Start() error {
 		l.Close()
 	}()
 
-	for {
-		conn, err := l.Accept()
-		if err != nil {
-			continue
+		for {
+			fmt.Println("server start ", server.opt.Host)
+			conn, err := l.Accept()
+			fmt.Println("server start ", server.opt.Host, conn, err)
+			if err != nil {
+				continue
+			}
+
+			go func() {
+				server.handleClient(conn)
+			}()
 		}
 
-		tools.SafeGo(func() {
-			server.handleClient(conn)
-		})
-	}
+	return nil
 }
 
 func (server *tcpServer) Stop() error {
@@ -48,6 +51,7 @@ func (server *tcpServer) Stop() error {
 }
 
 func (server *tcpServer) handleClient(conn net.Conn) {
+	fmt.Println("handle client ", conn)
 	client := newTcpClient(&defines.NetClientOption{
 	})
 	client.configureConn(conn)
