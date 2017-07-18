@@ -1,7 +1,14 @@
 package defines
 
 const (
-	ErrPlayerLoginSucess 		= 1
-	ErrPlayerLoginErr			= 2
-	ErrPlayerLoginCache 		= 3
+	ErrPlayerLoginSuccess = 0
+	ErrPlayerLoginErr     = 2
+	ErrPlayerLoginCache   = 3
+)
+
+// lobby
+const (
+	ErrClientLoginSuccess = 0
+	ErrClientLoginWait 	  = 1
+
 )

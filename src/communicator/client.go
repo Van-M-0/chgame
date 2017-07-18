@@ -55,6 +55,33 @@ func (cm *communicator) JoinChanel(chanel string, reg bool, t int, cb defines.Co
 	return nil
 }
 
+func (cm *communicator) WaitChannel(channel string, t int) ([] byte, error) {
+	c, err := cm.connectServer()
+	if err != nil {
+		return nil, err
+	}
+
+	psc := redis.PubSubConn{Conn:c}
+	psc.Subscribe(channel)
+
+	select {
+		case <- time.After(time.Duration(t) * time.Second):
+			fmt.Println("time out for channel ", channel)
+			return nil, nil
+		case msg := psc.Receive():
+		switch n := msg.(type) {
+			case redis.Message:
+				fmt.Printf("Message: %s %s\n", n.Channel, n.Data)
+				return n.Data, nil
+			case error:
+				fmt.Printf("error: %v\n", n)
+				return nil, n
+		}
+	}
+
+	return nil, nil
+}
+
 func (cm *communicator) connectServer() (redis.Conn, error) {
 	conn, err := redis.Dial("tcp", ":6379", redis.DialReadTimeout(1*time.Second), redis.DialWriteTimeout(1*time.Second))
 	if err != nil {

@@ -119,7 +119,7 @@ func (sm *sceneManager) onGwPlayerLogin(uid uint32, cmd uint32, data []byte) {
 	}
 	sm.playerMgr.addPlayer(player)
 
-	sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode: defines.ErrPlayerLoginSucess})
+	sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode: defines.ErrPlayerLoginSuccess})
 }
 
 func (sm *sceneManager) onGwPlayerLogout(uid uint32, cmd uint32, data []byte) {

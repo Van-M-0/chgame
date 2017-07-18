@@ -6,11 +6,18 @@ import (
 	"sync"
 	"cacher"
 	"communicator"
+	"os/user"
 )
 
 type userInfo struct {
 	uid 		uint32
 	userId 		uint32
+	openid 		string
+	account 	string
+	name 		string
+	headimg 	string
+	diamond 	int
+	gold 		int64
 }
 
 type userManager struct {
@@ -48,33 +55,75 @@ func (um *userManager) getUser(uid uint32) *userInfo {
 	}
 }
 
-func (um *userManager) addUser(uid uint32, user *proto.CacheUser) {
-
+func (um *userManager) addUser(uid uint32, cu *proto.CacheUser) *userInfo {
+	user := &userInfo{
+		account: cu.Account,
+		name: cu.Name,
+		uid: uid,
+		userId: uint32(cu.Uid),
+		gold: cu.Gold,
+	}
+	um.userLock.Lock()
+	um.users[uid]=user
+	um.userLock.Unlock()
+	return user
 }
 
 func (um *userManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin) {
 	p := um.getUser(uid)
+	var cacheUser proto.CacheUser
+
+	ccErr := func() {
+		um.lb.send2player(uid, proto.CmdClientLoginRet, &proto.ClientLoginRet{ErrCode: defines.ErrClientLoginWait})
+	}
+
+	timeOut := func() {
+		um.lb.send2player(uid, proto.CmdClientLoginRet, &proto.ClientLoginRet{ErrCode: defines.ErrClientLoginWait})
+	}
+
+	replaySuc := func(user *userInfo) {
+		um.lb.send2player(uid, proto.CmdClientLoginRet, &proto.ClientLoginRet{
+			Account: user.account,
+			Name: user.name,
+			UserId: user.userId,
+		})
+	}
+
+	gotUser := func() {
+		user := um.addUser(uid, &cacheUser)
+		replaySuc(user)
+	}
+
+	userIn := func() {
+		user := um.getUser(uid)
+		replaySuc(user)
+	}
+
 	if p == nil {
-		var cacheUser proto.CacheUser
 		if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
+			ccErr()
 			return
 		}
 		if cacheUser.Uid != 0 {
-
+			gotUser()
 		} else {
 			um.com.Notify(defines.ChannelLoadUser, login.Account)
-			um.com.JoinChanel(defines.ChannelLoadUserFinish, false, defines.WaitChannelInfinite, func(data []byte) {
-
-			})
+			d, err := um.com.WaitChannel(defines.ChannelLoadUserFinish, defines.WaitChannelNormal)
+			if err != nil {
+				ccErr()
+			} else if d == nil {
+				timeOut()
+			} else if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
+				if cacheUser.Uid != 0 {
+					gotUser()
+				} else {
+					ccErr()
+				}
+			}
 		}
 	} else {
+		userIn()
 	}
-
-	um.lb.send2player(uid, proto.CmdClientLoginRet, &proto.ClientLoginRet{
-		Account: "hello",
-		Name: "test",
-		UserId: 123123,
-	})
 }
 
 

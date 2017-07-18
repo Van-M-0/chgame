@@ -23,6 +23,7 @@ type CommunicatorCb func([]byte)
 type ICommunicatorClient interface {
 	Notify(chanel string, v ...interface{})	error
 	JoinChanel(chanel string, reg bool, time int, cb CommunicatorCb) error
+	WaitChannel(channel string, time int) ([] byte, error)
 }
 
 type ICacheNotify interface {
