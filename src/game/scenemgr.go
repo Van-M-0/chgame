@@ -105,6 +105,20 @@ func (sm *sceneManager) onGwPlayerLogin(uid uint32, cmd uint32, data []byte) {
 		return
 	}
 
+	player := &playerInfo{
+		uid: uid,
+		userId: uint32(user.Uid),
+		openid: user.Openid,
+		headimg: user.HeadImg,
+		name: user.Name,
+		account: user.Account,
+		diamond: user.Diamond,
+		gold: user.Gold,
+		roomcard: user.RoomCard,
+		sex: user.Sex,
+	}
+	sm.playerMgr.addPlayer(player)
+
 	sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode: defines.ErrPlayerLoginSucess})
 }
 

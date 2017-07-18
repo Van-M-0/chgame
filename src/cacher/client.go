@@ -65,22 +65,22 @@ func (cc *cacheClient) SetCacheNotify(notify defines.ICacheNotify) {
 
 }
 
-func (cc *cacheClient) GetUserId(name string) (uint32,error) {
-	id, err := redis.Int(cc.ccConn.Do("hget", accountId(name)))
+func (cc *cacheClient) GetUserId(account string) (uint32,error) {
+	id, err := redis.Int(cc.ccConn.Do("hget", accountId(account)))
 	return uint32(id), err
 }
 
-func (cc *cacheClient) GetUserInfo(name string, user *proto.CacheUser) error {
+func (cc *cacheClient) GetUserInfo(account string, user *proto.CacheUser) error {
 
-	uid, err := cc.GetUserId(name)
+	uid, err := cc.GetUserId(account)
 	if err != nil {
-		fmt.Println("get user id error", name)
+		fmt.Println("get user id error", account)
 		return err
 	}
 
 	values, err := redis.Values(cc.ccConn.Do("HGETALL", users(int(uid))))
 	if err != nil {
-		fmt.Println("get user info error", name, uid)
+		fmt.Println("get user info error", account, uid)
 		return err
 	}
 

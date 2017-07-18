@@ -12,16 +12,14 @@ import (
 type gameServer struct {
 	opt 			*defines.GameOption
 	gwClient 		defines.ITcpClient
-	cmClient 		defines.ICommunicatorClient
 	scmgr 			*sceneManager
 }
 
 func newGameServer(option *defines.GameOption) *gameServer {
-	return &gameServer{
-		opt: option,
-		cmClient: communicator.NewCommunicator(nil),
-		scmgr: newSceneManager(),
-	}
+	gs := &gameServer{}
+	gs.opt = option
+	gs.scmgr = newSceneManager(gs)
+	return gs
 }
 
 func (gs *gameServer) Start() error {

@@ -10,14 +10,16 @@ import (
 
 type lobby struct {
 	gwClient 		defines.ITcpClient
-	playerMgr 		*playerManager
+	userMgr 		*userManager
 	opt 			*defines.LobbyOption
+	processor 		*userProcessorManager
 }
 
 func newLobby(option *defines.LobbyOption) *lobby {
 	return &lobby{
 		opt: option,
-		playerMgr: newPlayerManager(),
+		userMgr: newUserManager(),
+		processor: newUserProcessorMgr(),
 	}
 }
 
@@ -44,7 +46,7 @@ func (lb *lobby) Start() error {
 	})
 	lb.gwClient.Connect()
 
-	lb.playerMgr.setLobby(lb)
+	lb.userMgr.setLobby(lb)
 
 	return nil
 }
@@ -61,7 +63,9 @@ func (lb *lobby) onGwMessage(message *proto.Message) {
 			fmt.Println("unmarshal client route lobby header error")
 			return
 		}
-		lb.handleClientMessage(header.Uid, header.Cmd, header.Msg)
+		lb.processor.process(header.Uid, func() {
+			lb.handleClientMessage(header.Uid, header.Cmd, header.Msg)
+		})
 	} else if message.Cmd == proto.GateRouteLobby {
 
 	}
@@ -72,8 +76,9 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 	case proto.CmdClientLogin:
 		var login proto.ClientLogin
 		if err := msgpacker.UnMarshal(data, &login); err == nil {
-			lb.playerMgr.handlePlayerLogin(uid, &login)
+			return
 		}
+		lb.userMgr.handlePlayerLogin(uid, &login)
 	default:
 		fmt.Println("lobby handle invalid client cmd ", cmd)
 	}

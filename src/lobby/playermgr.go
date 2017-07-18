@@ -3,31 +3,73 @@ package lobby
 import (
 	"exportor/proto"
 	"exportor/defines"
+	"sync"
+	"cacher"
+	"communicator"
 )
 
-type player struct {
+type userInfo struct {
 	uid 		uint32
 	userId 		uint32
 }
 
-type playerManager struct {
+type userManager struct {
 	gwClient 		defines.ITcpClient
 	lb 				*lobby
+	userLock 		sync.RWMutex
+	users 			map[uint32]*userInfo
+
+	cc 				defines.ICacheClient
+	com 			defines.ICommunicatorClient
 }
 
-func newPlayerManager() *playerManager {
-	return &playerManager{}
+func newUserManager() *userManager {
+	return &userManager{
+		cc: cacher.NewCacheClient("lobby"),
+		com: communicator.NewCommunicator(&defines.CommunicatorOption{
+			Host: ":6379",
+			ReadTimeout: 1,
+			WriteTimeout: 1,
+		}),
+	}
 }
 
-func (pm *playerManager) setLobby(lb *lobby) {
-	pm.lb = lb
+func (um *userManager) setLobby(lb *lobby) {
+	um.lb = lb
 }
 
-func (pm *playerManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin) {
-	pm.lb.send2player(uid, proto.CmdClientLoginRet, &proto.ClientLoginRet{
+func (um *userManager) getUser(uid uint32) *userInfo {
+	um.userLock.Lock()
+	defer um.userLock.Unlock()
+
+	if user, ok := um.users[uid]; !ok {
+		return nil
+	} else {
+		return user
+	}
+}
+
+func (um *userManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin) {
+	p := um.getUser(uid)
+	if p == nil {
+		var cacheUser proto.CacheUser
+		if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
+			return
+		}
+		if cacheUser.Uid != 0 {
+
+		} else {
+
+		}
+	} else {
+
+	}
+
+	um.lb.send2player(uid, proto.CmdClientLoginRet, &proto.ClientLoginRet{
 		Account: "hello",
 		Name: "test",
-		UserId: 1000212,
+		UserId: 123123,
 	})
 }
+
 
