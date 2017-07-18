@@ -70,8 +70,8 @@ func (server *tcpServer) handleClient(conn net.Conn) {
 	for {
 		m, err := client.readMessage()
 		if err != nil {
-			fmt.Println("decode msg error")
-			continue
+			fmt.Println("decode msg error", err)
+			return
 		}
 		server.opt.MsgCb(client, m)
 	}

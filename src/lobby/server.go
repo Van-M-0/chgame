@@ -54,6 +54,7 @@ func (lb *lobby) Stop() error {
 }
 
 func (lb *lobby) onGwMessage(message *proto.Message) {
+	fmt.Println("lobby on gw message ", message)
 	if message.Cmd == proto.ClientRouteLobby {
 		var header proto.GateLobbyHeader
 		if err := msgpacker.UnMarshal(message.Msg, &header); err != nil {
@@ -78,7 +79,7 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 	}
 }
 
-func (lb *lobby) send2player(cmd uint32, uid uint32, data interface{}) {
+func (lb *lobby) send2player(uid uint32, cmd uint32, data interface{}) {
 	body, err := msgpacker.Marshal(data)
 	if err != nil {
 		return
@@ -88,5 +89,6 @@ func (lb *lobby) send2player(cmd uint32, uid uint32, data interface{}) {
 		Cmd: cmd,
 		Msg: body,
 	}
+	fmt.Println("lobby send 2 player ", header)
 	lb.gwClient.Send(proto.LobbyRouteClient, &header)
 }

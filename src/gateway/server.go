@@ -19,11 +19,11 @@ type gateway struct {
 }
 
 func NewGateServer(opt *defines.GatewayOption) *gateway {
-	return &gateway{
-		option: opt,
-		cliManger: newCliManager(),
-		serManager: newSerManager(),
-	}
+	gateway := &gateway{}
+	gateway.option = opt
+	gateway.cliManger = newCliManager()
+	gateway.serManager = newSerManager(gateway)
+	return gateway
 }
 
 func (gw *gateway) Start() error {
@@ -78,7 +78,7 @@ func (gw *gateway) Start() error {
 }
 
 func (gw *gateway) authClient(client defines.ITcpClient) error {
-
+	gw.cliManger.cliConnect(client)
 	return nil
 }
 
@@ -88,6 +88,8 @@ func (gw *gateway) authServer(client defines.ITcpClient) error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("auth server ", m)
 
 	var register proto.RegisterServer
 	if msgpacker.UnMarshal(m.Msg, &register) != nil {
@@ -120,3 +122,12 @@ func (gw *gateway) handleClientMessage(client defines.ITcpClient, message *proto
 		fmt.Println("invalid client cmd ", message.Cmd, client.GetRemoteAddress())
 	}
 }
+
+func (gw *gateway) lobbyRoute2client(uids []uint32, cmd uint32, data []byte) {
+	gw.cliManger.route2client(uids, cmd, data)
+}
+
+func (gw *gateway) gameRoute2client(uids []uint32, cmd uint32, data []byte) {
+	gw.cliManger.route2client(uids, cmd, data)
+}
+

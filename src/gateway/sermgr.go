@@ -18,11 +18,15 @@ type serManager struct {
 	sync.RWMutex
 	idGen 		uint32
 	sers 		map[uint32]*serverInfo
+
+	gateway 	*gateway
+	lobbyId 	uint32
 }
 
-func newSerManager() *serManager {
+func newSerManager(gateway *gateway) *serManager {
 	return &serManager{
 		sers: make(map[uint32]*serverInfo),
+		gateway: gateway,
 	}
 }
 
@@ -37,28 +41,21 @@ func (mgr *serManager) serDisconnected(client defines.ITcpClient) {
 }
 
 func (mgr *serManager) serMessage(client defines.ITcpClient, m *proto.Message) {
+	fmt.Println("handle lobby message ", m)
 	if m.Cmd == proto.LobbyRouteClient {
 		header := &proto.LobbyGateHeader{}
 		err := msgpacker.UnMarshal(m.Msg, &header)
 		if err != nil {
 			fmt.Println("unmarshal lobby to client message error ", err)
 		}
-		if len(header.Uids) == 1 {
-
-		} else if len(header.Uids) > 1 {
-
-		}
+		mgr.gateway.lobbyRoute2client(header.Uids, header.Cmd, header.Msg)
 	} else if m.Cmd == proto.GameRouteClient {
 		header := &proto.GameGateHeader{}
 		err := msgpacker.UnMarshal(m.Msg, &header)
 		if err != nil {
 			fmt.Println("unmarshal lobby to client message error ", err)
 		}
-		if len(header.Uids) == 1 {
-
-		} else if len(header.Uids) > 1 {
-
-		}
+		mgr.gateway.gameRoute2client(header.Uids, header.Cmd, header.Msg)
 	} else if m.Cmd == proto.LobbyRouteGate {
 
 	} else if m.Cmd == proto.GameRouteGate {
@@ -77,6 +74,12 @@ func (mgr *serManager) addServer(client defines.ITcpClient, m *proto.RegisterSer
 		cli: client,
 	}
 	client.Id(mgr.idGen)
+
+	if m.Type == "lobby" {
+		mgr.lobbyId = mgr.idGen
+	}
+
+	fmt.Println("add server ... ", mgr.sers)
 	return nil
 }
 
@@ -89,7 +92,6 @@ func (mgr *serManager) routeClient(client defines.ITcpClient, m *proto.Message) 
 }
 
 func (mgr *serManager) client2Lobby(client defines.ITcpClient, message *proto.Message) {
-	lobbyId := client.Get("LobbyId").(uint32)
 	if gameId := client.Get("GameId"); gameId != nil {
 		fmt.Println("client route lobby not allowd")
 		return
@@ -100,7 +102,7 @@ func (mgr *serManager) client2Lobby(client defines.ITcpClient, message *proto.Me
 		Cmd: message.Cmd,
 		Msg: message.Msg,
 	}
-	if serInfo, ok := mgr.sers[lobbyId]; ok {
+	if serInfo, ok := mgr.sers[mgr.lobbyId]; ok {
 		serInfo.cli.Send(proto.ClientRouteLobby, lbMessage)
 	} else {
 		fmt.Println("game server not alive, or should kick the client")

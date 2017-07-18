@@ -30,7 +30,7 @@ type tcpClient struct {
 func newTcpClient(opt *defines.NetClientOption) *tcpClient {
 	client := &tcpClient{
 		opt: opt,
-		sendCh: make(chan *message, opt.SendChSize),
+		sendCh: make(chan *message, 1024),
 		packer: msgpacker.NewMsgPacker(),
 	}
 	return client
@@ -78,6 +78,7 @@ func (client *tcpClient) Close() error {
 func (client *tcpClient) Send(cmd uint32, data interface{}) error {
 	fmt.Println("send message 1", cmd, data)
 	client.sendCh <- &message{cmd: cmd, data: data}
+	fmt.Println("send message 2", cmd, data)
 	return nil
 }
 
@@ -88,9 +89,10 @@ func (client *tcpClient) sendLoop() {
 		case m:= <- client.sendCh:
 			fmt.Println("send message 2", m)
 			if raw, err :=client.packer.Pack(m.cmd, m.data); err != nil {
-				client.conn.Write(raw)
+				fmt.Println("send msg error ", m, err)
 			} else {
-				fmt.Println("send msg error ", m)
+				fmt.Println("send message 2", raw)
+				client.conn.Write(raw)
 			}
 		}
 	}
@@ -103,9 +105,10 @@ func (client *tcpClient) recvLoop() {
 		for {
 			m, err := client.readMessage()
 			if err != nil {
-				fmt.Println("decode msg error")
+				fmt.Println("client recv lopp decode msg error")
 				continue
 			}
+			fmt.Println("callcb ", m)
 			client.opt.MsgCb(client, m)
 		}
 	}()
@@ -124,16 +127,19 @@ func (client *tcpClient) readMessage() (*proto.Message, error) {
 		return nil, err
 	}
 
+	fmt.Println("client recv message headerBuf ", client.headerBuf)
 	header, err := client.packer.Unpack(client.headerBuf[:])
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Println("client recv message header ", header)
 	body := make([]byte, header.Len)
 	if _, err := io.ReadFull(client.conn, body[:]); err != nil {
 		return nil, err
 	}
 	header.Msg = body
+	fmt.Println("client recv message finish", header)
 	return header, nil
 }
 

@@ -7,6 +7,7 @@ import (
 	"network"
 	"exportor/proto"
 	"fmt"
+	"msgpacker"
 )
 
 func StartGate() {
@@ -21,7 +22,6 @@ func StartLobby() {
 	lobby.NewLobby(&defines.LobbyOption{
 		GwHost: ":9891",
 	}).Start()
-
 }
 
 func StartClient() {
@@ -34,7 +34,14 @@ func StartClient() {
 
 		},
 		MsgCb: func(client defines.ITcpClient, message *proto.Message) {
-			fmt.Println("recv message ", message)
+			if message.Cmd == proto.CmdClientLoginRet {
+				var loginRet proto.ClientLoginRet
+				err := msgpacker.UnMarshal(message.Msg, &loginRet)
+				fmt.Println("recv message ", loginRet, err)
+			}
+		},
+		AuthCb: func(defines.ITcpClient) error {
+			return nil
 		},
 	})
 
