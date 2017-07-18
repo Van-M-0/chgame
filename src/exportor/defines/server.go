@@ -22,7 +22,7 @@ type IGame interface {
 type CommunicatorCb func([]byte)
 type ICommunicatorClient interface {
 	Notify(chanel string, v ...interface{})	error
-	JoinChanel(chanel string, reg bool, cb CommunicatorCb) error
+	JoinChanel(chanel string, reg bool, time int, cb CommunicatorCb) error
 }
 
 type ICacheNotify interface {

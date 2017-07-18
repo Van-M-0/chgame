@@ -17,7 +17,7 @@ func newCommunicator(opt *defines.CommunicatorOption) *communicator {
 	}
 }
 
-func (cm *communicator) JoinChanel(chanel string, reg bool, cb defines.CommunicatorCb) error {
+func (cm *communicator) JoinChanel(chanel string, reg bool, time int, cb defines.CommunicatorCb) error {
 	c, err := cm.connectServer()
 	if err != nil {
 		return err
@@ -72,7 +72,7 @@ func (cm *communicator) Notify(chanel string, value ... interface{}) error {
 		}
 		defer c.Close()
 		r, err := c.Do("PUBLISH", chanel, value)
-	fmt.Println("notify ... ", r, err)
+		fmt.Println("notify ... ", r, err)
 		if err != nil {
 			return err
 		}

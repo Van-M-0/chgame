@@ -41,12 +41,15 @@ func (um *userManager) setLobby(lb *lobby) {
 func (um *userManager) getUser(uid uint32) *userInfo {
 	um.userLock.Lock()
 	defer um.userLock.Unlock()
-
 	if user, ok := um.users[uid]; !ok {
 		return nil
 	} else {
 		return user
 	}
+}
+
+func (um *userManager) addUser(uid uint32, user *proto.CacheUser) {
+
 }
 
 func (um *userManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin) {
@@ -59,7 +62,7 @@ func (um *userManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin) {
 		if cacheUser.Uid != 0 {
 
 		} else {
-
+			um.com.Notify("loadUser", login.Account)
 		}
 	} else {
 

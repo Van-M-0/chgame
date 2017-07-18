@@ -28,10 +28,10 @@ func testCommunicator() {
 	c := communicator.NewCommunicator(&defines.CommunicatorOption{
 
 	})
-	c.JoinChanel("hello", false, func(data []byte) {
+	c.JoinChanel("hello", false, defines.WaitChannelInfinite, func(data []byte) {
 		fmt.Println("hello channel ", data, string(data))
 	})
-	c.JoinChanel("h*", true, func(data []byte) {
+	c.JoinChanel("h*", true, defines.WaitChannelInfinite, func(data []byte) {
 		fmt.Println("hello channel ", string(data))
 	})
 

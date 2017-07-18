@@ -42,7 +42,7 @@ func (cc *cacheClient) Start() error {
 		log.Fatalln("connect cache server err :", err)
 	}
 
-	cc.communicator.JoinChanel("dbLoadFinishChannel", false, func(data []byte) {
+	cc.communicator.JoinChanel("dbLoadFinishChannel", false, defines.WaitChannelInfinite, func(data []byte) {
 		cc.channelNotify <- data
 	})
 

@@ -34,7 +34,7 @@ func newSceneManager(gs *gameServer) *sceneManager {
 func (sm *sceneManager) start() {
 	sm.cc.Start()
 
-	sm.com.JoinChanel("loadUserFinish", false, func(data []byte) {
+	sm.com.JoinChanel("loadUserFinish", false, defines.WaitChannelInfinite, func(data []byte) {
 
 	})
 
