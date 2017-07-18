@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"msgpacker"
 	"game"
+	"dbproxy"
 )
 
 func StartGate() {
@@ -30,6 +31,11 @@ func StartGame() {
 		GwHost: ":9891",
 	}).Start()
 }
+
+func StartDbProxy() {
+	dbproxy.NewDbProxy().Start()
+}
+
 
 func StartClient() {
 	c := network.NewTcpClient(&defines.NetClientOption{

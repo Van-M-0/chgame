@@ -26,6 +26,9 @@ func newUserProcessorMgr() *userProcessorManager {
 	upm.wg = new(sync.WaitGroup)
 	upm.size = 255
 	upm.processor = make([]chan *handlerTask, upm.size)
+	for i := 0; i < upm.size; i++ {
+		upm.processor[i] = make(chan *handlerTask, 10)
+	}
 	return upm
 }
 

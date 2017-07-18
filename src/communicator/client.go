@@ -30,28 +30,33 @@ func (cm *communicator) JoinChanel(chanel string, reg bool, t int, cb defines.Co
 		psc.Subscribe(chanel)
 	}
 
-	read := func() {
+	read := func() chan []byte {
+		var chRead chan []byte
+		switch n := psc.Receive().(type) {
+		case redis.Message:
+			fmt.Printf("Message: %s %s\n", n.Channel, n.Data)
+			chRead <- n.Data
+		//case redis.PMessage:
+		//	fmt.Printf("PMessage: %s %s %s\n", n.Pattern, n.Channel, n.Data)
+		//case redis.Subscription:
+		//	fmt.Printf("Subscription: %s %s %d\n", n.Kind, n.Channel, n.Count)
+		case error:
+			fmt.Printf("error: %v\n", n)
+		}
+		return chRead
+	}
+
+	wait := func() {
 		select {
 		case <- time.After(time.Duration(t) * time.Second):
 			fmt.Println("time out for channel ", chanel)
 			cb(nil)
-		case msg := psc.Receive():
-			switch n := msg.(type) {
-			case redis.Message:
-				fmt.Printf("Message: %s %s\n", n.Channel, n.Data)
-				cb(n.Data)
-			case redis.PMessage:
-				fmt.Printf("PMessage: %s %s %s\n", n.Pattern, n.Channel, n.Data)
-			case redis.Subscription:
-				fmt.Printf("Subscription: %s %s %d\n", n.Kind, n.Channel, n.Count)
-			case error:
-				fmt.Printf("error: %v\n", n)
-				return
-			}
+		case d := <- read():
+			cb(d)
 		}
 	}
 
-	read()
+	wait()
 	return nil
 }
 
@@ -64,19 +69,24 @@ func (cm *communicator) WaitChannel(channel string, t int) ([] byte, error) {
 	psc := redis.PubSubConn{Conn:c}
 	psc.Subscribe(channel)
 
+	read := func() chan []byte {
+		var r chan []byte
+		switch n := psc.Receive().(type) {
+		case redis.Message:
+			fmt.Printf("Message: %s %s\n", n.Channel, n.Data)
+			r <- n.Data
+		case error:
+			fmt.Printf("error: %v\n", n)
+		}
+		return r
+	}
+
 	select {
 		case <- time.After(time.Duration(t) * time.Second):
 			fmt.Println("time out for channel ", channel)
 			return nil, nil
-		case msg := psc.Receive():
-		switch n := msg.(type) {
-			case redis.Message:
-				fmt.Printf("Message: %s %s\n", n.Channel, n.Data)
-				return n.Data, nil
-			case error:
-				fmt.Printf("error: %v\n", n)
-				return nil, n
-		}
+		case d := <- read():
+			return d, nil
 	}
 
 	return nil, nil

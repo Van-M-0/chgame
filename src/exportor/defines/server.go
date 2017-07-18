@@ -19,6 +19,10 @@ type IGame interface {
 	IServer
 }
 
+type IDbProxy interface {
+	IServer
+}
+
 type CommunicatorCb func([]byte)
 type ICommunicatorClient interface {
 	Notify(chanel string, v ...interface{})	error

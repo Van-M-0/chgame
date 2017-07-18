@@ -45,19 +45,24 @@ type dbProxyServer struct {
 func newDBProxyServer() *dbProxyServer {
 	return &dbProxyServer{
 		cacheClient: cacher.NewCacheClient("dbproxy"),
-		commClient:  communicator.NewCommunicator(nil),
+		commClient:  communicator.NewCommunicator(&defines.CommunicatorOption{
+			Host: ":6379",
+			ReadTimeout: 1,
+			WriteTimeout: 1,
+		}),
 		chNotify:    make(chan *notifier, 4096),
 		chResNotify: make(chan func(), 4096),
 	}
 }
 
-func (ds *dbProxyServer) Start() {
+func (ds *dbProxyServer) Start() error {
 	ds.handleNotify()
 	ds.handleNotifyRes()
+	return nil
 }
 
-func (ds *dbProxyServer) Stop() {
-
+func (ds *dbProxyServer) Stop() error {
+	return nil
 }
 
 func (ds *dbProxyServer) joinChannel() {

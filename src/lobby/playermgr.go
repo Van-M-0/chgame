@@ -6,7 +6,6 @@ import (
 	"sync"
 	"cacher"
 	"communicator"
-	"os/user"
 )
 
 type userInfo struct {

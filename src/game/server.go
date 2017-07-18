@@ -4,7 +4,6 @@ import (
 	"exportor/defines"
 	"exportor/proto"
 	"network"
-	"communicator"
 	"fmt"
 	"msgpacker"
 )
