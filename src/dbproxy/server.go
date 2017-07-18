@@ -61,7 +61,7 @@ func (ds *dbProxyServer) Stop() {
 }
 
 func (ds *dbProxyServer) joinChannel() {
-	ds.commClient.JoinChanel("loadUser", false, defines.WaitChannelInfinite, func(d []byte) {
+	ds.commClient.JoinChanel(defines.ChannelLoadUser, false, defines.WaitChannelInfinite, func(d []byte) {
 		m := ds.deserilize(castProxyLoadUser, d)
 		if m != nil {
 			ds.chNotify <- &notifier{cmd: castProxyLoadUser, i: m.(*proto.NotifyRequest).Req}
@@ -70,7 +70,7 @@ func (ds *dbProxyServer) joinChannel() {
 		}
 	})
 
-	ds.commClient.JoinChanel("createAccount", false, defines.WaitChannelInfinite, func(d []byte) {
+	ds.commClient.JoinChanel(defines.ChannelCreateAccount, false, defines.WaitChannelInfinite, func(d []byte) {
 
 	})
 }
@@ -89,7 +89,7 @@ func (ds *dbProxyServer) handleNotify() {
 						Err: err,
 						Res: &userInfo,
 					})
-					ds.commClient.Notify("loadUserFinish", d)
+					ds.commClient.Notify(defines.ChannelLoadUserFinish, d)
 				}
 			}
 		}

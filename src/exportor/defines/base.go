@@ -1,6 +1,12 @@
 package defines
 
 const (
-	WaitChannelInfinite      = -1
+	WaitChannelInfinite      = 0
 	WaitChannelNormal		 = 5
+)
+
+const (
+	ChannelLoadUser 		= "loadUser"
+	ChannelLoadUserFinish	= "loadUserFinish"
+	ChannelCreateAccount 	= "createAccount"
 )

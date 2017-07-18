@@ -17,7 +17,7 @@ func newCommunicator(opt *defines.CommunicatorOption) *communicator {
 	}
 }
 
-func (cm *communicator) JoinChanel(chanel string, reg bool, time int, cb defines.CommunicatorCb) error {
+func (cm *communicator) JoinChanel(chanel string, reg bool, t int, cb defines.CommunicatorCb) error {
 	c, err := cm.connectServer()
 	if err != nil {
 		return err
@@ -30,14 +30,13 @@ func (cm *communicator) JoinChanel(chanel string, reg bool, time int, cb defines
 		psc.Subscribe(chanel)
 	}
 
-	go func() {
-		defer func() {
-			fmt.Println("psc close ", chanel)
-			psc.Close()
-		}()
-
-		for {
-			switch n := psc.Receive().(type) {
+	read := func() {
+		select {
+		case <- time.After(time.Duration(t) * time.Second):
+			fmt.Println("time out for channel ", chanel)
+			cb(nil)
+		case msg := psc.Receive():
+			switch n := msg.(type) {
 			case redis.Message:
 				fmt.Printf("Message: %s %s\n", n.Channel, n.Data)
 				cb(n.Data)
@@ -50,8 +49,9 @@ func (cm *communicator) JoinChanel(chanel string, reg bool, time int, cb defines
 				return
 			}
 		}
-	}()
+	}
 
+	read()
 	return nil
 }
 

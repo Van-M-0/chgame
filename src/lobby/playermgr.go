@@ -62,10 +62,12 @@ func (um *userManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin) {
 		if cacheUser.Uid != 0 {
 
 		} else {
-			um.com.Notify("loadUser", login.Account)
+			um.com.Notify(defines.ChannelLoadUser, login.Account)
+			um.com.JoinChanel(defines.ChannelLoadUserFinish, false, defines.WaitChannelInfinite, func(data []byte) {
+
+			})
 		}
 	} else {
-
 	}
 
 	um.lb.send2player(uid, proto.CmdClientLoginRet, &proto.ClientLoginRet{
