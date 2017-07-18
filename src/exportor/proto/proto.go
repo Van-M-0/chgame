@@ -42,5 +42,4 @@ type Message struct {
 
 type RegisterServer struct {
 	Type 		string
-
 }

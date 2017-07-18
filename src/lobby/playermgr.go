@@ -27,6 +27,7 @@ func (pm *playerManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin)
 	pm.lb.send2player(uid, proto.CmdClientLoginRet, &proto.ClientLoginRet{
 		Account: "hello",
 		Name: "test",
+		UserId: 1000212,
 	})
 }
 

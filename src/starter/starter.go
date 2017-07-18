@@ -8,6 +8,7 @@ import (
 	"exportor/proto"
 	"fmt"
 	"msgpacker"
+	"game"
 )
 
 func StartGate() {
@@ -24,6 +25,12 @@ func StartLobby() {
 	}).Start()
 }
 
+func StartGame() {
+	game.NewGameServer(&defines.GameOption{
+		GwHost: ":9891",
+	}).Start()
+}
+
 func StartClient() {
 	c := network.NewTcpClient(&defines.NetClientOption{
 		Host: ":9890",
@@ -36,7 +43,10 @@ func StartClient() {
 		MsgCb: func(client defines.ITcpClient, message *proto.Message) {
 			if message.Cmd == proto.CmdClientLoginRet {
 				var loginRet proto.ClientLoginRet
-				err := msgpacker.UnMarshal(message.Msg, &loginRet)
+				var origin []byte
+				err := msgpacker.UnMarshal(message.Msg, &origin)
+				fmt.Println("origin ", origin)
+				msgpacker.UnMarshal(origin, &loginRet)
 				fmt.Println("recv message ", loginRet, err)
 			}
 		},

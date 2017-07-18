@@ -36,7 +36,7 @@ func (cc *cacheClient) connectCacheServer() error {
 	return nil
 }
 
-func (cc *cacheClient) Start() {
+func (cc *cacheClient) Start() error {
 
 	if err := cc.connectCacheServer(); err != nil {
 		log.Fatalln("connect cache server err :", err)
@@ -52,10 +52,12 @@ func (cc *cacheClient) Start() {
 			fmt.Println("d isl", d)
 		}
 	}()
+
+	return nil
 }
 
-func (cc *cacheClient) Stop() {
-
+func (cc *cacheClient) Stop() error {
+	return nil
 }
 
 // ICacheClient
@@ -89,6 +91,20 @@ func (cc *cacheClient) GetUserInfo(name string, user *proto.CacheUser) error {
 	return nil
 }
 
+func (cc *cacheClient) GetUserInfoById(uid uint32, user *proto.CacheUser) error {
+	values, err := redis.Values(cc.ccConn.Do("HGETALL", users(int(uid))))
+	if err != nil {
+		fmt.Println("get user info error", uid)
+		return err
+	}
+
+	if err := redis.ScanStruct(values, user); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (cc *cacheClient) SetUserInfo(d interface{}, dbRet bool) error {
 	userInfo := d.(*table.T_Users)
 
@@ -106,8 +122,5 @@ func (cc *cacheClient) SetUserInfo(d interface{}, dbRet bool) error {
 	return nil
 }
 
-func (cc *cacheClient) GetUserProps(uid uint32, props string) (interface{}, error) {
-	return nil, nil
-}
 
 // ICacheLoader

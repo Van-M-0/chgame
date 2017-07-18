@@ -39,6 +39,10 @@ type LobbyOption struct {
 	GwHost 		string
 }
 
+type GameOption struct {
+	GwHost 		string
+}
+
 type CommunicatorOption struct {
 	Host 			string
 	ReadTimeout 	int

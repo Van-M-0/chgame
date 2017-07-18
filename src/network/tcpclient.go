@@ -87,11 +87,11 @@ func (client *tcpClient) sendLoop() {
 	for {
 		select {
 		case m:= <- client.sendCh:
-			fmt.Println("send message 2", m)
+			fmt.Println("send message 2 --------------->", m)
 			if raw, err :=client.packer.Pack(m.cmd, m.data); err != nil {
 				fmt.Println("send msg error ", m, err)
 			} else {
-				fmt.Println("send message 2", raw)
+				fmt.Println("send message 2 --------------____>", raw)
 				client.conn.Write(raw)
 			}
 		}

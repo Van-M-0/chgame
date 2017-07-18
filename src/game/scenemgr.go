@@ -3,22 +3,41 @@ package game
 import (
 	"exportor/proto"
 	"fmt"
-	"reflect"
+	"msgpacker"
+	"exportor/defines"
+	"cacher"
+	"communicator"
 )
 
 type sceneManager struct {
 	playerMgr 		*playerManager
 	roomMgr 		*roomManager
+	gameServer 		*gameServer
+	cc 				defines.ICacheClient
+	com 			defines.ICommunicatorClient
 }
 
-func newSceneManager() *sceneManager {
+func newSceneManager(gs *gameServer) *sceneManager {
 	return &sceneManager{
 		playerMgr: newPlayerManager(),
 		roomMgr: newRoomManager(),
+		gameServer: gs,
+		cc: cacher.NewCacheClient("game"),
+		com: communicator.NewCommunicator(&defines.CommunicatorOption{
+			Host: ":6379",
+			ReadTimeout: 1,
+			WriteTimeout: 1,
+		}),
 	}
 }
 
-func (sm *sceneManager) init() {
+func (sm *sceneManager) start() {
+	sm.cc.Start()
+
+	sm.com.JoinChanel("loadUserFinish", false, func(data []byte) {
+
+	})
+
 
 }
 
@@ -31,40 +50,12 @@ func (sm *sceneManager) freeScene() {
 }
 
 func (sm *sceneManager) onGwMessage(message *proto.GateGameHeader) {
-	if message.Type == proto.GateMsgTypePlayer {
-		sm.onGwServerMessage(message.Msg)
-	} else if message.Type == proto.GateMsgTypeServer {
-		sm.onGwPlayerMessage(message.Uid, message.Msg)
+	if message.Cmd == proto.ClientRouteGame {
+		sm.onGwPlayerMessage(message.Uid, message.Cmd, message.Msg)
+	} else if message.Cmd == proto.GateRouteGame {
+		sm.onGwServerMessage(message.Cmd, message.Msg)
 	} else {
-		fmt.Println("gate way msg direction error ", message.Type)
-	}
-}
-
-func (sm *sceneManager) onGwServerMessage(message *proto.Message) {
-
-}
-
-func checkMessage(message *proto.Message) bool {
-	m, err := proto.NewRawMessage(message.Cmd)
-	if err != nil {
-		return false
-	}
-	if reflect.TypeOf(m) != reflect.Type(message.Msg) {
-		return false
-	}
-	return true
-}
-
-func (sm *sceneManager) onGwPlayerMessage(uid uint32, message *proto.Message) {
-	if !checkMessage(message) {
-		fmt.Println("gate way cast message error ", message.Cmd)
-		return
-	}
-	switch message.Cmd {
-	case proto.GameCmdPlayerLogin:
-		sm.playerLogin(message.Msg.(*proto.PlayerLogin))
-	default:
-		fmt.Println("gate way player message error ", message.Cmd)
+		fmt.Println("gate way msg direction error ", message)
 	}
 }
 
@@ -72,37 +63,55 @@ func (sm *sceneManager) onCommunicatorMessage(message *proto.Message) {
 
 }
 
-func (sm *sceneManager) SendMessage(uid uint32, message *proto.Message) {
-
-}
-
-func (sm *sceneManager) BroadcastMessage(uid []uint32, message *proto.Message) {
-
-}
-
 func (sm *sceneManager) RouteMessage(channel string, message *proto.Message) {
 
 }
 
-func (sm *sceneManager) playerLogin(message *proto.PlayerLogin) {
+func (sm *sceneManager) SendMessage(uid uint32, cmd uint32, data interface{}) {
+	sm.gameServer.send2players([]uint32{uid}, cmd, data)
 }
 
-func (sm *sceneManager) playerLeave(message *proto.PlayerLeaveMsg) {
-
+func (sm *sceneManager) BroadcastMessage(uids []uint32, cmd uint32, data interface{}) {
+	sm.gameServer.send2players(uids, cmd, data)
 }
 
-func (sm *sceneManager) playerOffline(message *proto.PlayerOfflineMsg) {
-
-}
-
-func (sm *sceneManager) playerMessage(message *proto.Message) {
+func (sm *sceneManager) onGwServerMessage(cmd uint32, data []byte) {
 
 }
 
-func (sm *sceneManager) roomCreate(message *proto.RoomCreateMsg) {
+func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
+	switch cmd {
+	case proto.CmdGamePlayerLogin:
+		sm.onGwPlayerLogin(uid, cmd, data)
+	default:
+		fmt.Println("gate way player message error ", cmd)
+	}
+}
+
+func (sm *sceneManager) onGwPlayerLogin(uid uint32, cmd uint32, data []byte) {
+	var playerLogin proto.PlayerLogin
+	if err := msgpacker.UnMarshal(data, &playerLogin); err != nil {
+		return
+	}
+
+	var user proto.CacheUser
+	if err := sm.cc.GetUserInfoById(uid, &user); err != nil {
+		sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode: defines.ErrPlayerLoginErr})
+		return
+	}
+
+	if user.Uid == 0 {
+		sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode: defines.ErrPlayerLoginCache})
+		return
+	}
+
+	sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode: defines.ErrPlayerLoginSucess})
+}
+
+func (sm *sceneManager) onGwPlayerLogout(uid uint32, cmd uint32, data []byte) {
 
 }
 
-func (sm *sceneManager) roomDestroy(message *proto.RoomDestroyMsg) {
+func (sm *sceneManager) onGwPlayerOffline(uid uint32, cmd uint32, data []byte) {
 
 }

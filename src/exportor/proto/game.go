@@ -2,14 +2,15 @@ package proto
 
 // game proto 5000 - 6000
 const (
-	GameCmdPlayerLogin		= 5000
+	CmdGamePlayerLogin = 5000
 )
 
 type PlayerLogin struct {
 	Uid 		uint32
-	Name 		string
-	headImg 	string
-	Ip 			string
+}
+
+type PlayerLoginRet struct {
+	ErrCode 	int
 }
 
 type XzRoomConf struct {
