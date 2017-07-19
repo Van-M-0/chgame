@@ -37,5 +37,5 @@ func testCommunicator() {
 
 	time.Sleep(10*time.Millisecond)
 
-	c.Notify("hello", "aaa", "bbb")
+	//c.Notify("hello", "aaa", "bbb")
 }

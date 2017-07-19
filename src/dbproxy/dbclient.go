@@ -8,6 +8,7 @@ import (
 	"dbproxy/table"
 )
 
+//CREATE DATABASE IF NOT EXISTS mygame default charset utf8 COLLATE utf8_general_ci;
 type dbClient struct {
 	opt 		*defines.DatabaseOption
 	db 			*gorm.DB

@@ -123,14 +123,14 @@ func main() {
 
 	//send1(nil)
 	//testredis()
-	//testps()
+	testps()
 
 	//testCommunicator()
 	//prototest()
 
 	//testproto2()
 
-	start_test()
+	//start_test()
 }
 
 

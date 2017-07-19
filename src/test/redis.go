@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"sync"
 	"fmt"
+	"gopkg.in/vmihailenco/msgpack.v2"
 )
 
 type Conf struct {
@@ -54,6 +55,15 @@ func testredis() {
 	}
 }
 
+func publishm(channel string, args ...interface{}) {
+	c, err := redis.Dial("tcp", ":6379")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer c.Close()
+	c.Do("PUBLISH", channel, args)
+}
 
 func publish(channel, value interface{}) {
 	c, err := redis.Dial("tcp", ":6379")
@@ -87,6 +97,10 @@ func testps() {
 			switch n := psc.Receive().(type) {
 			case redis.Message:
 				fmt.Printf("Message: %s %s\n", n.Channel, n.Data)
+
+				var str error
+				msgpack.Unmarshal(n.Data, &str)
+				fmt.Println(str)
 			case redis.PMessage:
 				fmt.Printf("PMessage: %s %s %s\n", n.Pattern, n.Channel, n.Data)
 			case redis.Subscription:
@@ -110,10 +124,13 @@ func testps() {
 
 		// The following function calls publish a message using another
 		// connection to the Redis server.
-		publish("example", "hello")
-		publish("example", "world")
-		publish("pexample", "foo")
-		publish("pexample", "bar")
+		type A struct {
+			A1 int
+			Str string
+		}
+		dat, _ := msgpack.Marshal(nil)
+		publish("example",  dat)
+
 
 		// Unsubscribe from all connections. This will cause the receiving
 		// goroutine to exit.

@@ -5,6 +5,7 @@ import (
 	"exportor/defines"
 	"time"
 	"fmt"
+	"gopkg.in/vmihailenco/msgpack.v2"
 )
 
 type communicator struct {
@@ -100,7 +101,7 @@ func (cm *communicator) connectServer() (redis.Conn, error) {
 	return conn, nil
 }
 
-func (cm *communicator) Notify(chanel string, value ... interface{}) error {
+func (cm *communicator) Notify(chanel string, value interface{}) error {
 	//go func() {
 		c, err := cm.connectServer()
 		if err != nil {
@@ -108,7 +109,11 @@ func (cm *communicator) Notify(chanel string, value ... interface{}) error {
 			return nil
 		}
 		defer c.Close()
-		r, err := c.Do("PUBLISH", chanel, value)
+		d, err := msgpack.Marshal(value)
+		if err != nil {
+			return err
+		}
+		r, err := c.Do("PUBLISH", chanel, d)
 		fmt.Println("notify ... ", r, err)
 		if err != nil {
 			return err

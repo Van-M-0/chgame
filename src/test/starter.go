@@ -33,6 +33,8 @@ func start_test() {
 		starter.StartLobby()
 	} else if p == "gate" {
 		starter.StartGate()
+	} else if p == "proxy" {
+		starter.StartDbProxy()
 	}
 
 	wg := new(sync.WaitGroup)
