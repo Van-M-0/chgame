@@ -1,3 +1,5 @@
+//go:binary-only-package
+
 package network
 
 import (

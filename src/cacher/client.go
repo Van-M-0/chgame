@@ -2,7 +2,6 @@ package cacher
 
 import (
 	"exportor/defines"
-	"communicator"
 	"github.com/garyburd/redigo/redis"
 	"time"
 	"log"
@@ -22,7 +21,7 @@ type cacheClient struct {
 func newCacheClient(gr string) *cacheClient {
 	return &cacheClient{
 		group:         gr,
-		communicator:  communicator.NewCommunicator(nil),
+		//communicator:  communicator.NewCommunicator(nil),
 		channelNotify: make(chan interface{}),
 	}
 }
@@ -42,9 +41,11 @@ func (cc *cacheClient) Start() error {
 		log.Fatalln("connect cache server err :", err)
 	}
 
+	/*
 	cc.communicator.JoinChanel("dbLoadFinishChannel", false, defines.WaitChannelInfinite, func(data []byte) {
 		cc.channelNotify <- data
 	})
+	*/
 
 	go func() {
 		select {
@@ -60,25 +61,32 @@ func (cc *cacheClient) Stop() error {
 	return nil
 }
 
-// ICacheClient
-func (cc *cacheClient) SetCacheNotify(notify defines.ICacheNotify) {
-
+func (cc *cacheClient) command(commandName string, args ...interface{}) (reply interface{}, err error) {
+	fmt.Println("")
+	fmt.Println("redis command> ", commandName, args)
+	fmt.Println("")
+	return cc.ccConn.Do(commandName, args...)
 }
 
 func (cc *cacheClient) GetUserId(account string) (uint32,error) {
-	id, err := redis.Int(cc.ccConn.Do("hget", accountId(account)))
+	id, err := redis.Int(cc.command("get", accountId(account)))
 	return uint32(id), err
 }
 
 func (cc *cacheClient) GetUserInfo(account string, user *proto.CacheUser) error {
 
 	uid, err := cc.GetUserId(account)
+
+	if err == redis.ErrNil {
+		return nil
+	}
+
 	if err != nil {
-		fmt.Println("get user id error", account)
+		fmt.Println("get user id error", err, account)
 		return err
 	}
 
-	values, err := redis.Values(cc.ccConn.Do("HGETALL", users(int(uid))))
+	values, err := redis.Values(cc.command("HGETALL", users(int(uid))))
 	if err != nil {
 		fmt.Println("get user info error", account, uid)
 		return err
@@ -92,7 +100,7 @@ func (cc *cacheClient) GetUserInfo(account string, user *proto.CacheUser) error 
 }
 
 func (cc *cacheClient) GetUserInfoById(uid uint32, user *proto.CacheUser) error {
-	values, err := redis.Values(cc.ccConn.Do("HGETALL", users(int(uid))))
+	values, err := redis.Values(cc.command("HGETALL", users(int(uid))))
 	if err != nil {
 		fmt.Println("get user info error", uid)
 		return err
@@ -108,6 +116,10 @@ func (cc *cacheClient) GetUserInfoById(uid uint32, user *proto.CacheUser) error 
 func (cc *cacheClient) SetUserInfo(d interface{}, dbRet bool) error {
 	userInfo := d.(*table.T_Users)
 
+	if _, err := cc.command("set", accountId(userInfo.Account), userInfo.Userid); err != nil {
+		fmt.Println("set account info err ", accountId(userInfo.Account), userInfo.Account, userInfo.Userid)
+	}
+
 	//todo: user int <-> int32
 	cu := &proto.CacheUser{
 		Account: userInfo.Account,
@@ -115,7 +127,7 @@ func (cc *cacheClient) SetUserInfo(d interface{}, dbRet bool) error {
 		Uid: int(userInfo.Userid),
 	}
 
-	if _, err := cc.ccConn.Do("HMSET", redis.Args{users(cu.Uid)}.AddFlat(cu)...); err != nil {
+	if _, err := cc.command("hmset", redis.Args{users(cu.Uid)}.AddFlat(cu)...); err != nil {
 		log.Fatal(err)
 	}
 

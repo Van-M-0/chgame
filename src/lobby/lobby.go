@@ -1,3 +1,5 @@
+//go:binary-only-package
+
 package lobby
 
 import "exportor/defines"

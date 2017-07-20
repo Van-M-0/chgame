@@ -123,7 +123,7 @@ func main() {
 
 	//send1(nil)
 	//testredis()
-	testps()
+	//testps()
 
 	//testCommunicator()
 	//prototest()
@@ -131,6 +131,8 @@ func main() {
 	//testproto2()
 
 	//start_test()
+	start_test()
+	//testMq()
 }
 
 
