@@ -61,7 +61,7 @@ func StartClient() {
 			} else if message.Cmd == proto.CmdCreateAccount {
 				var account proto.CreateAccountRet
 				var origin []byte
-				err := msgpacker.UnMarshal(message.Msg, &account)
+				err := msgpacker.UnMarshal(message.Msg, &origin)
 				fmt.Println("origin ", origin)
 				msgpacker.UnMarshal(origin, &account)
 				fmt.Println("recv message ", account, err)
@@ -74,14 +74,17 @@ func StartClient() {
 
 	c.Connect()
 
-	/*
-	c.Send(proto.CmdCreateAccount, &proto.CreateAccount{
-		Name: "你好，hello world",
-		Sex: 1,
-	})
-	*/
+	t := proto.CmdCreateAccount
 
-	c.Send(proto.CmdClientLogin, &proto.ClientLogin{
-		Account: "acc123123",
-	})
+	if t == proto.CmdCreateAccount {
+		c.Send(proto.CmdCreateAccount, &proto.CreateAccount{
+			Name: "你好454，hello world",
+			Sex: 1,
+		})
+	} else if t == proto.CmdClientLogin {
+		c.Send(proto.CmdClientLogin, &proto.ClientLogin{
+			Account: "acc123123",
+		})
+	}
+
 }

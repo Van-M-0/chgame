@@ -39,9 +39,6 @@ func start_test() {
 	p := os.Args[1]
 	fmt.Println("start args ", p)
 
-
-
-
 	if p == "client" {
 		starter.StartClient()
 	} else if p == "lobby" {

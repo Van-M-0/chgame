@@ -29,6 +29,7 @@ func deserilize(channel, key string, data []byte) (interface{}, error) {
 		t := reflect.TypeOf(msg)
 		m := reflect.New(t.Elem()).Interface()
 		if err := msgpack.Unmarshal(data, m); err != nil {
+			fmt.Println("deserilize message error ", key, data)
 			return nil, err
 		} else {
 			return m, nil

@@ -128,7 +128,7 @@ func (um *userManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin) {
 			if d == nil {
 				timeOut()
 			} else {
-				msg, ok := d.(proto.PMLoadUserFinish)
+				msg, ok := d.(*proto.PMLoadUserFinish)
 				if !ok {
 					fmt.Println("cast loadfinish error", msg)
 					ccErr()
@@ -165,7 +165,7 @@ func (um *userManager) handleCreateAccount(uid uint32, account *proto.CreateAcco
 	if d == nil {
 		replyErr(defines.ErrCommonWait)
 	} else {
-		msg, ok := d.(proto.PMCreateAccountFinish)
+		msg, ok := d.(*proto.PMCreateAccountFinish)
 		if !ok {
 			fmt.Println("cast loadfinish error", msg)
 			replyErr(defines.ErrCreateAccountErr)

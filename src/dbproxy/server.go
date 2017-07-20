@@ -8,6 +8,7 @@ import (
 	"dbproxy/table"
 	"fmt"
 	"time"
+	"strconv"
 )
 
 type request struct {
@@ -54,9 +55,11 @@ func (ds *dbProxyServer) Stop() error {
 func (ds *dbProxyServer) getMessageFromBroker () {
 	fmt.Println("get message from broker")
 	getChannelMessage := func(key string) {
-		data := ds.con.GetMessage(defines.ChannelTypeDb, key)
-		fmt.Println("get message ", key, data)
-		ds.chNotify <- &request{cmd: key, i: data}
+		for {
+			data := ds.con.GetMessage(defines.ChannelTypeDb, key)
+			fmt.Println("get message ", key, data)
+			ds.chNotify <- &request{cmd: key, i: data}
+		}
 	}
 
 	go getChannelMessage(defines.ChannelLoadUser)
@@ -103,7 +106,7 @@ func (ds *dbProxyServer) handleCreateAccount(i interface{}) {
 	ret := ds.dbClient.GetUserInfoByName(req.Name, &user)
 	var res proto.PMCreateAccountFinish
 	if !ret {
-		acc := "acc_"+time.Local.String()
+		acc := "acc_" + strconv.Itoa(int(time.Now().Unix()))
 		pwd := "123456"
 		r := ds.dbClient.AddAccountInfo(&table.T_Accounts{
 			Account: acc,
@@ -130,8 +133,8 @@ func (ds *dbProxyServer) handleCreateAccount(i interface{}) {
 	}
 
 	ds.chResNotify <- func() {
-		fmt.Println("create account ret ", ret)
-		ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelCreateAccountFinish, ret)
+		fmt.Println("create account ret ", ret, res)
+		ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelCreateAccountFinish, res)
 	}
 }
 
