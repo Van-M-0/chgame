@@ -6,8 +6,8 @@ import (
 	"sync"
 	"cacher"
 	"communicator"
-	"time"
 	"fmt"
+	"time"
 )
 
 type userInfo struct {
@@ -123,12 +123,12 @@ func (um *userManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin) {
 			fmt.Println("handle palyer wait proxy")
 			um.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelLoadUser, &proto.PMLoadUser{Acc: login.Account})
 			fmt.Println("handle palyer wait proxy 1")
-			d := um.con.WaitMessage(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, defines.WaitChannelNormal*time.Second)
+			d := um.con.WaitMessage(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, defines.WaitChannelNormal * time.Second)
 			fmt.Println("handle palyer wait proxy 2", d)
 			if d == nil {
 				timeOut()
 			} else {
-				msg, ok := d.(*proto.PMLoadUserFinish)
+				msg, ok := d.(proto.PMLoadUserFinish)
 				if !ok {
 					fmt.Println("cast loadfinish error", msg)
 					ccErr()

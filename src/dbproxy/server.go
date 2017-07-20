@@ -5,28 +5,13 @@ import (
 	"cacher"
 	"communicator"
 	"exportor/proto"
-	"gopkg.in/vmihailenco/msgpack.v2"
 	"dbproxy/table"
 	"fmt"
 )
 
-type notifier struct {
+type request struct {
 	cmd 	string
 	i 		interface{}
-}
-
-type dbret struct {
-	cmd 	int
-	ret 	bool
-	i 		interface{}
-}
-
-type saveCache struct {
-
-}
-
-type notifyChannel struct {
-
 }
 
 type dbProxyServer struct {
@@ -35,7 +20,7 @@ type dbProxyServer struct {
 	pub 				defines.IMsgPublisher
 	con 				defines.IMsgConsumer
 	dbClient    		*dbClient
-	chNotify    		chan *notifier
+	chNotify    		chan *request
 	chResNotify 		chan func()
 }
 
@@ -46,7 +31,7 @@ func newDBProxyServer() *dbProxyServer {
 		//com:  communicator.NewCommunicator(),
 		pub: communicator.NewMessagePulisher(),
 		con: communicator.NewMessageConsumer(),
-		chNotify:    make(chan *notifier, 4096),
+		chNotify:    make(chan *request, 4096),
 		chResNotify: make(chan func(), 4096),
 	}
 }
@@ -69,11 +54,11 @@ func (ds *dbProxyServer) getMessageFromBroker () {
 	fmt.Println("get message from broker")
 	getChannelMessage := func(key string) {
 		data := ds.con.GetMessage(defines.ChannelTypeDb, key)
-		ds.chNotify <- &notifier{cmd: key, i: data}
+		fmt.Println("get message ", key, data)
+		ds.chNotify <- &request{cmd: key, i: data}
 	}
 
 	go getChannelMessage(defines.ChannelLoadUser)
-	go getChannelMessage(defines.ChannelCreateAccount)
 }
 
 func (ds *dbProxyServer) handleNotify() {
@@ -87,12 +72,16 @@ func (ds *dbProxyServer) handleNotify() {
 				ret := ds.dbClient.GetUserInfo(req.Acc, &userInfo)
 				fmt.Println(defines.ChannelLoadUser, req, ret)
 				ds.chResNotify <- func() {
-					err := ds.cacheClient.SetUserInfo(&userInfo, ret)
-					d, _ := msgpack.Marshal(&proto.PMLoadUserFinish{
-						Acc: req.Acc,
-						Err: err,
-					})
-					ds.pub.SendPublish(defines.ChannelLoadUserFinish, d)
+					if ret {
+						err := ds.cacheClient.SetUserInfo(&userInfo, ret)
+						ret := &proto.PMLoadUserFinish{Err: err, Code: 1}
+						fmt.Println("load user finish ", ret)
+						ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, ret)
+					} else {
+						ret := &proto.PMLoadUserFinish{Code: -1}
+						fmt.Println("load user finish ", ret)
+						ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, ret)
+					}
 				}
 			}
 		}

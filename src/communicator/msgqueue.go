@@ -66,8 +66,11 @@ func (mp *msgPublisher) Stop() error {
 func (mp *msgPublisher) WaitPublish(channel string, key string, data interface{}) error {
 	msg, err := serilize(key, data)
 	if err != nil {
-		return fmt.Errorf("serilize data err %v %v %v", channel, key, data)
+		err :=fmt.Errorf("serilize data err %v %v %v", channel, channel, data)
+		fmt.Println(err)
+		return err
 	}
+	fmt.Println("PublishDirect publish ", channel, data, msg)
 	_, err = mp.c.PublishDirect(channel, key, msg)
 	return err
 }
@@ -77,6 +80,7 @@ func (mp *msgPublisher) SendPublish(channel string, data interface{}) error {
 	if err != nil {
 		return fmt.Errorf("serilize data err %v %v %v", channel, channel, data)
 	}
+	fmt.Println("fanout publish ", channel, data, msg)
 	_, err = mp.c.PublishFanout(channel, msg)
 	return err
 }

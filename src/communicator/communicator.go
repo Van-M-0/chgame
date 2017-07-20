@@ -19,8 +19,10 @@ func NewCommunicator() defines.ICommunicator {
 
 func NewMessagePulisher() defines.IMsgPublisher {
 	return newMsgPublisher()
+	//return newProduer()
 }
 
 func NewMessageConsumer() defines.IMsgConsumer {
 	return newMsgConsumer()
+	//return newConsumer()
 }

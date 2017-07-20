@@ -7,6 +7,7 @@ type PMLoadUser struct {
 type PMLoadUserFinish struct {
 	Acc 		string
 	Err 		error
+	Code 		int
 }
 
 

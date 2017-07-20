@@ -2,7 +2,7 @@ package defines
 
 const (
 	WaitChannelInfinite      = 0
-	WaitChannelNormal		 = 5
+	WaitChannelNormal		 = 10
 )
 
 const (

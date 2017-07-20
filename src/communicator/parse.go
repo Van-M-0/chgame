@@ -25,7 +25,13 @@ func deserilize(channel, key string, data []byte) (interface{}, error) {
 		}
 		return acc, nil
 	} else if key == defines.ChannelLoadUserFinish {
-
+		var user proto.PMLoadUserFinish
+		err := msgpack.Unmarshal(data, &user)
+		fmt.Println(key, data, err, user)
+		if err != nil {
+			return nil, err
+		}
+		return user, nil
 	}
-	return nil, fmt.Errorf("not this key %v", key )
+	return nil, fmt.Errorf("------------ not this key %v --------------", key )
 }
