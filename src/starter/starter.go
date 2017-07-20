@@ -10,6 +10,7 @@ import (
 	"msgpacker"
 	"game"
 	"dbproxy"
+	"communicator"
 )
 
 func StartGate() {
@@ -36,6 +37,9 @@ func StartDbProxy() {
 	dbproxy.NewDbProxy().Start()
 }
 
+func StartCommunicator() {
+	communicator.NewMessageServer().Start()
+}
 
 func StartClient() {
 	c := network.NewTcpClient(&defines.NetClientOption{
@@ -64,6 +68,6 @@ func StartClient() {
 	c.Connect()
 
 	c.Send(proto.CmdClientLogin, &proto.ClientLogin{
-		Account: "hello world",
+		Account: "acc123123",
 	})
 }

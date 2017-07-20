@@ -6,17 +6,12 @@ import (
 	"communicator"
 	"exportor/proto"
 	"gopkg.in/vmihailenco/msgpack.v2"
-	"fmt"
 	"dbproxy/table"
-)
-
-
-const (
-	castProxyLoadUser = 1
+	"fmt"
 )
 
 type notifier struct {
-	cmd 	int
+	cmd 	string
 	i 		interface{}
 }
 
@@ -36,7 +31,9 @@ type notifyChannel struct {
 
 type dbProxyServer struct {
 	cacheClient 		defines.ICacheClient
-	commClient  		defines.ICommunicatorClient
+	com 				defines.ICommunicator
+	pub 				defines.IMsgPublisher
+	con 				defines.IMsgConsumer
 	dbClient    		*dbClient
 	chNotify    		chan *notifier
 	chResNotify 		chan func()
@@ -44,18 +41,21 @@ type dbProxyServer struct {
 
 func newDBProxyServer() *dbProxyServer {
 	return &dbProxyServer{
+		dbClient: newDbClient(),
 		cacheClient: cacher.NewCacheClient("dbproxy"),
-		commClient:  communicator.NewCommunicator(&defines.CommunicatorOption{
-			Host: ":6379",
-			ReadTimeout: 1,
-			WriteTimeout: 1,
-		}),
+		//com:  communicator.NewCommunicator(),
+		pub: communicator.NewMessagePulisher(),
+		con: communicator.NewMessageConsumer(),
 		chNotify:    make(chan *notifier, 4096),
 		chResNotify: make(chan func(), 4096),
 	}
 }
 
 func (ds *dbProxyServer) Start() error {
+	ds.con.Start()
+	ds.pub.Start()
+	ds.cacheClient.Start()
+	ds.getMessageFromBroker()
 	ds.handleNotify()
 	ds.handleNotifyRes()
 	return nil
@@ -65,19 +65,15 @@ func (ds *dbProxyServer) Stop() error {
 	return nil
 }
 
-func (ds *dbProxyServer) joinChannel() {
-	ds.commClient.JoinChanel(defines.ChannelLoadUser, false, defines.WaitChannelInfinite, func(d []byte) {
-		m := ds.deserilize(castProxyLoadUser, d)
-		if m != nil {
-			ds.chNotify <- &notifier{cmd: castProxyLoadUser, i: m.(*proto.NotifyRequest).Req}
-		} else {
-			fmt.Println("notify : cast loaduser err")
-		}
-	})
+func (ds *dbProxyServer) getMessageFromBroker () {
+	fmt.Println("get message from broker")
+	getChannelMessage := func(key string) {
+		data := ds.con.GetMessage(defines.ChannelTypeDb, key)
+		ds.chNotify <- &notifier{cmd: key, i: data}
+	}
 
-	ds.commClient.JoinChanel(defines.ChannelCreateAccount, false, defines.WaitChannelInfinite, func(d []byte) {
-
-	})
+	go getChannelMessage(defines.ChannelLoadUser)
+	go getChannelMessage(defines.ChannelCreateAccount)
 }
 
 func (ds *dbProxyServer) handleNotify() {
@@ -85,16 +81,18 @@ func (ds *dbProxyServer) handleNotify() {
 		select {
 		case n := <- ds.chNotify:
 			switch n.cmd {
-			case castProxyLoadUser:
+			case defines.ChannelLoadUser:
+				req := n.i.(proto.PMLoadUser)
 				var userInfo table.T_Users
-				ret := ds.dbClient.GetUserInfo(n.i.(*proto.ProxyLoadUserInfo).Name, &userInfo)
+				ret := ds.dbClient.GetUserInfo(req.Acc, &userInfo)
+				fmt.Println(defines.ChannelLoadUser, req, ret)
 				ds.chResNotify <- func() {
 					err := ds.cacheClient.SetUserInfo(&userInfo, ret)
-					d, _ := msgpack.Marshal(&proto.NotifyResponse{
+					d, _ := msgpack.Marshal(&proto.PMLoadUserFinish{
+						Acc: req.Acc,
 						Err: err,
-						Res: &userInfo,
 					})
-					ds.commClient.Notify(defines.ChannelLoadUserFinish, d)
+					ds.pub.SendPublish(defines.ChannelLoadUserFinish, d)
 				}
 			}
 		}
@@ -112,14 +110,3 @@ func (ds *dbProxyServer) handleNotifyRes() {
 	}
 }
 
-func (ds *dbProxyServer) deserilize(cmd int, d []byte) interface{} {
-	var i interface{}
-	if cmd == castProxyLoadUser {
-		i = &proto.ProxyLoadUserInfo{}
-	}
-	err := msgpack.Unmarshal(d, i)
-	if err != nil {
-		return i
-	}
-	return nil
-}

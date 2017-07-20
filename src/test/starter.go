@@ -8,7 +8,7 @@ import (
 )
 
 func start_test() {
-
+	/*
 	type atest struct {
 		d 	[]chan int
 	}
@@ -23,6 +23,7 @@ func start_test() {
 	for i := 0; i < 3; i++ {
 		fmt.Println("chan int ", <- a.d[i])
 	}
+	*/
 
 	p := os.Args[1]
 	fmt.Println("start args ", p)
@@ -33,6 +34,10 @@ func start_test() {
 		starter.StartLobby()
 	} else if p == "gate" {
 		starter.StartGate()
+	} else if p == "broker" {
+		starter.StartCommunicator()
+	} else if p == "proxy" {
+		starter.StartDbProxy()
 	}
 
 	wg := new(sync.WaitGroup)

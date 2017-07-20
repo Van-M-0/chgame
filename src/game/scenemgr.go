@@ -14,7 +14,7 @@ type sceneManager struct {
 	roomMgr 		*roomManager
 	gameServer 		*gameServer
 	cc 				defines.ICacheClient
-	com 			defines.ICommunicatorClient
+	com 			defines.ICommunicator
 }
 
 func newSceneManager(gs *gameServer) *sceneManager {
@@ -23,22 +23,12 @@ func newSceneManager(gs *gameServer) *sceneManager {
 		roomMgr: newRoomManager(),
 		gameServer: gs,
 		cc: cacher.NewCacheClient("game"),
-		com: communicator.NewCommunicator(&defines.CommunicatorOption{
-			Host: ":6379",
-			ReadTimeout: 1,
-			WriteTimeout: 1,
-		}),
+		com: communicator.NewCommunicator(),
 	}
 }
 
 func (sm *sceneManager) start() {
 	sm.cc.Start()
-
-	sm.com.JoinChanel("loadUserFinish", false, defines.WaitChannelInfinite, func(data []byte) {
-
-	})
-
-
 }
 
 func (sm *sceneManager) loadScene() {

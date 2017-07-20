@@ -18,16 +18,16 @@ const (
 
 const (
 	ClientRouteLobby			= 1
-	GateRouteLobby 				= 1
+	GateRouteLobby 				= 2
 
 	ClientRouteGame	 			= 3
 	GateRouteGame			 	= 4
 
-	LobbyRouteGate				= 2
-	GameRouteGate				= 4
+	LobbyRouteGate				= 5
+	GameRouteGate				= 6
 
-	LobbyRouteClient			= 5
-	GameRouteClient 			= 6
+	LobbyRouteClient			= 7
+	GameRouteClient 			= 8
 )
 
 const (

@@ -1,16 +1,12 @@
 package proto
 
-type NotifyRequest struct {
-	Req 		interface{}
+type PMLoadUser struct {
+	Acc 		string
 }
 
-type NotifyResponse struct {
+type PMLoadUserFinish struct {
+	Acc 		string
 	Err 		error
-	Res 		interface{}
-}
-
-type ProxyLoadUserInfo struct{
-	Name 		string
 }
 
 

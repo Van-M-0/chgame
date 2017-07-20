@@ -47,6 +47,7 @@ func (lb *lobby) Start() error {
 	lb.gwClient.Connect()
 
 	lb.userMgr.setLobby(lb)
+	lb.userMgr.start()
 
 	return nil
 }
@@ -63,9 +64,10 @@ func (lb *lobby) onGwMessage(message *proto.Message) {
 			fmt.Println("unmarshal client route lobby header error")
 			return
 		}
-		lb.processor.process(header.Uid, func() {
+		fmt.Println("lobby on gw message 1", header.Cmd, header)
+		//lb.processor.process(header.Uid, func() {
 			lb.handleClientMessage(header.Uid, header.Cmd, header.Msg)
-		})
+		//})
 	} else if message.Cmd == proto.GateRouteLobby {
 
 	}
@@ -75,9 +77,11 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 	switch cmd {
 	case proto.CmdClientLogin:
 		var login proto.ClientLogin
-		if err := msgpacker.UnMarshal(data, &login); err == nil {
+		if err := msgpacker.UnMarshal(data, &login); err != nil {
+			fmt.Println("unmarshal client login errr", err)
 			return
 		}
+		fmt.Println("unmarshal client login", login)
 		lb.userMgr.handlePlayerLogin(uid, &login)
 	default:
 		fmt.Println("lobby handle invalid client cmd ", cmd)

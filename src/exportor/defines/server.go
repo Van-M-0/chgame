@@ -1,6 +1,9 @@
 package defines
 
-import "exportor/proto"
+import (
+	"exportor/proto"
+	"time"
+)
 
 type IServer interface {
 	Start() error
@@ -30,8 +33,23 @@ type ICommunicatorClient interface {
 	WaitChannel(channel string, time int) ([] byte, error)
 }
 
-type ICacheNotify interface {
-	OnProps(category string, data []byte)
+type IMsgPublisher interface {
+	IServer
+	WaitPublish(channel string, key string, data interface{}) error
+	SendPublish(channel string, data interface{}) error
+}
+
+type IMsgConsumer interface {
+	IServer
+	WaitMessage(channel string, key string, t time.Duration) interface{}
+	GetMessage(channel string, key string) interface{}
+}
+
+type ICommunicator interface {
+	WaitPublish(channel string, key string, data interface{}) error
+	SendPublish(channel string, data interface{}) error
+	WaitMessage(channel string, key string, t time.Duration) interface{}
+	GetMessage(channel string, key string) interface{}
 }
 
 type ICacheClient interface {

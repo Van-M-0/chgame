@@ -131,6 +131,7 @@ func main() {
 	//testproto2()
 
 	start_test()
+	//testMq()
 }
 
 

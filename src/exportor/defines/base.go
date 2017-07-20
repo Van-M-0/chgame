@@ -6,6 +6,9 @@ const (
 )
 
 const (
+
+	ChannelTypeDb			= "proxy"
+
 	ChannelLoadUser 		= "loadUser"
 	ChannelLoadUserFinish	= "loadUserFinish"
 	ChannelCreateAccount 	= "createAccount"

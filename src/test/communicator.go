@@ -1,11 +1,5 @@
 package main
 
-import (
-	"communicator"
-	"exportor/defines"
-	"fmt"
-	"time"
-)
 
 func testCommunicator() {
 /*
@@ -23,11 +17,8 @@ func testCommunicator() {
 	})
 
 	fmt.Println(buf.Bytes(), string(buf.Bytes()))
-*/
 	fmt.Println("test comunicaor")
-	c := communicator.NewCommunicator(&defines.CommunicatorOption{
-
-	})
+	c := communicator.NewCommunicator()
 	c.JoinChanel("hello", false, defines.WaitChannelInfinite, func(data []byte) {
 		fmt.Println("hello channel ", data, string(data))
 	})
@@ -38,4 +29,5 @@ func testCommunicator() {
 	time.Sleep(10*time.Millisecond)
 
 	c.Notify("hello", "aaa", "bbb")
+*/
 }
