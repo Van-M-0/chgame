@@ -7,7 +7,6 @@ import (
 	"cacher"
 	"communicator"
 	"fmt"
-	"time"
 )
 
 type userInfo struct {
@@ -83,17 +82,18 @@ func (um *userManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin) {
 
 	ccErr := func() {
 		fmt.Println("handle palyer login ccerror")
-		um.lb.send2player(uid, proto.CmdClientLoginRet, &proto.ClientLoginRet{ErrCode: defines.ErrClientLoginWait})
+		um.lb.send2player(uid, proto.CmdClientLogin, &proto.ClientLoginRet{ErrCode: defines.ErrCommonCache})
 	}
 
 	timeOut := func() {
 		fmt.Println("handle palyer login timeout")
-		um.lb.send2player(uid, proto.CmdClientLoginRet, &proto.ClientLoginRet{ErrCode: defines.ErrClientLoginWait})
+		um.lb.send2player(uid, proto.CmdClientLogin, &proto.ClientLoginRet{ErrCode: defines.ErrCommonWait})
 	}
 
 	replaySuc := func(user *userInfo) {
 		fmt.Println("handle palyer login reply success")
-		um.lb.send2player(uid, proto.CmdClientLoginRet, &proto.ClientLoginRet{
+		um.lb.send2player(uid, proto.CmdClientLogin, &proto.ClientLoginRet{
+			ErrCode: defines.ErrCommonSuccess,
 			Account: user.account,
 			Name: user.name,
 			UserId: user.userId,
@@ -123,7 +123,7 @@ func (um *userManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin) {
 			fmt.Println("handle palyer wait proxy")
 			um.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelLoadUser, &proto.PMLoadUser{Acc: login.Account})
 			fmt.Println("handle palyer wait proxy 1")
-			d := um.con.WaitMessage(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, defines.WaitChannelNormal * time.Second)
+			d := um.con.WaitMessage(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, defines.WaitChannelNormal)
 			fmt.Println("handle palyer wait proxy 2", d)
 			if d == nil {
 				timeOut()
@@ -148,4 +148,35 @@ func (um *userManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin) {
 	}
 }
 
+func (um *userManager) handleCreateAccount(uid uint32, account *proto.CreateAccount) {
+	um.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelCreateAccount, &proto.PMCreateAccount{
+		Name: account.Name,
+		Sex: account.Sex,
+	})
+	fmt.Println("handle palyer wait proxy 1")
+	d := um.con.WaitMessage(defines.ChannelTypeDb, defines.ChannelCreateAccountFinish, defines.WaitChannelNormal)
+	fmt.Println("handle palyer wait proxy 2", d)
 
+	replyErr := func(code int) {
+		fmt.Println("common error")
+		um.lb.send2player(uid, proto.CmdCreateAccount, &proto.CreateAccountRet{ErrCode: code})
+	}
+
+	if d == nil {
+		replyErr(defines.ErrCommonWait)
+	} else {
+		msg, ok := d.(proto.PMCreateAccountFinish)
+		if !ok {
+			fmt.Println("cast loadfinish error", msg)
+			replyErr(defines.ErrCreateAccountErr)
+		} else if msg.Err == 0{
+			um.lb.send2player(uid, proto.CmdCreateAccount, &proto.CreateAccountRet{
+				ErrCode: defines.ErrCommonSuccess,
+				Account: msg.Account,
+				Pwd: msg.Pwd,
+			})
+		} else {
+			replyErr(msg.Err)
+		}
+	}
+}

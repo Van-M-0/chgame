@@ -8,7 +8,12 @@ const (
 
 // lobby
 const (
-	ErrClientLoginSuccess = 0
-	ErrClientLoginWait 	  = 1
+	ErrCommonSuccess			= 1
+	ErrCommonCache 				= 2
+	ErrCommonWait				= 3
 
+	ErrClientLoginWait 	  		= 100
+
+	ErrCreateAccountErr			= 100
+	ErrCreateAccountWait 		= 101
 )

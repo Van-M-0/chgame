@@ -7,6 +7,7 @@ import (
 	"exportor/proto"
 	"dbproxy/table"
 	"fmt"
+	"time"
 )
 
 type request struct {
@@ -59,6 +60,7 @@ func (ds *dbProxyServer) getMessageFromBroker () {
 	}
 
 	go getChannelMessage(defines.ChannelLoadUser)
+	go getChannelMessage(defines.ChannelCreateAccount)
 }
 
 func (ds *dbProxyServer) handleNotify() {
@@ -67,25 +69,70 @@ func (ds *dbProxyServer) handleNotify() {
 		case n := <- ds.chNotify:
 			switch n.cmd {
 			case defines.ChannelLoadUser:
-				req := n.i.(proto.PMLoadUser)
-				var userInfo table.T_Users
-				ret := ds.dbClient.GetUserInfo(req.Acc, &userInfo)
-				fmt.Println(defines.ChannelLoadUser, req, ret)
-				ds.chResNotify <- func() {
-					if ret {
-						err := ds.cacheClient.SetUserInfo(&userInfo, ret)
-						ret := &proto.PMLoadUserFinish{Err: err, Code: 1}
-						fmt.Println("load user finish ", ret)
-						ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, ret)
-					} else {
-						ret := &proto.PMLoadUserFinish{Code: -1}
-						fmt.Println("load user finish ", ret)
-						ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, ret)
-					}
-				}
+				ds.handleLogin(n.i)
+			case defines.ChannelCreateAccount:
+				ds.handleCreateAccount(n.i)
 			}
 		}
 	}()
+}
+
+func (ds *dbProxyServer) handleLogin(i interface{}) {
+	req := i.(*proto.PMLoadUser)
+	var userInfo table.T_Users
+	ret := ds.dbClient.GetUserInfo(req.Acc, &userInfo)
+	fmt.Println(defines.ChannelLoadUser, req, ret)
+	ds.chResNotify <- func() {
+		if ret {
+			err := ds.cacheClient.SetUserInfo(&userInfo, ret)
+			ret := &proto.PMLoadUserFinish{Err: err, Code: 1}
+			fmt.Println("load user finish ", ret)
+			ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, ret)
+		} else {
+			ret := &proto.PMLoadUserFinish{Code: -1}
+			fmt.Println("load user finish ", ret)
+			ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, ret)
+		}
+	}
+}
+
+func (ds *dbProxyServer) handleCreateAccount(i interface{}) {
+	req := i.(*proto.PMCreateAccount)
+	fmt.Println("create account ", req.Name)
+	var user table.T_Users
+	ret := ds.dbClient.GetUserInfoByName(req.Name, &user)
+	var res proto.PMCreateAccountFinish
+	if !ret {
+		acc := "acc_"+time.Local.String()
+		pwd := "123456"
+		r := ds.dbClient.AddAccountInfo(&table.T_Accounts{
+			Account: acc,
+			Password: pwd,
+		})
+		if r {
+			r = ds.dbClient.AddUserInfo(&table.T_Users{
+				Account: acc,
+				Name: req.Name,
+				Sex: req.Sex,
+				Level: 1,
+				Exp: 0,
+				Coins: 100,
+				Gems: 1,
+			})
+			res.Err = 0
+			res.Account = acc
+			res.Pwd = pwd
+		} else {
+			res.Err = 2
+		}
+	} else {
+		res.Err = 1
+	}
+
+	ds.chResNotify <- func() {
+		fmt.Println("create account ret ", ret)
+		ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelCreateAccountFinish, ret)
+	}
 }
 
 func (ds *dbProxyServer) handleNotifyRes() {

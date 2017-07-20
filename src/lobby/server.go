@@ -83,6 +83,21 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 		}
 		fmt.Println("unmarshal client login", login)
 		lb.userMgr.handlePlayerLogin(uid, &login)
+	case proto.CmdGuestLogin:
+		var guest proto.GuestLogin
+		if err := msgpacker.UnMarshal(data, &guest); err != nil {
+			fmt.Println("unmarshal client login errr", err)
+			return
+		}
+		fmt.Println("unmarshal guest login", guest)
+	case proto.CmdCreateAccount:
+		var acc proto.CreateAccount
+		if err := msgpacker.UnMarshal(data, &acc); err != nil {
+			fmt.Println("unmarshal client login errr", err)
+			return
+		}
+		fmt.Println("unmarshal create account", acc)
+		lb.userMgr.handleCreateAccount(uid, &acc)
 	default:
 		fmt.Println("lobby handle invalid client cmd ", cmd)
 	}

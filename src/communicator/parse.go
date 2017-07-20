@@ -5,33 +5,34 @@ import (
 	"exportor/proto"
 	"gopkg.in/vmihailenco/msgpack.v2"
 	"fmt"
+	"reflect"
 )
+var register = make(map[string]interface{})
+
+func init() {
+	register[defines.ChannelLoadUser] = &proto.PMLoadUser{}
+	register[defines.ChannelLoadUserFinish] = &proto.PMLoadUserFinish{}
+	register[defines.ChannelCreateAccount] = &proto.PMCreateAccount{}
+	register[defines.ChannelCreateAccountFinish] = &proto.PMCreateAccountFinish{}
+}
 
 func serilize(key string, data interface{}) ([]byte, error) {
-	if key == defines.ChannelLoadUser {
-		return msgpack.Marshal(data)
-	} else if key == defines.ChannelLoadUserFinish {
+	if _, ok := register[key]; ok {
 		return msgpack.Marshal(data)
 	}
 	return nil, fmt.Errorf("not this key %v", key )
 }
 
 func deserilize(channel, key string, data []byte) (interface{}, error) {
-	if key == defines.ChannelLoadUser {
-		var acc proto.PMLoadUser
-		err := msgpack.Unmarshal(data, &acc)
-		if err != nil {
+	if msg, ok := register[key]; ok {
+		fmt.Println("deserilize data ", data, msg)
+		t := reflect.TypeOf(msg)
+		m := reflect.New(t.Elem()).Interface()
+		if err := msgpack.Unmarshal(data, m); err != nil {
 			return nil, err
+		} else {
+			return m, nil
 		}
-		return acc, nil
-	} else if key == defines.ChannelLoadUserFinish {
-		var user proto.PMLoadUserFinish
-		err := msgpack.Unmarshal(data, &user)
-		fmt.Println(key, data, err, user)
-		if err != nil {
-			return nil, err
-		}
-		return user, nil
 	}
 	return nil, fmt.Errorf("------------ not this key %v --------------", key )
 }

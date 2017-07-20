@@ -5,7 +5,18 @@ import (
 	"fmt"
 	"starter"
 	"sync"
+	"exportor/defines"
+	"exportor/proto"
 )
+
+var register = make(map[string]interface{})
+
+func init() {
+	register[defines.ChannelLoadUser] = proto.PMLoadUser{}
+	register[defines.ChannelCreateAccountFinish] = proto.PMLoadUserFinish{}
+	register[defines.ChannelCreateAccount] = proto.PMCreateAccount{}
+	register[defines.ChannelCreateAccountFinish] = proto.PMCreateAccountFinish{}
+}
 
 func start_test() {
 	/*
@@ -27,6 +38,9 @@ func start_test() {
 
 	p := os.Args[1]
 	fmt.Println("start args ", p)
+
+
+
 
 	if p == "client" {
 		starter.StartClient()

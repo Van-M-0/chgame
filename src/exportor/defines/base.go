@@ -1,8 +1,10 @@
 package defines
 
+import "time"
+
 const (
 	WaitChannelInfinite      = 0
-	WaitChannelNormal		 = 10
+	WaitChannelNormal		 = 10 * time.Second
 )
 
 const (
@@ -12,4 +14,5 @@ const (
 	ChannelLoadUser 		= "loadUser"
 	ChannelLoadUserFinish	= "loadUserFinish"
 	ChannelCreateAccount 	= "createAccount"
+	ChannelCreateAccountFinish = "createAccountFinish"
 )

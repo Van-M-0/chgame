@@ -51,13 +51,20 @@ func StartClient() {
 
 		},
 		MsgCb: func(client defines.ITcpClient, message *proto.Message) {
-			if message.Cmd == proto.CmdClientLoginRet {
+			if message.Cmd == proto.CmdClientLogin {
 				var loginRet proto.ClientLoginRet
 				var origin []byte
 				err := msgpacker.UnMarshal(message.Msg, &origin)
 				fmt.Println("origin ", origin)
 				msgpacker.UnMarshal(origin, &loginRet)
 				fmt.Println("recv message ", loginRet, err)
+			} else if message.Cmd == proto.CmdCreateAccount {
+				var account proto.CreateAccountRet
+				var origin []byte
+				err := msgpacker.UnMarshal(message.Msg, &account)
+				fmt.Println("origin ", origin)
+				msgpacker.UnMarshal(origin, &account)
+				fmt.Println("recv message ", account, err)
 			}
 		},
 		AuthCb: func(defines.ITcpClient) error {
@@ -66,6 +73,13 @@ func StartClient() {
 	})
 
 	c.Connect()
+
+	/*
+	c.Send(proto.CmdCreateAccount, &proto.CreateAccount{
+		Name: "你好，hello world",
+		Sex: 1,
+	})
+	*/
 
 	c.Send(proto.CmdClientLogin, &proto.ClientLogin{
 		Account: "acc123123",

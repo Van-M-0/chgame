@@ -118,6 +118,13 @@ func (dc *dbClient) GetUserInfo(account string, userInfo *table.T_Users) bool {
 		RowsAffected != 0
 }
 
+func (dc *dbClient) GetUserInfoByName(name string, users *table.T_Users) bool {
+	return dc.db.Where("name = ?", name).
+		Select("userid, account, name, sex, headimg, level, exp, coins, gems, roomid").
+		Find(&users).
+		RowsAffected != 0
+}
+
 func (dc *dbClient) GetUserInfoByUserid(userid uint32, userInfo *table.T_Users) bool {
 	return dc.db.Where("userid = ? ", userid).
 		Select("userid, account, name, sex, headimg, level, exp, coins, gems, roomid").
