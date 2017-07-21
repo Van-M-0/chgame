@@ -30,6 +30,16 @@ func (rm *roomManager) getRoomId() uint32 {
 	return 0
 }
 
+func (rm *roomManager) getGameModule(kind int) *defines.GameModule {
+	modules := rm.sm.gameServer.opt.Moudles
+	for _, m := range modules {
+		if m.Type == kind {
+			return &m
+		}
+	}
+	return nil
+}
+
 func (rm *roomManager) getRoom(id uint32) *room {
 	if r, ok := rm.rooms[id]; ok {
 		return r
@@ -39,11 +49,19 @@ func (rm *roomManager) getRoom(id uint32) *room {
 }
 
 func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.PlayerCreateRoom) {
+
+	module := rm.getGameModule(message.Kind)
+	if module == nil {
+		rm.sendMessage(info, proto.CmdGamePlayerCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomKind})
+		return
+	}
+
 	room := newRoom(rm)
 	room.id = rm.getRoomId()
 	if room.id != 0 {
 		rm.rooms[room.id] = room
 		room.createUserId = info.UserId
+		room.module = *module
 		room.run()
 		room.notify <- &roomNotify{
 			cmd: proto.CmdGamePlayerCreateRoom,
@@ -93,7 +111,6 @@ func (rm *roomManager) gameMessage(info *defines.PlayerInfo, cmd uint32, msg []b
 	if room == nil {
 		return
 	}
-
 	room.notify <- &roomNotify{
 		cmd: cmd,
 		user: *info,
@@ -108,4 +125,6 @@ func (rm *roomManager) sendMessage(info *defines.PlayerInfo, cmd uint32, data in
 func (rm *roomManager) broadcastMessage(players []*defines.PlayerInfo, cmd uint32, data interface{}) {
 
 }
+
+
 
