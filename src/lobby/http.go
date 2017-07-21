@@ -60,16 +60,18 @@ func (hp *http2Proxy) start() {
 			return
 		}
 
+
 		hp.get2("https://api.weixin.qq.com/sns/oauth2/access_token", string(d), true, func(suc bool, data interface{}) {
 			token := ""
 			openid := ""
-			type state struct {
-				token 	string		`json:"access_token"`
-				openid 	string		`json:"openid"`
+
+			type userInfo struct {
+				Token 		string		`json:"token"`
+				Openid 		string		`json:"openid"`
 			}
-			d, err := json.Marshal(&state{
-				token: token,
-				openid: openid,
+			d, err := json.Marshal(&userInfo{
+				Token: token,
+				Openid: openid,
 			})
 			if err != nil {
 				fmt.Println("get state marshal errr", err)
@@ -78,6 +80,7 @@ func (hp *http2Proxy) start() {
 			hp.get2("https://api.weixin.qq.com/sns/userinfo", string(d), true, func(suc bool, data interface{}) {
 
 			})
+
 		})
 	})
 
