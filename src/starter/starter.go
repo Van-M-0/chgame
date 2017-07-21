@@ -30,9 +30,10 @@ func startLobby() {
 	}).Start()
 }
 
-func StartGame() {
+func startGame(moduels []defines.GameModule) {
 	game.NewGameServer(&defines.GameOption{
 		GwHost: ":9891",
+		Moudles: moduels,
 	}).Start()
 }
 
@@ -92,7 +93,7 @@ func startClient() {
 
 }
 
-func StartProgram(p string) {
+func StartProgram(p string, data interface{}) {
 	if p == "client" {
 		startClient()
 	} else if p == "lobby" {
@@ -103,6 +104,8 @@ func StartProgram(p string) {
 		startCommunicator()
 	} else if p == "proxy" {
 		startDbProxy()
+	} else if p == "game" {
+		startGame(data.([]defines.GameModule))
 	}
 
 	wg := new(sync.WaitGroup)
