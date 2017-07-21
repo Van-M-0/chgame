@@ -123,7 +123,11 @@ func (rm *roomManager) sendMessage(info *defines.PlayerInfo, cmd uint32, data in
 }
 
 func (rm *roomManager) broadcastMessage(players []*defines.PlayerInfo, cmd uint32, data interface{}) {
-
+	uids := make([]uint32, len(players))
+	for _, user := range players {
+		uids = append(uids, user.Uid)
+	}
+	rm.sm.BroadcastMessage(uids, cmd, data)
 }
 
 

@@ -108,12 +108,16 @@ func (rm *room) onUserMessage(notify *roomNotify) {
 	}
 }
 
-func (rm *room) SendUserMessage(info *defines.PlayerInfo, cmd uint32, data []byte) {
-
+func (rm *room) SendUserMessage(info *defines.PlayerInfo, cmd uint32, data interface{}) {
+	rm.manager.sendMessage(info, cmd, data)
 }
 
-func (rm *room) BroadcastMessage(cmd uint32, data []byte) {
-
+func (rm *room) BroadcastMessage(cmd uint32, data interface{}) {
+	info := make([]*defines.PlayerInfo, len(rm.users))
+	for _, user := range rm.users {
+		info = append(info, &user)
+	}
+	rm.manager.broadcastMessage(info, cmd, data)
 }
 
 func (rm *room) SetTimer(id uint32, data interface{}) error {
@@ -122,5 +126,6 @@ func (rm *room) SetTimer(id uint32, data interface{}) error {
 }
 
 func (rm *room) KillTimer(id uint32) error {
+	fmt.Println("KillTimer not implement")
 	return nil
 }
