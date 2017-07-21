@@ -1,30 +1,17 @@
 package game
 
-type playerInfo struct {
-	uid 		uint32
-	userId 		uint32
-	openid 		string
-	headimg 	string
-	name 		string
-	account		string
-	diamond 	int
-	gold 		int64
-	roomcard 	int
-	sex 		byte
-
-	roomid 		uint32
-}
+import "exportor/defines"
 
 type playerManager struct {
-	uidPlayer 		map[uint32]*playerInfo
-	idPlayer 		map[uint32]*playerInfo
+	uidPlayer 		map[uint32]*defines.PlayerInfo
+	idPlayer 		map[uint32]*defines.PlayerInfo
 }
 
 func newPlayerManager() *playerManager {
 	return &playerManager{}
 }
 
-func (pm *playerManager) getPlayerByUid(uid uint32) *playerInfo {
+func (pm *playerManager) getPlayerByUid(uid uint32) *defines.PlayerInfo {
 	if p, ok := pm.uidPlayer[uid]; !ok {
 		return nil
 	} else {
@@ -32,7 +19,7 @@ func (pm *playerManager) getPlayerByUid(uid uint32) *playerInfo {
 	}
 }
 
-func (pm *playerManager) getPlayerById(id uint32) *playerInfo {
+func (pm *playerManager) getPlayerById(id uint32) *defines.PlayerInfo {
 	if p, ok := pm.idPlayer[id]; !ok {
 		return nil
 	} else {
@@ -40,8 +27,8 @@ func (pm *playerManager) getPlayerById(id uint32) *playerInfo {
 	}
 }
 
-func (pm *playerManager) addPlayer(p *playerInfo) {
-	pm.uidPlayer[p.uid] = p
-	pm.idPlayer[p.userId] = p
+func (pm *playerManager) addPlayer(p *defines.PlayerInfo) {
+	pm.uidPlayer[p.Uid] = p
+	pm.idPlayer[p.UserId] = p
 }
 

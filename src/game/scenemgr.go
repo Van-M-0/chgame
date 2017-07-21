@@ -93,22 +93,22 @@ func (sm *sceneManager) onGwPlayerLogin(uid uint32, data []byte) {
 		return
 	}
 
-	player := &playerInfo{
-		uid: uid,
-		userId: uint32(user.Uid),
-		openid: user.Openid,
-		headimg: user.HeadImg,
-		name: user.Name,
-		account: user.Account,
-		diamond: user.Diamond,
-		gold: user.Gold,
-		roomcard: user.RoomCard,
-		sex: user.Sex,
-		roomid: uint32(user.RoomId),
+	player := &defines.PlayerInfo{
+		Uid: uid,
+		UserId: uint32(user.Uid),
+		OpenId: user.Openid,
+		HeadImg: user.HeadImg,
+		Name: user.Name,
+		Account: user.Account,
+		Diamond: user.Diamond,
+		Gold: user.Gold,
+		RoomCard: user.RoomCard,
+		Sex: user.Sex,
+		RoomId: uint32(user.RoomId),
 	}
 	sm.playerMgr.addPlayer(player)
 
-	if player.roomid != 0 {
+	if player.RoomId != 0 {
 		sm.roomMgr.reEnter(player)
 	} else {
 		sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode: defines.ErrPlayerLoginSuccess})

@@ -38,12 +38,12 @@ func (rm *roomManager) getRoom(id uint32) *room {
 	}
 }
 
-func (rm *roomManager) createRoom(info *playerInfo, message *proto.PlayerCreateRoom) {
+func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.PlayerCreateRoom) {
 	room := newRoom(rm)
 	room.id = rm.getRoomId()
 	if room.id != 0 {
 		rm.rooms[room.id] = room
-		room.createUserId = info.userId
+		room.createUserId = info.UserId
 		room.run()
 		room.notify <- &roomNotify{
 			cmd: proto.CmdGamePlayerCreateRoom,
@@ -56,7 +56,7 @@ func (rm *roomManager) createRoom(info *playerInfo, message *proto.PlayerCreateR
 	}
 }
 
-func (rm *roomManager) enterRoom(info *playerInfo, roomId uint32) {
+func (rm *roomManager) enterRoom(info *defines.PlayerInfo, roomId uint32) {
 	room := rm.getRoom(roomId)
 	if room == nil {
 		rm.sendMessage(info, proto.CmdGamePlayerCreateRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomNotExists})
@@ -68,7 +68,7 @@ func (rm *roomManager) enterRoom(info *playerInfo, roomId uint32) {
 	}
 }
 
-func (rm *roomManager) leaveRoom(info *playerInfo, roomId uint32) {
+func (rm *roomManager) leaveRoom(info *defines.PlayerInfo, roomId uint32) {
 	room := rm.getRoom(roomId)
 	if room == nil {
 		rm.sendMessage(info, proto.CmdGamePlayerLeaveRoom, &proto.PlayerLeaveRoomRet{ErrCode: defines.ErrLeaveRoomNotExists})
@@ -80,16 +80,16 @@ func (rm *roomManager) leaveRoom(info *playerInfo, roomId uint32) {
 	}
 }
 
-func (rm *roomManager) offline(info *playerInfo) {
+func (rm *roomManager) offline(info *defines.PlayerInfo) {
 
 }
 
-func (rm *roomManager) reEnter(info *playerInfo) {
+func (rm *roomManager) reEnter(info *defines.PlayerInfo) {
 
 }
 
-func (rm *roomManager) gameMessage(info *playerInfo, cmd uint32, msg []byte) {
-	room := rm.getRoom(info.roomid)
+func (rm *roomManager) gameMessage(info *defines.PlayerInfo, cmd uint32, msg []byte) {
+	room := rm.getRoom(info.RoomId)
 	if room == nil {
 		return
 	}
@@ -101,11 +101,11 @@ func (rm *roomManager) gameMessage(info *playerInfo, cmd uint32, msg []byte) {
 	}
 }
 
-func (rm *roomManager) sendMessage(info *playerInfo, cmd uint32, data interface{}) {
-	rm.sm.SendMessage(info.uid, cmd, data)
+func (rm *roomManager) sendMessage(info *defines.PlayerInfo, cmd uint32, data interface{}) {
+	rm.sm.SendMessage(info.Uid, cmd, data)
 }
 
-func (rm *roomManager) broadcastMessage(players []*playerInfo, cmd uint32, data interface{}) {
+func (rm *roomManager) broadcastMessage(players []*defines.PlayerInfo, cmd uint32, data interface{}) {
 
 }
 
