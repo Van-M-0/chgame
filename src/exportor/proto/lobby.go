@@ -17,7 +17,7 @@ type GuestLogin struct {
 }
 
 type ClientLoginRet struct {
-	ErrCode 	uint8
+	ErrCode 	int
 	Uid 		uint32
 	Account 	string
 	Name 		string

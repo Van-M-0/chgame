@@ -25,6 +25,7 @@ type userManager struct {
 	lb 				*lobby
 	userLock 		sync.RWMutex
 	users 			map[uint32]*userInfo
+	usersAcc 		map[string]uint32
 
 	cc 				defines.ICacheClient
 
@@ -39,6 +40,7 @@ func newUserManager() *userManager {
 		pub: communicator.NewMessagePulisher(),
 		con: communicator.NewMessageConsumer(),
 		users: make(map[uint32]*userInfo),
+		usersAcc: make(map[string]uint32),
 	}
 }
 
@@ -62,6 +64,18 @@ func (um *userManager) getUser(uid uint32) *userInfo {
 	}
 }
 
+func (um *userManager) getUserByAcc(acc string) *userInfo {
+	um.userLock.Lock()
+	defer um.userLock.Unlock()
+	if uid, ok := um.usersAcc[acc]; !ok {
+		return nil
+	} else if user, ok := um.users[uid]; !ok {
+		return nil
+	} else {
+		return user
+	}
+}
+
 func (um *userManager) addUser(uid uint32, cu *proto.CacheUser) *userInfo {
 	user := &userInfo{
 		account: cu.Account,
@@ -72,23 +86,18 @@ func (um *userManager) addUser(uid uint32, cu *proto.CacheUser) *userInfo {
 	}
 	um.userLock.Lock()
 	um.users[uid]=user
+	um.usersAcc[cu.Account] = uid
 	um.userLock.Unlock()
 	return user
 }
 
 func (um *userManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin) {
 	fmt.Println("handle palyer login")
-	p := um.getUser(uid)
+	p := um.getUserByAcc(login.Account)
 	var cacheUser proto.CacheUser
 
-	ccErr := func() {
-		fmt.Println("handle palyer login ccerror")
-		um.lb.send2player(uid, proto.CmdClientLogin, &proto.ClientLoginRet{ErrCode: defines.ErrCommonCache})
-	}
-
-	timeOut := func() {
-		fmt.Println("handle palyer login timeout")
-		um.lb.send2player(uid, proto.CmdClientLogin, &proto.ClientLoginRet{ErrCode: defines.ErrCommonWait})
+	replyErr := func(code int) {
+		um.lb.send2player(uid, proto.CmdClientLogin, &proto.ClientLoginRet{ErrCode: code})
 	}
 
 	replaySuc := func(user *userInfo) {
@@ -116,7 +125,7 @@ func (um *userManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin) {
 
 	if p == nil {
 		if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
-			ccErr()
+			replyErr(defines.ErrCommonCache)
 			return
 		}
 		fmt.Println(" p == nil get user info ", cacheUser)
@@ -125,25 +134,27 @@ func (um *userManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin) {
 		} else {
 			fmt.Println("handle palyer wait proxy")
 			um.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelLoadUser, &proto.PMLoadUser{Acc: login.Account})
-			fmt.Println("handle palyer wait proxy 1")
 			d := um.con.WaitMessage(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, defines.WaitChannelNormal)
 			fmt.Println("handle palyer wait proxy 2", d)
 			if d == nil {
-				timeOut()
+				replyErr(defines.ErrCommonWait)
 			} else {
 				msg, ok := d.(*proto.PMLoadUserFinish)
 				if !ok {
 					fmt.Println("cast loadfinish error", msg)
-					ccErr()
-				} else if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
-					fmt.Println("get user info ", err, cacheUser)
-					if cacheUser.Uid != 0 {
-						gotUser()
+					replyErr(defines.ErrCommonCache)
+				} else if msg.Code == 0 { // user exists
+					if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
+						if cacheUser.Uid != 0 {
+							gotUser()
+						} else {
+							replyErr(defines.ErrCommonCache)
+						}
 					} else {
-						ccErr()
+						replyErr(defines.ErrCommonCache)
 					}
-				} else {
-					ccErr()
+				} else if msg.Code == 1 { //user not exists
+					replyErr(defines.ErrClientLoginNeedCreate)
 				}
 			}
 		}

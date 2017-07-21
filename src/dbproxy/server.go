@@ -95,7 +95,7 @@ func (ds *dbProxyServer) handleLogin(i interface{}) {
 			fmt.Println("load user finish ", ret)
 			ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, ret)
 		} else {
-			ret := &proto.PMLoadUserFinish{Code: -1}
+			ret := &proto.PMLoadUserFinish{Code: 1}
 			fmt.Println("load user finish ", ret)
 			ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, ret)
 		}

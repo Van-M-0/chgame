@@ -13,6 +13,7 @@ const (
 	ErrCommonWait				= 3
 
 	ErrClientLoginWait 	  		= 100
+	ErrClientLoginNeedCreate	= 1001
 
 	ErrCreateAccountErr			= 100
 	ErrCreateAccountWait 		= 101
