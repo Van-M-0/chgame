@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"gopkg.in/vmihailenco/msgpack.v2"
 	"exportor/proto"
-	"fmt"
 )
 
 type MsgPacker struct {}
@@ -39,7 +38,6 @@ func (mp *MsgPacker) Pack(cmd uint32, data interface{}) ([] byte, error) {
 		return nil, err
 	}
 
-	fmt.Println("body", body)
 	if err := binary.Write(writer, binary.LittleEndian, uint32(len(body))); err != nil {
 		return nil, err
 	}

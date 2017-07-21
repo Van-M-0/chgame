@@ -1,11 +1,5 @@
 package defines
 
-const (
-	ErrPlayerLoginSuccess = 0
-	ErrPlayerLoginErr     = 2
-	ErrPlayerLoginCache   = 3
-)
-
 // lobby
 const (
 	ErrCommonSuccess			= 1
@@ -17,4 +11,23 @@ const (
 
 	ErrCreateAccountErr			= 100
 	ErrCreateAccountWait 		= 101
+)
+
+// game
+const (
+	ErrPlayerLoginSuccess 		= 101
+	ErrPlayerLoginErr     		= 102
+	ErrPlayerLoginCache   		= 103
+
+	ErrCreateRoomSuccess		= 101
+	ErrCreateRoomUserNotIn		= 102
+	ErrCreateRoomWait			= 103
+
+	ErrEnterRoomSuccess			= 101
+	ErrEnterRoomUserNotIn		= 102
+	ErrEnterRoomNotExists 		= 103
+
+	ErrLeaveRoomSuccess			= 101
+	ErrLeaveRoomUserNotIn		= 102
+	ErrLeaveRoomNotExists		= 103
 )

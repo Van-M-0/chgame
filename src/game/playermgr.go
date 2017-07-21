@@ -11,6 +11,8 @@ type playerInfo struct {
 	gold 		int64
 	roomcard 	int
 	sex 		byte
+
+	roomid 		uint32
 }
 
 type playerManager struct {

@@ -2,7 +2,12 @@ package proto
 
 // game proto 5000 - 6000
 const (
-	CmdGamePlayerLogin = 5000
+	CmdGamePlayerLogin 			= 5000
+	CmdGamePlayerCreateRoom		= 5001
+	CmdGamePlayerEnterRoom		= 5002
+	CmdGamePlayerLeaveRoom		= 5003
+
+	CmdGamePlayerMessage 		= 5020
 )
 
 type PlayerLogin struct {
@@ -13,33 +18,35 @@ type PlayerLoginRet struct {
 	ErrCode 	int
 }
 
-type XzRoomConf struct {
-
+type PlayerCreateRoom struct {
+	//common
+	Type 		int
+	Enter 		bool
+	//special
+	conf 		[]byte
 }
 
-type PlayerCreateRoomMsg struct {
-	Uid 		uint32
+type PlayerCreateRoomRet struct {
+	ErrCode 	int
 }
 
-type PlayerEnterMsg struct {
-
+type PlayerEnterRoom struct {
+	RoomId		uint32
 }
 
-type PlayerLeaveMsg struct {
-
+type PlayerEnterRoomRet struct {
+	ErrCode 	int
 }
 
-type PlayerOfflineMsg struct {
-
+type PlayerLeaveRoom struct {
+	RoomId 		uint32
 }
 
-type RoomCreateMsg struct {
-
+type PlayerLeaveRoomRet struct {
+	ErrCode 	uint32
 }
 
-type RoomDestroyMsg struct {
-
+type PlayerGameMessage struct {
+	Cmd 		uint32
+	Msg 		[]byte
 }
-
-
-

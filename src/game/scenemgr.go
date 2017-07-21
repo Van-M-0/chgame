@@ -14,29 +14,23 @@ type sceneManager struct {
 	roomMgr 		*roomManager
 	gameServer 		*gameServer
 	cc 				defines.ICacheClient
-	com 			defines.ICommunicator
+	pub 			defines.IMsgPublisher
+	con 			defines.IMsgConsumer
 }
 
 func newSceneManager(gs *gameServer) *sceneManager {
-	return &sceneManager{
-		playerMgr: newPlayerManager(),
-		roomMgr: newRoomManager(),
-		gameServer: gs,
-		cc: cacher.NewCacheClient("game"),
-		com: communicator.NewCommunicator(),
-	}
+	sm := &sceneManager{}
+	sm.playerMgr = newPlayerManager()
+	sm.roomMgr = newRoomManager(sm)
+	sm.gameServer = gs
+	sm.cc = cacher.NewCacheClient("game")
+	sm.pub = communicator.NewMessagePulisher()
+	sm.con = communicator.NewMessageConsumer()
+	return sm
 }
 
 func (sm *sceneManager) start() {
 	sm.cc.Start()
-}
-
-func (sm *sceneManager) loadScene() {
-
-}
-
-func (sm *sceneManager) freeScene() {
-
 }
 
 func (sm *sceneManager) onGwMessage(message *proto.GateGameHeader) {
@@ -72,13 +66,17 @@ func (sm *sceneManager) onGwServerMessage(cmd uint32, data []byte) {
 func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
 	switch cmd {
 	case proto.CmdGamePlayerLogin:
-		sm.onGwPlayerLogin(uid, cmd, data)
+		sm.onGwPlayerLogin(uid, data)
+	case proto.CmdGamePlayerCreateRoom:
+		sm.onGwPlayerCreateRoom(uid, data)
+	case proto.CmdGamePlayerMessage:
+		sm.onGwPlayerGameMessage(uid, data)
 	default:
 		fmt.Println("gate way player message error ", cmd)
 	}
 }
 
-func (sm *sceneManager) onGwPlayerLogin(uid uint32, cmd uint32, data []byte) {
+func (sm *sceneManager) onGwPlayerLogin(uid uint32, data []byte) {
 	var playerLogin proto.PlayerLogin
 	if err := msgpacker.UnMarshal(data, &playerLogin); err != nil {
 		return
@@ -106,16 +104,74 @@ func (sm *sceneManager) onGwPlayerLogin(uid uint32, cmd uint32, data []byte) {
 		gold: user.Gold,
 		roomcard: user.RoomCard,
 		sex: user.Sex,
+		roomid: uint32(user.RoomId),
 	}
 	sm.playerMgr.addPlayer(player)
 
-	sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode: defines.ErrPlayerLoginSuccess})
+	if player.roomid != 0 {
+		sm.roomMgr.reEnter(player)
+	} else {
+		sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode: defines.ErrPlayerLoginSuccess})
+	}
 }
 
-func (sm *sceneManager) onGwPlayerLogout(uid uint32, cmd uint32, data []byte) {
-
+func (sm *sceneManager) onGwPlayerLogout(uid uint32, data []byte) {
+	user := sm.playerMgr.getPlayerByUid(uid)
+	if user == nil {
+		//sm.SendMessage(uid, proto.CmdGamePlayerCreateRoom, &proto.PlayerLoginRet{ErrCode: defines.ErrCreateRoomUserNotIn})
+		return
+	}
 }
 
-func (sm *sceneManager) onGwPlayerOffline(uid uint32, cmd uint32, data []byte) {
-
+func (sm *sceneManager) onGwPlayerOffline(uid uint32, data []byte) {
+	player := sm.playerMgr.getPlayerByUid(uid)
+	if player == nil {
+		return
+	}
+	sm.roomMgr.offline(player)
 }
+
+func (sm *sceneManager) onGwPlayerGameMessage(uid uint32, data []byte) {
+	var message proto.PlayerGameMessage
+	if err := msgpacker.UnMarshal(data, &message); err != nil {
+		return
+	}
+
+	player := sm.playerMgr.getPlayerByUid(uid)
+	if player == nil {
+		return
+	}
+
+	sm.roomMgr.gameMessage(player, message.Cmd, message.Msg)
+}
+
+func (sm *sceneManager) onGwPlayerCreateRoom(uid uint32, data []byte) {
+	var message proto.PlayerCreateRoom
+	if err := msgpacker.UnMarshal(data, &message); err != nil {
+		return
+	}
+
+	player := sm.playerMgr.getPlayerByUid(uid)
+	if player == nil {
+		sm.SendMessage(uid, proto.CmdGamePlayerCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomUserNotIn})
+		return
+	}
+
+	sm.roomMgr.createRoom(player, &message)
+}
+
+func (sm *sceneManager) onGwPlayerEnterRoom(uid uint32, data []byte) {
+	var message proto.PlayerEnterRoom
+	if err := msgpacker.UnMarshal(data, &message); err != nil {
+		return
+	}
+
+	player := sm.playerMgr.getPlayerByUid(uid)
+	if player == nil {
+		sm.SendMessage(uid, proto.CmdGamePlayerEnterRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomUserNotIn})
+		return
+	}
+
+	sm.roomMgr.enterRoom(player, message.RoomId)
+}
+

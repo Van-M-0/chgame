@@ -74,7 +74,6 @@ func (client *tcpClient) Close() error {
 	return nil
 }
 
-
 func (client *tcpClient) Send(cmd uint32, data interface{}) error {
 	fmt.Println("send message 1", cmd, data)
 	client.sendCh <- &message{cmd: cmd, data: data}
@@ -101,12 +100,16 @@ func (client *tcpClient) sendLoop() {
 
 func (client *tcpClient) recvLoop() {
 	client.authed = true
+	defer func() {
+		client.Close()
+	}()
+
 	go func() {
 		for {
 			m, err := client.readMessage()
 			if err != nil {
-				fmt.Println("client recv lopp decode msg error")
-				continue
+				fmt.Println("client recv lopp decode msg error", err)
+				return
 			}
 			fmt.Println("callcb ", m)
 			client.opt.MsgCb(client, m)
