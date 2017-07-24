@@ -110,16 +110,19 @@ func (mgr *serManager) client2Lobby(client defines.ITcpClient, message *proto.Me
 }
 
 func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Message) {
-	gameId := client.Get("GameId").(uint32)
+	//todo
+	//gameId := client.Get("GameId").(uint32)
 	gwMessage := &proto.GateGameHeader {
 		Uid: client.GetId(),
 		Type: proto.GateMsgTypePlayer,
 		Cmd: message.Cmd,
 		Msg: message.Msg,
 	}
-	if serInfo, ok := mgr.sers[gameId]; ok {
-		serInfo.cli.Send(proto.ClientRouteGame, gwMessage)
-	} else {
-		fmt.Println("game server not alive, or should kick the client")
+	for _, serInfo := range mgr.sers {
+		if serInfo.typo == "game" {
+			serInfo.cli.Send(proto.ClientRouteGame, gwMessage)
+			return
+		}
 	}
+	fmt.Println("game server not alive, or should kick the client")
 }

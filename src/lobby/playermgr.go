@@ -173,7 +173,7 @@ func (um *userManager) handleCreateAccount(uid uint32, account *proto.CreateAcco
 	fmt.Println("handle palyer wait proxy 2", d)
 
 	replyErr := func(code int) {
-		fmt.Println("common error")
+		fmt.Println("common error", code)
 		um.lb.send2player(uid, proto.CmdCreateAccount, &proto.CreateAccountRet{ErrCode: code})
 	}
 

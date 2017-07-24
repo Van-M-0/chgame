@@ -5,6 +5,7 @@ import (
 	"time"
 	"math/rand"
 	"exportor/defines"
+	"fmt"
 )
 
 type roomManager struct {
@@ -59,6 +60,7 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 	room := newRoom(rm)
 	room.id = rm.getRoomId()
 	if room.id != 0 {
+		fmt.Println("room id ", room.id)
 		rm.rooms[room.id] = room
 		room.createUserId = info.UserId
 		room.module = *module
@@ -68,6 +70,7 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 			user: *info,
 			data: message,
 		}
+		fmt.Println("response client ret")
 		rm.sendMessage(info, proto.CmdGamePlayerCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomSuccess})
 	} else {
 		rm.sendMessage(info, proto.CmdGamePlayerCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomWait})

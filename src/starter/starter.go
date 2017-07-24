@@ -10,10 +10,10 @@ import (
 	"exportor/proto"
 	"fmt"
 	"msgpacker"
-	"game"
 	"dbproxy"
 	"communicator"
 	"sync"
+	"game"
 )
 
 func startGate() {
@@ -69,6 +69,27 @@ func startClient() {
 				fmt.Println("origin ", origin)
 				msgpacker.UnMarshal(origin, &account)
 				fmt.Println("recv message ", account, err)
+			} else if message.Cmd == proto.CmdGamePlayerLogin {
+				var ret proto.PlayerLoginRet
+				var origin []byte
+				err := msgpacker.UnMarshal(message.Msg, &origin)
+				fmt.Println("origin ", origin)
+				msgpacker.UnMarshal(origin, &ret)
+				fmt.Println("login ret message ", ret, err)
+
+				if ret.ErrCode == defines.ErrPlayerLoginSuccess {
+					client.Send(proto.CmdGamePlayerCreateRoom, &proto.PlayerCreateRoom{
+						Kind: 1,
+						Enter: true,
+					})
+				}
+			} else if message.Cmd == proto.CmdGamePlayerCreateRoom {
+				var ret proto.PlayerCreateRoomRet
+				var origin []byte
+				err := msgpacker.UnMarshal(message.Msg, &origin)
+				fmt.Println("origin ", origin)
+				msgpacker.UnMarshal(origin, &ret)
+				fmt.Println("create room ret message ", ret, err)
 			}
 		},
 		AuthCb: func(defines.ITcpClient) error {
@@ -78,16 +99,27 @@ func startClient() {
 
 	c.Connect()
 
-	t := proto.CmdClientLogin
+	var t uint32
+	t = proto.CmdGamePlayerLogin
 
 	if t == proto.CmdCreateAccount {
 		c.Send(proto.CmdCreateAccount, &proto.CreateAccount{
-			Name: "你好454，hello world",
+			Name: "你好1aaa2，hello world",
 			Sex: 1,
 		})
 	} else if t == proto.CmdClientLogin {
 		c.Send(proto.CmdClientLogin, &proto.ClientLogin{
-			Account: "acc_1500559138",
+			Account: "acc_1500878402",
+		})
+	} else if t == proto.CmdGamePlayerLogin {
+		c.Send(t, &proto.PlayerLogin{
+			Uid: 5,
+		})
+	} else if t == proto.CmdGamePlayerCreateRoom {
+
+	} else if t == proto.CmdGamePlayerEnterRoom {
+		c.Send(t, &proto.PlayerLogin{
+			Uid: 5,
 		})
 	}
 

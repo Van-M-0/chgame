@@ -113,6 +113,8 @@ func (gw *gateway) routeCliMessage(client defines.ITcpClient, message *proto.Mes
 		gw.serManager.client2Lobby(client, message)
 	} else if cmd >= proto.CmdRange_Game_S && cmd <= proto.CmdRange_Game_E {
 		gw.serManager.client2game(client, message)
+	} else {
+		fmt.Println("gateway unkown message cmd", cmd)
 	}
 }
 

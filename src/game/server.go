@@ -44,10 +44,12 @@ func (gs *gameServer) Start() error {
 				fmt.Println("unmarshal client route lobby header error")
 				return
 			}
-			gs.scmgr.onGwMessage(&header)
+			gs.scmgr.onGwMessage(m.Cmd, &header)
 		},
 	})
 	gs.gwClient.Connect()
+
+	gs.scmgr.start()
 
 	return nil
 }

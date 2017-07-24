@@ -33,10 +33,10 @@ func (sm *sceneManager) start() {
 	sm.cc.Start()
 }
 
-func (sm *sceneManager) onGwMessage(message *proto.GateGameHeader) {
-	if message.Cmd == proto.ClientRouteGame {
+func (sm *sceneManager) onGwMessage(direction uint32, message *proto.GateGameHeader) {
+	if direction == proto.ClientRouteGame {
 		sm.onGwPlayerMessage(message.Uid, message.Cmd, message.Msg)
-	} else if message.Cmd == proto.GateRouteGame {
+	} else if direction== proto.GateRouteGame {
 		sm.onGwServerMessage(message.Cmd, message.Msg)
 	} else {
 		fmt.Println("gate way msg direction error ", message)
@@ -64,6 +64,7 @@ func (sm *sceneManager) onGwServerMessage(cmd uint32, data []byte) {
 }
 
 func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
+	fmt.Println("recv client command ", uid, cmd, data)
 	switch cmd {
 	case proto.CmdGamePlayerLogin:
 		sm.onGwPlayerLogin(uid, data)
@@ -83,7 +84,7 @@ func (sm *sceneManager) onGwPlayerLogin(uid uint32, data []byte) {
 	}
 
 	var user proto.CacheUser
-	if err := sm.cc.GetUserInfoById(uid, &user); err != nil {
+	if err := sm.cc.GetUserInfoById(playerLogin.Uid, &user); err != nil {
 		sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode: defines.ErrPlayerLoginErr})
 		return
 	}
@@ -148,6 +149,7 @@ func (sm *sceneManager) onGwPlayerGameMessage(uid uint32, data []byte) {
 func (sm *sceneManager) onGwPlayerCreateRoom(uid uint32, data []byte) {
 	var message proto.PlayerCreateRoom
 	if err := msgpacker.UnMarshal(data, &message); err != nil {
+		sm.SendMessage(uid, proto.CmdGamePlayerCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCoomonSystem})
 		return
 	}
 

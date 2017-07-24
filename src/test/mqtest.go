@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"github.com/siddontang/moonmq/broker"
-	"github.com/siddontang/moonmq/client"
+	"communicator/mq/broker"
+	"communicator/mq/client"
 	"time"
 	"fmt"
 )

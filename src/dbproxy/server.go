@@ -106,6 +106,7 @@ func (ds *dbProxyServer) handleCreateAccount(i interface{}) {
 	req := i.(*proto.PMCreateAccount)
 	fmt.Println("create account ", req.Name)
 	var user table.T_Users
+	var userSuccess *table.T_Users
 	ret := ds.dbClient.GetUserInfoByName(req.Name, &user)
 	var res proto.PMCreateAccountFinish
 	if !ret {
@@ -116,7 +117,7 @@ func (ds *dbProxyServer) handleCreateAccount(i interface{}) {
 			Password: pwd,
 		})
 		if r {
-			r = ds.dbClient.AddUserInfo(&table.T_Users{
+			userSuccess = &table.T_Users{
 				Account: acc,
 				Name: req.Name,
 				Sex: req.Sex,
@@ -124,7 +125,8 @@ func (ds *dbProxyServer) handleCreateAccount(i interface{}) {
 				Exp: 0,
 				Coins: 100,
 				Gems: 1,
-			})
+			}
+			r = ds.dbClient.AddUserInfo(userSuccess)
 			res.Err = 0
 			res.Account = acc
 			res.Pwd = pwd
@@ -137,6 +139,9 @@ func (ds *dbProxyServer) handleCreateAccount(i interface{}) {
 
 	ds.chResNotify <- func() {
 		fmt.Println("create account ret ", ret, res)
+		if res.Err == 0 {
+			ds.cacheClient.SetUserInfo(userSuccess, true)
+		}
 		ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelCreateAccountFinish, res)
 	}
 }

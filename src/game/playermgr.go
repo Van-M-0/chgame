@@ -8,7 +8,10 @@ type playerManager struct {
 }
 
 func newPlayerManager() *playerManager {
-	return &playerManager{}
+	return &playerManager{
+		uidPlayer: make(map[uint32]*defines.PlayerInfo),
+		idPlayer: make(map[uint32]*defines.PlayerInfo),
+	}
 }
 
 func (pm *playerManager) getPlayerByUid(uid uint32) *defines.PlayerInfo {

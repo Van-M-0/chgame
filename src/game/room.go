@@ -33,23 +33,27 @@ func newRoom(manager *roomManager) *room {
 }
 
 func (rm *room) run() {
-	for {
-		select {
-		case n := <- rm.notify:
-			if n.cmd == proto.CmdGamePlayerCreateRoom {
-				rm.onCreate(n)
-			} else if n.cmd == proto.CmdGamePlayerEnterRoom {
-				rm.onUserEnter(n)
-			} else if n.cmd == proto.CmdGamePlayerLeaveRoom {
-				rm.onUserLeave(n)
-			} else if n.cmd == proto.CmdGamePlayerMessage {
-				rm.onUserMessage(n)
+	fmt.Println("room run")
+	go func () {
+		for {
+			select {
+			case n := <- rm.notify:
+				fmt.Println("room process message ", n)
+				if n.cmd == proto.CmdGamePlayerCreateRoom {
+					rm.onCreate(n)
+				} else if n.cmd == proto.CmdGamePlayerEnterRoom {
+					rm.onUserEnter(n)
+				} else if n.cmd == proto.CmdGamePlayerLeaveRoom {
+					rm.onUserLeave(n)
+				} else if n.cmd == proto.CmdGamePlayerMessage {
+					rm.onUserMessage(n)
+				}
+			case <- rm.quit:
+				fmt.Println("room destroy", rm.id)
+				return
 			}
-		case <- rm.quit:
-			fmt.Println("room destroy", rm.id)
-			return
 		}
-	}
+	}()
 }
 
 func (rm *room) destroy() {
@@ -57,7 +61,7 @@ func (rm *room) destroy() {
 }
 
 func (rm *room) onCreate(notify *roomNotify) {
-	defer rm.destroy()
+	//defer rm.destroy()
 
 	rm.game = rm.module.Creator()
 	if rm.game == nil {

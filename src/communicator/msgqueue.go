@@ -1,8 +1,8 @@
 package communicator
 
 import (
-	"github.com/siddontang/moonmq/broker"
-	"github.com/siddontang/moonmq/client"
+	"communicator/mq/broker"
+	"communicator/mq/client"
 	"time"
 	"fmt"
 )
