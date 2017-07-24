@@ -15,6 +15,11 @@ type dbClient struct {
 	uri 		string
 }
 
+func InitTables() {
+	dc := newDbClient()
+	dc.InitTable()
+}
+
 func newDbClient() *dbClient {
 
 	dc := &dbClient{}
@@ -82,6 +87,18 @@ func (dc *dbClient) DropTable(v ...interface{}) {
 // logic handler
 
 func (dc *dbClient) InitTable() {
+	fmt.Println("init tables")
+/*
+	dc.DropTable(&table.T_Accounts{})
+	dc.DropTable(&table.T_Games{})
+	dc.DropTable(&table.T_GamesArchive{})
+	dc.DropTable(&table.T_Guests{})
+	dc.DropTable(&table.T_Message{})
+	dc.DropTable(&table.T_Rooms{})
+	dc.DropTable(&table.T_RoomUser{})
+	dc.DropTable(&table.T_Users{})
+	dc.DropTable(&table.T_MyTest{})
+*/
 	dc.CreateTableIfNot(&table.T_Accounts{})
 	dc.CreateTableIfNot(&table.T_Games{})
 	dc.CreateTableIfNot(&table.T_GamesArchive{})

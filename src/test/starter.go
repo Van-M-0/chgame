@@ -38,9 +38,5 @@ func start_test() {
 	p := os.Args[1]
 	fmt.Println("start args ", p)
 
-	a := proto.PlayerLogin{
-		Name: "hello",
-	}
-	fmt.Println("login ret ",a )
 	starter.StartProgram(p, nil)
 }

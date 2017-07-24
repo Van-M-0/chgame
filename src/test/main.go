@@ -133,6 +133,8 @@ func main() {
 	//start_test()
 	start_test()
 	//testMq()
+
+	//genMysqlTables()
 }
 
 
