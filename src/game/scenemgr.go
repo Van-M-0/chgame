@@ -7,6 +7,7 @@ import (
 	"exportor/defines"
 	"cacher"
 	"communicator"
+	"strconv"
 )
 
 type sceneManager struct {
@@ -84,6 +85,7 @@ func (sm *sceneManager) onGwPlayerLogin(uid uint32, data []byte) {
 	}
 
 	var user proto.CacheUser
+	/*
 	if err := sm.cc.GetUserInfoById(playerLogin.Uid, &user); err != nil {
 		sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode: defines.ErrPlayerLoginErr})
 		return
@@ -93,7 +95,7 @@ func (sm *sceneManager) onGwPlayerLogin(uid uint32, data []byte) {
 		sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode: defines.ErrPlayerLoginCache})
 		return
 	}
-
+	*/
 	player := &defines.PlayerInfo{
 		Uid: uid,
 		UserId: uint32(user.Uid),
@@ -109,10 +111,24 @@ func (sm *sceneManager) onGwPlayerLogin(uid uint32, data []byte) {
 	}
 	sm.playerMgr.addPlayer(player)
 
+	player.Uid = uid
+	player.UserId = 1000 + uid
+	player.Account = "acc_" + strconv.Itoa(int(player.UserId))
+	player.Name = "name" + strconv.Itoa(int(player.UserId))
+
+
 	if player.RoomId != 0 {
 		sm.roomMgr.reEnter(player)
 	} else {
-		sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode: defines.ErrPlayerLoginSuccess})
+		dummyInfo :=  &proto.PlayerLoginRet{
+			ErrCode: defines.ErrPlayerLoginSuccess,
+			UidTest: uid,
+			AccountTest: player.Account,
+			NameTest: player.Name,
+			UserIdTest: int(player.UserId),
+		}
+		fmt.Println("dummy player ", dummyInfo)
+		sm.SendMessage(uid, proto.CmdGamePlayerLogin, dummyInfo)
 	}
 }
 

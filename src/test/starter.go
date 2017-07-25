@@ -3,18 +3,54 @@ package main
 import (
 	"os"
 	"fmt"
-	"starter"
 	"exportor/defines"
 	"exportor/proto"
+	"game"
+	"time"
+	"runtime/debug"
+	"starter"
 )
 
 var register = make(map[string]interface{})
+
+var _ = game.NewGameServer
 
 func init() {
 	register[defines.ChannelLoadUser] = proto.PMLoadUser{}
 	register[defines.ChannelCreateAccountFinish] = proto.PMLoadUserFinish{}
 	register[defines.ChannelCreateAccount] = proto.PMCreateAccount{}
 	register[defines.ChannelCreateAccountFinish] = proto.PMCreateAccountFinish{}
+}
+
+func safacall(fn func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("recover enter")
+			fmt.Println("recover err : " , r)
+			debug.PrintStack()
+		}
+		fmt.Println("recover test goroutine quit")
+	}()
+	fn()
+}
+
+func safeGo(fn func()) {
+	go func() {
+		defer func() {
+			fmt.Println("save go exit")
+		}()
+		time.Sleep(time.Duration(1) * time.Second)
+		for {
+			safacall(fn)
+			time.Sleep(time.Duration(1) * time.Second)
+		}
+	}()
+}
+
+func badcall() {
+	fmt.Println("bad call")
+	var arr []byte
+	arr[3] = 3
 }
 
 func start_test() {
@@ -32,6 +68,15 @@ func start_test() {
 
 	for i := 0; i < 3; i++ {
 		fmt.Println("chan int ", <- a.d[i])
+	}
+	*/
+
+	/*
+	safeGo(badcall)
+
+	for {
+		time.Sleep(time.Duration(1) * time.Second)
+		fmt.Println("main programa run")
 	}
 	*/
 
