@@ -49,11 +49,11 @@ func (rm *roomManager) getRoom(id uint32) *room {
 	}
 }
 
-func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.PlayerCreateRoom) {
+func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.UserCreateRoomReq) {
 
 	module := rm.getGameModule(message.Kind)
 	if module == nil {
-		rm.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{Err: 3})
+		rm.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{ErrCode: 3})
 		return
 	}
 
@@ -65,6 +65,7 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 	room.module = *module
 	room.run()
 	room.notify <- &roomNotify{
+		cmd: proto.CmdCreateRoom,
 		user: *info,
 		data: message,
 	}
@@ -73,23 +74,12 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 func (rm *roomManager) enterRoom(info *defines.PlayerInfo, roomId uint32) {
 	room := rm.getRoom(roomId)
 	if room == nil {
-		rm.sendMessage(info, proto.CmdGamePlayerCreateRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomNotExists})
+		rm.sm.pubEnterRoom(&proto.PMUserEnterRoomRet{ErrCode: 3})
+		return
 	}
 
 	room.notify <- &roomNotify{
-		cmd: proto.CmdGamePlayerEnterRoom,
-		user: *info,
-	}
-}
-
-func (rm *roomManager) leaveRoom(info *defines.PlayerInfo, roomId uint32) {
-	room := rm.getRoom(roomId)
-	if room == nil {
-		rm.sendMessage(info, proto.CmdGamePlayerLeaveRoom, &proto.PlayerLeaveRoomRet{ErrCode: defines.ErrLeaveRoomNotExists})
-	}
-
-	room.notify <- &roomNotify{
-		cmd: proto.CmdGamePlayerEnterRoom,
+		cmd: proto.CmdEnterRoom,
 		user: *info,
 	}
 }

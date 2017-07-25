@@ -10,6 +10,7 @@ import (
 
 type serverInfo struct {
 	typo 		string
+	sid 		int
 	id 			uint32
 	cli 		defines.ITcpClient
 }
@@ -70,6 +71,7 @@ func (mgr *serManager) addServer(client defines.ITcpClient, m *proto.RegisterSer
 	mgr.idGen++
 	mgr.sers[mgr.idGen] = &serverInfo{
 		typo: m.Type,
+		sid: m.ServerId,
 		id:	mgr.idGen,
 		cli: client,
 	}

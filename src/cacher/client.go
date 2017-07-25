@@ -9,7 +9,6 @@ import (
 	"exportor/proto"
 	"dbproxy/table"
 	"errors"
-	"github.com/flike/kingshard/proxy/server"
 )
 
 

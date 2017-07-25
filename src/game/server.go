@@ -8,6 +8,8 @@ import (
 	"msgpacker"
 )
 
+var serverId = 1
+
 type gameServer struct {
 	opt 			*defines.GameOption
 	gwClient 		defines.ITcpClient
@@ -29,6 +31,7 @@ func (gs *gameServer) Start() error {
 			fmt.Println("connect gate succcess, send auth info")
 			client.Send(proto.CmdRegisterServer, &proto.RegisterServer{
 				Type: "game",
+				ServerId: 1,
 			})
 			return nil
 		},
@@ -76,8 +79,8 @@ func (gs *gameServer) send2players(uids[] uint32, cmd uint32, data interface{}) 
 	gs.gwClient.Send(proto.GameRouteClient, &header)
 }
 
-func (gs *gameServer) getSid() uint32 {
-	return 0
+func (gs *gameServer) getSid() int {
+	return serverId
 }
 
 

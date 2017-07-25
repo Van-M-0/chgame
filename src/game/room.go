@@ -39,11 +39,11 @@ func (rm *room) run() {
 			select {
 			case n := <- rm.notify:
 				fmt.Println("room process message ", n)
-				if n.cmd == proto.CmdGamePlayerCreateRoom {
+				if n.cmd == proto.CmdCreateRoom {
 					rm.onCreate(n)
-				} else if n.cmd == proto.CmdGamePlayerEnterRoom {
+				} else if n.cmd == proto.CmdEnterRoom {
 					rm.onUserEnter(n)
-				} else if n.cmd == proto.CmdGamePlayerLeaveRoom {
+				} else if n.cmd == proto.CmdLeaveRoom {
 					rm.onUserLeave(n)
 				} else if n.cmd == proto.CmdGamePlayerMessage {
 					rm.onUserMessage(n)
@@ -61,40 +61,45 @@ func (rm *room) destroy() {
 }
 
 func (rm *room) onCreate(notify *roomNotify) {
-	//defer rm.destroy()
+
+	replyErr := func(err int) {
+		defer rm.destroy()
+		rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{ErrCode: err})
+	}
 
 	rm.game = rm.module.Creator()
 	if rm.game == nil {
-		rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{Err: defines.ErrCreateRoomGameMoudele})
+		replyErr(defines.ErrCreateRoomGameMoudele)
 		return
 	}
 
 	if err := rm.game.OnInit(rm, rm.module.GameData); err != nil {
-		rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{Err: defines.ErrCreateRoomGameMoudele})
+		replyErr(defines.ErrCreateRoomGameMoudele)
 		return
 	}
 
-	if msg, ok := notify.data.(*proto.PlayerCreateRoom); !ok {
-		rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{Err: defines.ErrCreateRoomSystme})
+	if msg, ok := notify.data.(*proto.UserCreateRoomReq); !ok {
+		replyErr(defines.ErrCreateRoomSystme)
 		return
 	} else {
 		if err := rm.game.OnGameCreate(&notify.user, &defines.CreateRoomConf{
 			RoomId: rm.id,
 			Conf: msg.Conf,
 		}); err != nil {
-			rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{Err: defines.ErrCreateRoomSystme})
+			replyErr(defines.ErrCreateRoomSystme)
 			return
 		}
 	}
-	rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{Err: defines.ErrCreateRoomSuccess})
+
+	rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{ErrCode: defines.ErrCreateRoomSuccess})
 }
 
 func (rm *room) onUserEnter(notify *roomNotify) {
 	if err := rm.game.OnUserEnter(&notify.user); err != nil {
-		rm.manager.sendMessage(&notify.user, notify.cmd, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrEnterRoomMoudle})
+		rm.manager.sm.pubEnterRoom(&proto.PMUserEnterRoomRet{ErrCode: defines.ErrEnterRoomMoudle})
 	} else {
 		rm.users[notify.user.UserId] = notify.user
-		rm.manager.sendMessage(&notify.user, notify.cmd, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrEnterRoomSuccess})
+		rm.manager.sm.pubEnterRoom(&proto.PMUserEnterRoomRet{ErrCode: defines.ErrEnterRoomSuccess})
 	}
 }
 

@@ -23,7 +23,7 @@ type userInfo struct {
 }
 
 type room struct {
-
+	ServerId 	int
 }
 
 type userManager struct {
@@ -215,31 +215,88 @@ func (um *userManager) getRoomId() uint32 {
 	return 0
 }
 
-func (um *userManager) createRoom(uid uint32, req *proto.UserCreateRoomReq) {
+func (um *userManager) handleCreateRoom(uid uint32, req *proto.UserCreateRoomReq) {
+
+	p := um.getUser(uid)
+	if p == nil {
+		fmt.Println("user not in")
+		um.lb.send2player(uid, proto.CmdEnterRoom, &proto.UserCreateRoomRet{ErrCode: defines.ErrCreateRoomUserNotIn})
+		return
+	}
+
 	roomid := um.getRoomId()
 	fmt.Println("user create room ", roomid)
+	req.RoomId = roomid
 	um.pub.WaitPublish(defines.ChannelTypeLobby, defines.ChannelCreateRoom, &proto.PMUserCreateRoom{
 		ServerId: 1,
 		Uid: uid,
-		Message: proto.PlayerCreateRoom{
-			RoomId: roomid,
-			Kind: req.Kind,
-			Enter: req.Enter,
-			Conf: req.Conf,
-		},
+		Message: *req,
 	})
 	ret := um.con.WaitMessage(defines.ChannelTypeLobby, defines.ChannelCreateRoomFinish, defines.WaitChannelNormal)
 	if ret == nil {
 		fmt.Println("create room over time")
-		um.lb.send2player(uid, proto.CmdCreateRoom, &proto.UserCreateRoomRet{
-			ErrCode: defines.ErrCoomonSystem,
-		})
-	} else {
-		message := ret.(*proto.PMUserCreateRoomRet)
-		fmt.Println("create room success", message)
+		um.lb.send2player(uid, proto.CmdCreateRoom, &proto.UserCreateRoomRet{ErrCode: defines.ErrCoomonSystem})
+		return
 	}
+
+	message, ok := ret.(*proto.PMUserCreateRoomRet)
+	if !ok {
+		fmt.Println("create room cast error")
+		um.lb.send2player(uid, proto.CmdCreateRoom, &proto.UserCreateRoomRet{ErrCode: defines.ErrCoomonSystem})
+		return
+	}
+	fmt.Println("create room success", message)
+	um.rooms[roomid] = &room{
+		ServerId: 1,
+	}
+
+	if message.ErrCode != defines.ErrCreateRoomSuccess {
+		fmt.Println("create room errorcode ", message.ErrCode)
+		um.lb.send2player(uid, proto.CmdCreateRoom, &proto.UserCreateRoomRet{ErrCode: defines.ErrCoomonSystem})
+		return
+	}
+
+	um.lb.send2player(uid, proto.CmdCreateRoom, &proto.UserCreateRoomRet{ErrCode: defines.ErrCommonSuccess, RoomId: roomid})
 }
 
-func (um *userManager) enterRoom(uid uint32, req *proto.UserEnterRoomReq) {
+func (um *userManager) handleEnterRoom(uid uint32, req *proto.UserEnterRoomReq) {
 
+	p := um.getUser(uid)
+	if p == nil {
+		fmt.Println("user not in")
+		um.lb.send2player(uid, proto.CmdEnterRoom, &proto.UserEnterRoomRet{ErrCode: defines.ErrEnterRoomUserNotIn})
+		return
+	}
+
+	if _, ok := um.rooms[req.RoomId]; !ok {
+		um.lb.send2player(uid, proto.CmdEnterRoom, &proto.UserEnterRoomRet{ErrCode: defines.ErrEnterRoomNotExists})
+		return
+	}
+
+	um.pub.WaitPublish(defines.ChannelTypeLobby, defines.ChannelEnterRoom, &proto.PMUserEnterRoom{
+		ServerId: um.rooms[req.RoomId].ServerId,
+		RoomId: req.RoomId,
+		Uid: uid,
+	})
+	ret := um.con.WaitMessage(defines.ChannelTypeLobby, defines.ChannelEnterRoomFinish, defines.WaitChannelNormal)
+	if ret == nil {
+		fmt.Println("enter room over time")
+		um.lb.send2player(uid, proto.CmdEnterRoom, &proto.UserEnterRoomRet{ErrCode: defines.ErrCoomonSystem})
+		return
+	}
+
+	message, ok := ret.(*proto.PMUserEnterRoomRet)
+	if !ok {
+		fmt.Println("enter room cast error")
+		um.lb.send2player(uid, proto.CmdEnterRoom, &proto.UserEnterRoomRet{ErrCode: defines.ErrCoomonSystem})
+		return
+	}
+
+	if message.ErrCode != defines.ErrEnterRoomSuccess {
+		fmt.Println("enter room cast error")
+		um.lb.send2player(uid, proto.CmdEnterRoom, &proto.UserEnterRoomRet{ErrCode: defines.ErrCoomonSystem})
+		return
+	}
+
+	um.lb.send2player(uid, proto.CmdEnterRoom, &proto.UserEnterRoomRet{ErrCode: defines.ErrCommonSuccess})
 }

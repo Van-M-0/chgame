@@ -14,6 +14,10 @@ func init() {
 	register[defines.ChannelLoadUserFinish] = &proto.PMLoadUserFinish{}
 	register[defines.ChannelCreateAccount] = &proto.PMCreateAccount{}
 	register[defines.ChannelCreateAccountFinish] = &proto.PMCreateAccountFinish{}
+	register[defines.ChannelCreateRoom] = &proto.PMUserCreateRoom{}
+	register[defines.ChannelCreateRoomFinish] = &proto.PMUserCreateRoomRet{}
+	register[defines.ChannelEnterRoom] = &proto.PMUserEnterRoom{}
+	register[defines.ChannelEnterRoomFinish] = &proto.PMUserEnterRoomRet{}
 }
 
 func serilize(key string, data interface{}) ([]byte, error) {

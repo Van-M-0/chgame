@@ -122,7 +122,7 @@ func main() {
 	//tcpServer()
 
 	//send1(nil)
-	testredis()
+	//testredis()
 	//testps()
 
 	//testCommunicator()
@@ -131,7 +131,7 @@ func main() {
 	//testproto2()
 
 	//start_test()
-	//start_test()
+	start_test()
 	//testMq()
 
 	//genMysqlTables()

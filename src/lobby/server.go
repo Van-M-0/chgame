@@ -96,11 +96,27 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 	case proto.CmdCreateAccount:
 		var acc proto.CreateAccount
 		if err := msgpacker.UnMarshal(data, &acc); err != nil {
-			fmt.Println("unmarshal client login errr", err)
+			fmt.Println("unmarshal client account errr", err)
 			return
 		}
 		fmt.Println("unmarshal create account", acc)
 		lb.userMgr.handleCreateAccount(uid, &acc)
+	case proto.CmdCreateRoom:
+		var req proto.UserCreateRoomReq
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal create room errr", err)
+			return
+		}
+		fmt.Println("unmarshal create room", req)
+		lb.userMgr.handleCreateRoom(uid, &req)
+	case proto.CmdEnterRoom:
+		var req proto.UserEnterRoomReq
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal client enter errr", err)
+			return
+		}
+		fmt.Println("unmarshal enter room", req)
+		lb.userMgr.handleEnterRoom(uid, &req)
 	default:
 		fmt.Println("lobby handle invalid client cmd ", cmd)
 	}

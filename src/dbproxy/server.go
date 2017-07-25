@@ -89,7 +89,8 @@ func (ds *dbProxyServer) handleLogin(i interface{}) {
 	ret := ds.dbClient.GetUserInfo(req.Acc, &userInfo)
 	fmt.Println(defines.ChannelLoadUser, req, ret)
 	ds.chResNotify <- func() {
-		if ret {
+		fmt.Println("bbbbbb", req, ret)
+		if ret == true {
 			err := ds.cacheClient.SetUserInfo(&userInfo, ret)
 			ret := &proto.PMLoadUserFinish{Err: err, Code: 0}
 			fmt.Println("load user finish ", ret)
@@ -100,6 +101,7 @@ func (ds *dbProxyServer) handleLogin(i interface{}) {
 			ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, ret)
 		}
 	}
+	fmt.Println("aaaaaaaaaaa", req, ret)
 }
 
 func (ds *dbProxyServer) handleCreateAccount(i interface{}) {
@@ -149,9 +151,11 @@ func (ds *dbProxyServer) handleCreateAccount(i interface{}) {
 func (ds *dbProxyServer) handleNotifyRes() {
 	for i :=1; i < 3; i++ {
 		go func() {
-			select {
-			case fn := <- ds.chResNotify:
-				fn()
+			for {
+				select {
+				case fn := <- ds.chResNotify:
+					fn()
+				}
 			}
 		}()
 	}
