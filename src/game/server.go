@@ -76,5 +76,8 @@ func (gs *gameServer) send2players(uids[] uint32, cmd uint32, data interface{}) 
 	gs.gwClient.Send(proto.GameRouteClient, &header)
 }
 
+func (gs *gameServer) getSid() uint32 {
+	return 0
+}
 
 

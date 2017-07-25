@@ -8,7 +8,20 @@ import (
 	"cacher"
 	"communicator"
 	"strconv"
+	"os/user"
 )
+
+const (
+	requetKindBroker = 1
+	requestKindGate = 2
+)
+
+type request struct {
+	kind 	int
+	cmd 	string
+	direct  uint32
+	data 	interface{}
+}
 
 type sceneManager struct {
 	playerMgr 		*playerManager
@@ -17,6 +30,8 @@ type sceneManager struct {
 	cc 				defines.ICacheClient
 	pub 			defines.IMsgPublisher
 	con 			defines.IMsgConsumer
+	brokerNotify    chan *request
+	sceneNotify 	chan *request
 }
 
 func newSceneManager(gs *gameServer) *sceneManager {
@@ -27,20 +42,56 @@ func newSceneManager(gs *gameServer) *sceneManager {
 	sm.cc = cacher.NewCacheClient("game")
 	sm.pub = communicator.NewMessagePulisher()
 	sm.con = communicator.NewMessageConsumer()
+	sm.brokerNotify = make(chan *request, 64)
+	sm.sceneNotify = make(chan *request, 1024)
 	return sm
 }
 
+func (sm *sceneManager) getMessageFromBroker () {
+	fmt.Println("server get message from broker")
+	_ = func(key string) {
+		for {
+			data := sm.con.GetMessage(defines.ChannelTypeLobby, key)
+			fmt.Println("get message ", key, data)
+			sm.brokerNotify <- &request{kind:requetKindBroker, cmd: key, data: data}
+		}
+	}
+}
+
 func (sm *sceneManager) start() {
+	sm.pub.Start()
 	sm.cc.Start()
+	sm.startHandleRequest()
 }
 
 func (sm *sceneManager) onGwMessage(direction uint32, message *proto.GateGameHeader) {
-	if direction == proto.ClientRouteGame {
-		sm.onGwPlayerMessage(message.Uid, message.Cmd, message.Msg)
-	} else if direction== proto.GateRouteGame {
-		sm.onGwServerMessage(message.Cmd, message.Msg)
-	} else {
-		fmt.Println("gate way msg direction error ", message)
+	sm.sceneNotify <- &request{kind: requestKindGate, direct: direction, data: message}
+}
+
+func (sm *sceneManager) startHandleRequest() {
+	for {
+		if len(sm.sceneNotify) > 512 {
+			fmt.Println("scene notify size over 512")
+		}
+		select {
+		case r := <- sm.sceneNotify:
+			sm.processRequest(r)
+		}
+	}
+}
+
+func (sm *sceneManager) processRequest(r *request) {
+	if r.kind == requestKindGate {
+		message := r.data.(*proto.GateGameHeader)
+		if r.direct == proto.ClientRouteGame {
+			sm.onGwPlayerMessage(message.Uid, message.Cmd, message.Msg)
+		} else if r.direct == proto.GateRouteGame {
+			sm.onGwServerMessage(message.Cmd, message.Msg)
+		} else {
+			fmt.Println("gate way msg direction error ", message)
+		}
+	} else if r.kind == requetKindBroker {
+		sm.onBrokerMessage(r.cmd, r.data)
 	}
 }
 
@@ -60,6 +111,27 @@ func (sm *sceneManager) BroadcastMessage(uids []uint32, cmd uint32, data interfa
 	sm.gameServer.send2players(uids, cmd, data)
 }
 
+func (sm *sceneManager) onBrokerMessage(cmd string, data interface{}) {
+	if cmd == defines.ChannelCreateRoom {
+		message := data.(*proto.PMUserCreateRoom)
+		if message.ServerId != sm.gameServer.getSid() {
+			return
+		}
+
+		player := sm.playerMgr.getPlayerByUid(message.Uid)
+		if player == nil {
+			sm.pubCreateRoom(&proto.PMUserCreateRoomRet{Err: 2})
+			return
+		}
+
+		sm.roomMgr.createRoom(player, &message.Message)
+	}
+}
+
+func (sm *sceneManager) pubCreateRoom(data interface{}) {
+	sm.pub.WaitPublish(defines.ChannelTypeLobby, defines.ChannelCreateRoomFinish, data)
+}
+
 func (sm *sceneManager) onGwServerMessage(cmd uint32, data []byte) {
 
 }
@@ -69,8 +141,10 @@ func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
 	switch cmd {
 	case proto.CmdGamePlayerLogin:
 		sm.onGwPlayerLogin(uid, data)
+	/*
 	case proto.CmdGamePlayerCreateRoom:
 		sm.onGwPlayerCreateRoom(uid, data)
+	*/
 	case proto.CmdGamePlayerMessage:
 		sm.onGwPlayerGameMessage(uid, data)
 	default:

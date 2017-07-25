@@ -78,13 +78,13 @@ func startClient() {
 				fmt.Println("login ret message ", ret, err)
 
 				if ret.ErrCode == defines.ErrPlayerLoginSuccess {
-					client.Send(proto.CmdGamePlayerCreateRoom, &proto.PlayerCreateRoom{
+					client.Send(proto.CmdCreateRoom, &proto.UserCreateRoomReq{
 						Kind: 1,
 						Enter: true,
 					})
 				}
-			} else if message.Cmd == proto.CmdGamePlayerCreateRoom {
-				var ret proto.PlayerCreateRoomRet
+			} else if message.Cmd == proto.CmdCreateRoom {
+				var ret proto.UserCreateRoomRet
 				var origin []byte
 				err := msgpacker.UnMarshal(message.Msg, &origin)
 				fmt.Println("origin ", origin)
@@ -112,15 +112,11 @@ func startClient() {
 			Account: "acc_1500878402",
 		})
 	} else if t == proto.CmdGamePlayerLogin {
-		c.Send(t, &proto.PlayerLogin{
+		c.Send(t, &proto.PlayerLogin {
 			Uid: 5,
 		})
-	} else if t == proto.CmdGamePlayerCreateRoom {
-
 	} else if t == proto.CmdGamePlayerEnterRoom {
-		c.Send(t, &proto.PlayerLogin{
-			Uid: 5,
-		})
+
 	}
 
 }

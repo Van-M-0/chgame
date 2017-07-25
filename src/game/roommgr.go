@@ -53,27 +53,20 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 
 	module := rm.getGameModule(message.Kind)
 	if module == nil {
-		rm.sendMessage(info, proto.CmdGamePlayerCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomKind})
+		rm.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{Err: 3})
 		return
 	}
 
 	room := newRoom(rm)
-	room.id = rm.getRoomId()
-	if room.id != 0 {
-		fmt.Println("room id ", room.id)
-		rm.rooms[room.id] = room
-		room.createUserId = info.UserId
-		room.module = *module
-		room.run()
-		room.notify <- &roomNotify{
-			cmd: proto.CmdGamePlayerCreateRoom,
-			user: *info,
-			data: message,
-		}
-		fmt.Println("response client ret")
-		rm.sendMessage(info, proto.CmdGamePlayerCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomSuccess})
-	} else {
-		rm.sendMessage(info, proto.CmdGamePlayerCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomWait})
+	room.id = message.RoomId
+	fmt.Println("room id ", room.id)
+	rm.rooms[room.id] = room
+	room.createUserId = info.UserId
+	room.module = *module
+	room.run()
+	room.notify <- &roomNotify{
+		user: *info,
+		data: message,
 	}
 }
 

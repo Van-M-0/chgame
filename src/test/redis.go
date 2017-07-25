@@ -7,6 +7,7 @@ import (
 	"sync"
 	"fmt"
 	"gopkg.in/vmihailenco/msgpack.v2"
+	"exportor/proto"
 )
 
 type Conf struct {
@@ -22,7 +23,7 @@ type Stock struct {
 	Id 			int    `redis:"id"`
 }
 
-func testredis() {
+func testscan() {
 	conn, err := redis.Dial("tcp", ":6379")
 	if err != nil {
 		log.Fatalf("Couldn't connect to Redis: %v\n", err)
@@ -52,6 +53,43 @@ func testredis() {
 			log.Fatal(err)
 		}
 		log.Printf("%s: %+v", sym, &stock, reflect.TypeOf(stock.Id))
+	}
+}
+
+func testredis() {
+	fmt.Println("test redis ..........")
+	conn, err := redis.Dial("tcp", ":6379")
+	if err != nil {
+		log.Fatalf("Couldn't connect to Redis: %v\n", err)
+	}
+	defer conn.Close()
+
+	servers := map[string]*proto.CacheServer {
+		"_SER_server1": &proto.CacheServer{
+			Type: "server1",
+			Id: 1,
+			OnlineCount: 100,
+		},
+		"_SER_server2": &proto.CacheServer{
+			Type: "server2",
+			Id: 2,
+			OnlineCount: 3,
+		},
+	}
+
+	for key, val := range servers {
+		if _, err := conn.Do("HMSET", redis.Args{key}.AddFlat(val)...); err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	fmt.Println("set beign ............")
+	var si proto.CacheServer
+	si.Id = 1
+	arg := redis.Args{"_SER_server1"}.AddFlat(si)
+	fmt.Println("arg ..", arg)
+	if _, err := conn.Do("HMSET", arg...); err != nil {
+		log.Fatal(err)
 	}
 }
 

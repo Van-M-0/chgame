@@ -65,29 +65,28 @@ func (rm *room) onCreate(notify *roomNotify) {
 
 	rm.game = rm.module.Creator()
 	if rm.game == nil {
-		rm.manager.sendMessage(&notify.user, notify.cmd, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomGameMoudele})
+		rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{Err: defines.ErrCreateRoomGameMoudele})
 		return
 	}
 
 	if err := rm.game.OnInit(rm, rm.module.GameData); err != nil {
-		rm.manager.sendMessage(&notify.user, notify.cmd, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomGameMoudele})
+		rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{Err: defines.ErrCreateRoomGameMoudele})
 		return
 	}
 
 	if msg, ok := notify.data.(*proto.PlayerCreateRoom); !ok {
-		rm.manager.sendMessage(&notify.user, notify.cmd, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomSystme})
+		rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{Err: defines.ErrCreateRoomSystme})
 		return
 	} else {
 		if err := rm.game.OnGameCreate(&notify.user, &defines.CreateRoomConf{
 			RoomId: rm.id,
 			Conf: msg.Conf,
 		}); err != nil {
-			rm.manager.sendMessage(&notify.user, notify.cmd, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomSystme})
+			rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{Err: defines.ErrCreateRoomSystme})
 			return
 		}
 	}
-
-	rm.manager.sendMessage(&notify.user, notify.cmd, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomSuccess})
+	rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{Err: defines.ErrCreateRoomSuccess})
 }
 
 func (rm *room) onUserEnter(notify *roomNotify) {

@@ -10,4 +10,11 @@ func users(uid int) string {
 	return "users."+strconv.Itoa(uid)
 }
 
+func servers(id int) string {
+	return "servers."+strconv.Itoa(id)
+}
+
+func serversPattern() string {
+	return "servers.*"
+}
 

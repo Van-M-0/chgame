@@ -49,6 +49,8 @@ func (lb *lobby) Start() error {
 
 	lb.userMgr.setLobby(lb)
 	lb.userMgr.start()
+	lb.processor.Start()
+
 
 	return nil
 }
@@ -66,9 +68,9 @@ func (lb *lobby) onGwMessage(message *proto.Message) {
 			return
 		}
 		fmt.Println("lobby on gw message 1", header.Cmd, header)
-		//lb.processor.process(header.Uid, func() {
+		lb.processor.process(header.Uid, func() {
 			lb.handleClientMessage(header.Uid, header.Cmd, header.Msg)
-		//})
+		})
 	} else if message.Cmd == proto.GateRouteLobby {
 
 	}

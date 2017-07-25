@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"exportor/proto"
 	"dbproxy/table"
+	"errors"
+	"github.com/flike/kingshard/proxy/server"
 )
 
 
@@ -134,5 +136,51 @@ func (cc *cacheClient) SetUserInfo(d interface{}, dbRet bool) error {
 	return nil
 }
 
+
+func (cc *cacheClient) SetServer(server *proto.CacheServer) error {
+	serverKeys := servers(server.Id)
+	if _, err := cc.command("hmset", redis.Args{serverKeys}.AddFlat(server)...); err != nil {
+		log.Fatal(err)
+	}
+	return nil
+}
+
+func (cc *cacheClient) GetServers() ([]*proto.CacheServer, error) {
+	var servers []*proto.CacheServer
+
+	skeys, err := redis.Strings(cc.ccConn.Do("keys", serversPattern()))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, key := range skeys {
+		values, err := redis.Values(cc.command("hgetall", key))
+		if err != nil {
+			fmt.Println("get server err ", key, err)
+			continue
+		}
+
+		var ser proto.CacheServer
+		if err := redis.ScanStruct(values, ser); err != nil {
+			fmt.Println("get server scan values error", err)
+			continue
+		}
+
+		servers = append(servers, &ser)
+	}
+
+	return servers, nil
+}
+
+func (cc *cacheClient) UpdateServer(ser *proto.CacheServer) error {
+	if ser.Id == 0 {
+		return errors.New("id is empty")
+	}
+	key := servers(ser.Id)
+	if _, err := cc.command("hmset", redis.Args{key}.AddFlat(ser)...); err != nil {
+		log.Fatal(err)
+	}
+	return nil
+}
 
 // ICacheLoader

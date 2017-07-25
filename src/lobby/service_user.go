@@ -7,6 +7,8 @@ import (
 	"cacher"
 	"communicator"
 	"fmt"
+	"time"
+	"math/rand"
 )
 
 type userInfo struct {
@@ -18,6 +20,10 @@ type userInfo struct {
 	headimg 	string
 	diamond 	int
 	gold 		int64
+}
+
+type room struct {
+
 }
 
 type userManager struct {
@@ -32,6 +38,7 @@ type userManager struct {
 	pub 			defines.IMsgPublisher
 	con 			defines.IMsgConsumer
 
+	rooms 			map[uint32]*room
 }
 
 func newUserManager() *userManager {
@@ -41,6 +48,7 @@ func newUserManager() *userManager {
 		con: communicator.NewMessageConsumer(),
 		users: make(map[uint32]*userInfo),
 		usersAcc: make(map[string]uint32),
+		rooms: make(map[uint32]*room),
 	}
 }
 
@@ -194,4 +202,44 @@ func (um *userManager) handleCreateAccount(uid uint32, account *proto.CreateAcco
 			replyErr(msg.Err)
 		}
 	}
+}
+
+func (um *userManager) getRoomId() uint32 {
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i < 50; i++ {
+		id := uint32(rand.Intn(899999) + 100000)
+		if _, ok := um.rooms[id]; !ok {
+			return id
+		}
+	}
+	return 0
+}
+
+func (um *userManager) createRoom(uid uint32, req *proto.UserCreateRoomReq) {
+	roomid := um.getRoomId()
+	fmt.Println("user create room ", roomid)
+	um.pub.WaitPublish(defines.ChannelTypeLobby, defines.ChannelCreateRoom, &proto.PMUserCreateRoom{
+		ServerId: 1,
+		Uid: uid,
+		Message: proto.PlayerCreateRoom{
+			RoomId: roomid,
+			Kind: req.Kind,
+			Enter: req.Enter,
+			Conf: req.Conf,
+		},
+	})
+	ret := um.con.WaitMessage(defines.ChannelTypeLobby, defines.ChannelCreateRoomFinish, defines.WaitChannelNormal)
+	if ret == nil {
+		fmt.Println("create room over time")
+		um.lb.send2player(uid, proto.CmdCreateRoom, &proto.UserCreateRoomRet{
+			ErrCode: defines.ErrCoomonSystem,
+		})
+	} else {
+		message := ret.(*proto.PMUserCreateRoomRet)
+		fmt.Println("create room success", message)
+	}
+}
+
+func (um *userManager) enterRoom(uid uint32, req *proto.UserEnterRoomReq) {
+
 }

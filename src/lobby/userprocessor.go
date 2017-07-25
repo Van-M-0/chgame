@@ -2,6 +2,8 @@ package lobby
 
 import (
 	"sync"
+	"fmt"
+	"runtime/debug"
 )
 
 type handlerFunc func()
@@ -30,6 +32,16 @@ func newUserProcessorMgr() *userProcessorManager {
 		upm.processor[i] = make(chan *handlerTask, 10)
 	}
 	return upm
+}
+
+func (upm *userProcessorManager) call(req handlerFunc) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("user process recover, exception stack")
+			debug.PrintStack()
+		}
+	}()
+	req()
 }
 
 func (upm *userProcessorManager) Start() error {
