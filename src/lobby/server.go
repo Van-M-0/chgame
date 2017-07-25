@@ -83,7 +83,7 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 			return
 		}
 		fmt.Println("unmarshal client login", login)
-		lb.userMgr.handlePlayerLogin(uid, &login)
+		lb.userMgr.handleUserLogin(uid, &login)
 	case proto.CmdGuestLogin:
 		var guest proto.GuestLogin
 		if err := msgpacker.UnMarshal(data, &guest); err != nil {

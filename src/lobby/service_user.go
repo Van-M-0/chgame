@@ -91,7 +91,7 @@ func (um *userManager) addUser(uid uint32, cu *proto.CacheUser) *userInfo {
 	return user
 }
 
-func (um *userManager) handlePlayerLogin(uid uint32, login *proto.ClientLogin) {
+func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 	fmt.Println("handle palyer login")
 	p := um.getUserByAcc(login.Account)
 	var cacheUser proto.CacheUser
