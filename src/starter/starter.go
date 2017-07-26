@@ -16,7 +16,6 @@ import (
 	"game"
 	"strconv"
 	"math/rand"
-	"xzmj"
 )
 
 func startGate() {
@@ -185,12 +184,7 @@ func StartProgram(p string, data interface{}) {
 	} else if p == "proxy" {
 		startDbProxy()
 	} else if p == "game" {
-		xzlib := xzmj.GetLib()
-
-		modules := []defines.GameModule{
-			xzlib,
-		}
-		startGame(modules)
+		startGame(data.([]defines.GameModule))
 	}
 
 	wg := new(sync.WaitGroup)

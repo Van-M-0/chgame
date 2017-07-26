@@ -117,7 +117,13 @@ func (rm *room) onUserMessage(notify *roomNotify) {
 }
 
 func (rm *room) SendUserMessage(info *defines.PlayerInfo, cmd uint32, data interface{}) {
-	rm.manager.sendMessage(info, cmd, data)
+	rm.manager.sendMessage(info, cmd, &proto.PlayerGameMessageRet{
+		Cmd: proto.CmdGamePlayerMessage,
+		Msg: &proto.PlayerSubGameMessageRet{
+			Cmd: cmd,
+			Msg: data,
+		},
+	})
 }
 
 func (rm *room) BroadcastMessage(cmd uint32, data interface{}) {
@@ -125,7 +131,13 @@ func (rm *room) BroadcastMessage(cmd uint32, data interface{}) {
 	for _, user := range rm.users {
 		info = append(info, &user)
 	}
-	rm.manager.broadcastMessage(info, cmd, data)
+	rm.manager.broadcastMessage(info, cmd, &proto.PlayerGameMessageRet{
+		Cmd: proto.CmdGamePlayerMessage,
+		Msg: &proto.PlayerSubGameMessageRet{
+			Cmd: cmd,
+			Msg: data,
+		},
+	})
 }
 
 func (rm *room) SetTimer(id uint32, data interface{}) error {

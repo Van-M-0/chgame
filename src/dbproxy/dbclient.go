@@ -108,6 +108,7 @@ func (dc *dbClient) InitTable() {
 	dc.CreateTableIfNot(&table.T_RoomUser{})
 	dc.CreateTableIfNot(&table.T_Users{})
 	dc.CreateTableIfNot(&table.T_MyTest{})
+	dc.CreateTableIfNot(&table.T_MallItem{})
 }
 
 func (dc *dbClient) PreLoadData() {

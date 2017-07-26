@@ -75,3 +75,12 @@ type T_Users struct {
 	Roomid 		string 		`gorm:"size:8"`
 	History 	string 		`gorm:"size:4096;not null;default:''"`
 }
+
+type T_MallItem struct {
+	Itemid 		int 		`gorm:"primary_key;AUTO_INCREMENT;not null"`
+	Itemname	string 		`gorm:"size:32;not null"`
+	Category 	int 		`gorm:"not null"`
+	Buyvalue 	int 		`gorm:"not null"`
+	Nums 		int 		`gorm:"not null;default:1"`
+	Limit 		int 		`gorm:"not null;default:0"`
+}

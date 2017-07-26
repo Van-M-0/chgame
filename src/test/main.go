@@ -135,6 +135,8 @@ func main() {
 	//testMq()
 
 	//genMysqlTables()
+
+	//test_log()
 }
 
 

@@ -14,14 +14,18 @@ type lobby struct {
 	userMgr 		*userManager
 	opt 			*defines.LobbyOption
 	processor 		*userProcessorManager
+	bpro 			*brokerProcessor
+	mall 			*mallService
 }
 
 func newLobby(option *defines.LobbyOption) *lobby {
-	return &lobby{
-		opt: option,
-		userMgr: newUserManager(),
-		processor: newUserProcessorMgr(),
-	}
+	lb := &lobby{}
+	lb.opt = option
+	lb.userMgr = newUserManager()
+	lb.processor = newUserProcessorMgr()
+	lb.bpro = newBrokerProcessor()
+	lb.mall = newMallService(lb)
+	return lb
 }
 
 func (lb *lobby) Start() error {
@@ -50,8 +54,7 @@ func (lb *lobby) Start() error {
 	lb.userMgr.setLobby(lb)
 	lb.userMgr.start()
 	lb.processor.Start()
-
-
+	lb.bpro.Start()
 	return nil
 }
 
@@ -129,6 +132,21 @@ func (lb *lobby) send2player(uid uint32, cmd uint32, data interface{}) {
 	}
 	header := &proto.LobbyGateHeader{
 		Uids: []uint32{uid},
+		Cmd: cmd,
+		Msg: body,
+	}
+	fmt.Println("lobby send 2 player ", header)
+	lb.gwClient.Send(proto.LobbyRouteClient, &header)
+}
+
+func (lb *lobby) broadcastMessage(cmd uint32, data interface{}) {
+	uids := lb.userMgr.getAllUsers()
+	body, err := msgpacker.Marshal(data)
+	if err != nil {
+		return
+	}
+	header := &proto.LobbyGateHeader{
+		Uids: uids,
 		Cmd: cmd,
 		Msg: body,
 	}

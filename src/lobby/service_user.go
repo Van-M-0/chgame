@@ -72,6 +72,16 @@ func (um *userManager) getUser(uid uint32) *userInfo {
 	}
 }
 
+func (um *userManager) getAllUsers() []uint32 {
+	um.userLock.Lock()
+	defer um.userLock.Unlock()
+	uids := []uint32{}
+	for _, user := range um.users {
+		uids = append(uids, user.uid)
+	}
+	return uids
+}
+
 func (um *userManager) getUserByAcc(acc string) *userInfo {
 	um.userLock.Lock()
 	defer um.userLock.Unlock()
