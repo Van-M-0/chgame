@@ -16,6 +16,7 @@ type lobby struct {
 	processor 		*userProcessorManager
 	bpro 			*brokerProcessor
 	mall 			*mallService
+	hp 				*http2Proxy
 }
 
 func newLobby(option *defines.LobbyOption) *lobby {
@@ -25,6 +26,7 @@ func newLobby(option *defines.LobbyOption) *lobby {
 	lb.processor = newUserProcessorMgr()
 	lb.bpro = newBrokerProcessor()
 	lb.mall = newMallService(lb)
+	lb.hp = newHttpProxy()
 	return lb
 }
 
@@ -55,6 +57,7 @@ func (lb *lobby) Start() error {
 	lb.userMgr.start()
 	lb.processor.Start()
 	lb.bpro.Start()
+	lb.hp.start()
 	return nil
 }
 
