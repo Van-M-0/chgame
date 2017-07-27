@@ -1,5 +1,7 @@
 package table
 
+import "time"
+
 type T_MyTest struct {
 	Account 	string 		`gorm:"size:20;type:char(20)"`
 	Name 		string
@@ -33,12 +35,6 @@ type T_GamesArchive struct {
 
 type T_Guests struct {
 	GuestAccount string 	`gorm:"size:255;type:varchar(255);primary_key"`
-}
-
-type T_Message struct {
-	Type 		string 		`gorm:"size:32;varchar(32);not null;primary_key"`
-	Msg 		string 		`gorm:"size:1024;varchar(1024);not null"`
-	Version 	string 		`gorm:"size:32;varchar(32);not null"`
 }
 
 type T_Rooms struct {
@@ -83,4 +79,14 @@ type T_MallItem struct {
 	Buyvalue 	int 		`gorm:"not null"`
 	Nums 		int 		`gorm:"not null;default:1"`
 	Limit 		int 		`gorm:"not null;default:0"`
+}
+
+type T_Notice struct {
+	Index 		int 		`gorm:"primary_key;AUTO_INCREMENT;not null"`
+	Starttime 	time.Time
+	Finishtime	time.Time
+	Kind 		string 		`gorm:"size:16;default:'world'"`
+	Content 	string 		`gorm:"size:128;not null"`
+	Playtime 	int 		`gorm:"not null;default:0"`
+	Playcount 	int			`gorm:"not null;default:1"`
 }

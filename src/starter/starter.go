@@ -33,6 +33,7 @@ func startLobby() {
 }
 
 func startGame(moduels []defines.GameModule) {
+	fmt.Println("start game server")
 	game.NewGameServer(&defines.GameOption{
 		GwHost: ":9891",
 		Moudles: moduels,
@@ -173,6 +174,7 @@ func startClient() {
 }
 
 func StartProgram(p string, data interface{}) {
+	fmt.Println("stgart progoram ", p, data)
 	if p == "client" {
 		startClient()
 	} else if p == "lobby" {

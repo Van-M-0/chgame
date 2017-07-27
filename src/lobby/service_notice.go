@@ -13,20 +13,24 @@ type noticeService struct {
 	noticesList []*proto.NoticeItem
 }
 
-func newNoticeSerice() *noticeService {
+func newNoticeService(lb *lobby) *noticeService {
 	ns := &noticeService{}
 	ns.cc = cacher.NewCacheClient("notice")
+	ns.lb = lb
 	return ns
 }
 
 func (ns *noticeService) start() {
 	ns.cc.Start()
-	ns.lb.bpro.Register(defines.ChannelTtypeNotice, defines.ChannelUpdateNotice, func(data interface{}) {
-
-	})
+	ns.lb.bpro.Register(defines.ChannelTtypeNotice, defines.ChannelUpdateNotice, ns.noticeUpdate)
+	ns.lb.bpro.Register(defines.ChannelTtypeNotice, defines.ChannelLoadNotice, ns.noticeLoad)
 }
 
 func (ns *noticeService) noticeUpdate(data interface{}) {
+
+}
+
+func (ns *noticeService) noticeLoad(data interface{}) {
 
 }
 

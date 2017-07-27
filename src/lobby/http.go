@@ -5,6 +5,10 @@ import (
 	"net/http"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"exportor/defines"
+	"communicator"
+	"exportor/proto"
 )
 
 type appInfo struct {
@@ -26,11 +30,13 @@ var wechatAppInfo = map[string]appInfo {
 type http2Proxy struct {
 	httpAddr 		string
 	ln 				net.Listener
+	pub 			defines.IMsgPublisher
 }
 
 func newHttpProxy() *http2Proxy {
 	return &http2Proxy{
 		httpAddr: ":11740",
+		pub: communicator.NewMessagePulisher(),
 	}
 }
 
@@ -79,19 +85,45 @@ func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 		hp.get2("https://api.weixin.qq.com/sns/userinfo", string(d), true, func(suc bool, data interface{}) {
 
 		})
-
 	})
 }
 
 func (hp *http2Proxy) notice(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("notices visited")
 	r.ParseForm()
-	fmt.Println("req is ", r)
+	v := r.Form["a"]
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		fmt.Println("read notice err ", err)
+		return
+	}
+	fmt.Println(v[0], body, err)
+
+	type notice struct {
+		Content 	string
+	}
+	var n notice
+	if err := json.Unmarshal([]byte(v[0]), &n); err != nil {
+		fmt.Println("unmarshal data error ", err)
+		return
+	}
+
+	hp.pub.WaitPublish(defines.ChannelTtypeNotice, defines.ChannelUpdateNotice, &proto.NoticeItem{
+		Content: n.Content,
+	})
 }
 
 func (hp *http2Proxy) serve() {
+	hp.pub.Start()
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("index visited")
+	})
 	http.HandleFunc("/wechat", hp.wechatLogin)
 	http.HandleFunc("/notices", hp.notice)
+
 	fmt.Println("http server start...", hp.httpAddr)
+
 	if err := http.ListenAndServe(hp.httpAddr, nil); err != nil {
 		panic("listen http error " + hp.httpAddr)
 	} else {

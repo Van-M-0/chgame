@@ -18,6 +18,7 @@ func init() {
 	register[defines.ChannelCreateRoomFinish] = &proto.PMUserCreateRoomRet{}
 	register[defines.ChannelEnterRoom] = &proto.PMUserEnterRoom{}
 	register[defines.ChannelEnterRoomFinish] = &proto.PMUserEnterRoomRet{}
+	register[defines.ChannelUpdateNotice] = &proto.PmNoticeUpdate{}
 }
 
 func serilize(key string, data interface{}) ([]byte, error) {

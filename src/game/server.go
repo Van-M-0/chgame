@@ -68,6 +68,7 @@ func (gs *gameServer) authServer(message *proto.Message) {
 func (gs *gameServer) send2players(uids[] uint32, cmd uint32, data interface{}) {
 	body, err := msgpacker.Marshal(data)
 	if err != nil {
+		fmt.Println("msg 2 player error", uids, data)
 		return
 	}
 	header := &proto.GameGateHeader{

@@ -66,7 +66,7 @@ func (mp *msgPublisher) Stop() error {
 func (mp *msgPublisher) WaitPublish(channel string, key string, data interface{}) error {
 	msg, err := serilize(key, data)
 	if err != nil {
-		err :=fmt.Errorf("serilize data err %v %v %v", channel, channel, data)
+		err :=fmt.Errorf("serilize data err %v %v %v %v", channel, key, data, err)
 		fmt.Println(err)
 		return err
 	}

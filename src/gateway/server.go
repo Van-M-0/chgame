@@ -104,6 +104,9 @@ func (gw *gateway) Stop() error {
 }
 
 func (gw *gateway) routeCliMessage(client defines.ITcpClient, message *proto.Message) {
+	fmt.Println(" ")
+	fmt.Println("client cmd :", message.Cmd)
+	fmt.Println(" ")
 	cmd := message.Cmd
 	if cmd >= proto.CmdRange_Base_S && cmd <= proto.CmdRange_Base_E {
 		gw.handleClientMessage(client, message)

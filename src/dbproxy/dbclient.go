@@ -20,6 +20,10 @@ func InitTables() {
 	dc.InitTable()
 }
 
+func Test() {
+
+}
+
 func newDbClient() *dbClient {
 
 	dc := &dbClient{}
@@ -59,7 +63,6 @@ func newDbClient() *dbClient {
 	dc.db = db
 	dc.uri = uri
 	dc.InitTable()
-
 	return dc
 }
 
@@ -84,6 +87,10 @@ func (dc *dbClient) DropTable(v ...interface{}) {
 	dc.db.DropTableIfExists(v...)
 }
 
+func (dc *dbClient) LoadAll(data interface{}) {
+	dc.db.Find(data)
+}
+
 // logic handler
 
 func (dc *dbClient) InitTable() {
@@ -103,16 +110,12 @@ func (dc *dbClient) InitTable() {
 	dc.CreateTableIfNot(&table.T_Games{})
 	dc.CreateTableIfNot(&table.T_GamesArchive{})
 	dc.CreateTableIfNot(&table.T_Guests{})
-	dc.CreateTableIfNot(&table.T_Message{})
 	dc.CreateTableIfNot(&table.T_Rooms{})
 	dc.CreateTableIfNot(&table.T_RoomUser{})
 	dc.CreateTableIfNot(&table.T_Users{})
 	dc.CreateTableIfNot(&table.T_MyTest{})
 	dc.CreateTableIfNot(&table.T_MallItem{})
-}
-
-func (dc *dbClient) PreLoadData() {
-
+	dc.CreateTableIfNot(&table.T_Notice{})
 }
 
 // t_accounts : account info

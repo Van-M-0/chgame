@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"exportor/proto"
 	"exportor/defines"
+	"msgpacker"
 )
 
 type roomNotify struct {
@@ -64,7 +65,8 @@ func (rm *room) onCreate(notify *roomNotify) {
 
 	replyErr := func(err int) {
 		defer rm.destroy()
-		rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{ErrCode: err})
+		//rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{ErrCode: err})
+		rm.SendDirectMessage(&notify.user, proto.CmdGameCreateRoom, &proto.UserCreateRoomRet{ErrCode: err})
 	}
 
 	rm.game = rm.module.Creator()
@@ -91,16 +93,23 @@ func (rm *room) onCreate(notify *roomNotify) {
 		}
 	}
 
-	rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{ErrCode: defines.ErrCreateRoomSuccess})
+	rm.manager.updateUserRoomId(notify.user.Uid, rm.id)
+	//rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{ErrCode: defines.ErrCreateRoomSuccess})
+	rm.SendDirectMessage(&notify.user, proto.CmdGameCreateRoom, &proto.UserCreateRoomRet{ErrCode: defines.ErrCommonSuccess})
 }
 
 func (rm *room) onUserEnter(notify *roomNotify) {
+	var enter bool
 	if err := rm.game.OnUserEnter(&notify.user); err != nil {
+		enter = false
 		rm.manager.sm.pubEnterRoom(&proto.PMUserEnterRoomRet{ErrCode: defines.ErrEnterRoomMoudle})
 	} else {
 		rm.users[notify.user.UserId] = notify.user
+		rm.manager.updateUserRoomId(notify.user.Uid, rm.id)
 		rm.manager.sm.pubEnterRoom(&proto.PMUserEnterRoomRet{ErrCode: defines.ErrEnterRoomSuccess})
+		enter =true
 	}
+	fmt.Println("onuser enter ", rm.users, enter)
 }
 
 func (rm *room) onUserLeave(notify *roomNotify) {
@@ -109,34 +118,43 @@ func (rm *room) onUserLeave(notify *roomNotify) {
 }
 
 func (rm *room) onUserMessage(notify *roomNotify) {
-	if err := rm.game.OnUserMessage(&notify.user, notify.cmd, notify.data.([]byte)); err != nil {
+	var message proto.PlayerGameMessage
+	if err := msgpacker.UnMarshal(notify.data.([]byte), &message); err != nil {
+		fmt.Println("unmarsh client message error", notify.data)
+		return
+	}
+	fmt.Println("notify ",notify, message.B)
+	if err := rm.game.OnUserMessage(&notify.user, message.A, message.B); err != nil {
 
 	} else {
 
 	}
+
 }
 
 func (rm *room) SendUserMessage(info *defines.PlayerInfo, cmd uint32, data interface{}) {
-	rm.manager.sendMessage(info, cmd, &proto.PlayerGameMessageRet{
-		Cmd: proto.CmdGamePlayerMessage,
-		Msg: &proto.PlayerSubGameMessageRet{
-			Cmd: cmd,
-			Msg: data,
-		},
+	fmt.Println("send user message ", info, cmd, data)
+	rm.manager.sendMessage(info, proto.CmdGamePlayerMessage, &proto.PlayerGameMessageRet{
+		Cmd: cmd,
+		Msg: data,
 	})
 }
 
+func (rm *room) SendDirectMessage(info *defines.PlayerInfo, cmd uint32, data interface{}) {
+	rm.manager.sendMessage(info, cmd, data)
+}
+
 func (rm *room) BroadcastMessage(cmd uint32, data interface{}) {
-	info := make([]*defines.PlayerInfo, len(rm.users))
+	fmt.Println("bc user message ", cmd, data)
+	info := make([]*defines.PlayerInfo, 0)
+	fmt.Println(len(rm.users), info)
 	for _, user := range rm.users {
 		info = append(info, &user)
+		fmt.Println(user, info)
 	}
-	rm.manager.broadcastMessage(info, cmd, &proto.PlayerGameMessageRet{
-		Cmd: proto.CmdGamePlayerMessage,
-		Msg: &proto.PlayerSubGameMessageRet{
-			Cmd: cmd,
-			Msg: data,
-		},
+	rm.manager.broadcastMessage(info, proto.CmdGamePlayerMessage, &proto.PlayerGameMessageRet{
+		Cmd: cmd,
+		Msg: data,
 	})
 }
 

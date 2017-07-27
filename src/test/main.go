@@ -6,6 +6,7 @@ import (
 	"net"
 	"encoding/binary"
 	"io"
+	"msgpacker"
 )
 /*
 func testpb() {
@@ -115,7 +116,54 @@ func testmessage() {
 }
 */
 
+func test1() {
+	type B struct {
+		A 	int
+	}
+
+	data, err := msgpacker.Marshal(&B{
+		A: 123,
+	})
+
+	fmt.Println(data, err)
+}
+
 func main() {
+
+	/*
+	test1()
+
+	data := []byte {130, 164 ,100, 97, 116, 97, 129 ,163, 102, 115 ,100 ,205 ,1, 209, 163, 99, 109, 100, 205, 4, 106}
+
+	type clisub struct{
+		Fsd float64
+	}
+	type cli struct {
+		Cmd 	float64
+		Data 	clisub
+	}
+
+	dad, err := msgpacker.Marshal(&cli{
+		Cmd:1130,
+		Data: clisub{
+			Fsd: 465,
+		},
+	})
+	fmt.Println(dad, err)
+
+	type d1 struct {
+		fsd 	int
+	}
+	type md struct {
+		Cmd	int
+		Data d1
+	}
+	var m md
+	err = msgpacker.UnMarshal(data, &m)
+	fmt.Println(data, err, m)
+	*/
+	//testmsgpack()
+	//testRpc()
 	//testmessage()
 	//testmsg()
 

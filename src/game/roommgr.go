@@ -53,7 +53,7 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.UserC
 
 	module := rm.getGameModule(message.Kind)
 	if module == nil {
-		rm.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{ErrCode: 3})
+		rm.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{ErrCode: 2003})
 		return
 	}
 
@@ -73,8 +73,9 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.UserC
 
 func (rm *roomManager) enterRoom(info *defines.PlayerInfo, roomId uint32) {
 	room := rm.getRoom(roomId)
+	info.RoomId = roomId
 	if room == nil {
-		rm.sm.pubEnterRoom(&proto.PMUserEnterRoomRet{ErrCode: 3})
+		rm.sm.pubEnterRoom(&proto.PMUserEnterRoomRet{ErrCode: defines.ErrEnterRoomNotExists})
 		return
 	}
 
@@ -95,6 +96,7 @@ func (rm *roomManager) reEnter(info *defines.PlayerInfo) {
 func (rm *roomManager) gameMessage(info *defines.PlayerInfo, cmd uint32, msg []byte) {
 	room := rm.getRoom(info.RoomId)
 	if room == nil {
+		fmt.Println("room error ", info.RoomId)
 		return
 	}
 	room.notify <- &roomNotify{
@@ -109,11 +111,19 @@ func (rm *roomManager) sendMessage(info *defines.PlayerInfo, cmd uint32, data in
 }
 
 func (rm *roomManager) broadcastMessage(players []*defines.PlayerInfo, cmd uint32, data interface{}) {
+	fmt.Println("broadcast message ", players, cmd, data)
 	uids := make([]uint32, len(players))
 	for _, user := range players {
 		uids = append(uids, user.Uid)
 	}
 	rm.sm.BroadcastMessage(uids, cmd, data)
+}
+
+func (rm *roomManager) updateUserRoomId(uid uint32, roomid uint32) {
+	p := rm.sm.playerMgr.getPlayerByUid(uid)
+	if p != nil {
+		p.RoomId = roomid
+	}
 }
 
 

@@ -52,6 +52,12 @@ func (ds *dbProxyServer) Stop() error {
 	return nil
 }
 
+func (ds *dbProxyServer) load2Cache() {
+	var notice table.T_Notice
+	ds.dbClient.LoadAll(&notice)
+	fmt.Println("load notice ", notice)
+}
+
 
 func (ds *dbProxyServer) getMessageFromBroker () {
 	fmt.Println("get message from broker")
