@@ -36,6 +36,7 @@ func (gw *gateway) Start() error {
 		},
 		CloseCb: func(client defines.ITcpClient) {
 			gw.cliManger.cliDisconnect(client)
+			gw.serManager.clientDisconnected(client)
 		},
 		MsgCb: func(client defines.ITcpClient, m *proto.Message) {
 			fmt.Println("handle client message ", m)

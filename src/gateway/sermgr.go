@@ -195,3 +195,24 @@ func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Mes
 		ser.cli.Send(proto.ClientRouteGame, gwMessage)
 	}
 }
+
+func (mgr *serManager) clientDisconnected(client defines.ITcpClient) {
+	if client.GetId() == 0 {
+		fmt.Println("client disconnected uid == 0")
+		return
+	}
+
+	if gameid := client.Get("gameid"); gameid != nil {
+		sid := gameid.(uint32)
+		ser, ok := mgr.sers[sid]
+		if !ok {
+			return
+		}
+		gwMessage := &proto.GateGameHeader {
+			Type: proto.GateMsgTypeServer,
+			Cmd: proto.CmdClientDisconnected,
+		}
+		ser.cli.Send(proto.GateRouteGame, gwMessage)
+	}
+
+}
