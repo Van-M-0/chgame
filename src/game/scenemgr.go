@@ -13,6 +13,7 @@ import (
 const (
 	requetKindBroker = 1
 	requestKindGate = 2
+	requestRoom 	= 3
 )
 
 type request struct {
@@ -98,6 +99,10 @@ func (sm *sceneManager) processRequest(r *request) {
 		}
 	} else if r.kind == requetKindBroker {
 		sm.onBrokerMessage(r.cmd, r.data)
+	} else if r.kind == requestRoom {
+		if r.cmd == "closeroom"	{
+			sm.roomMgr.destroyRoom(r.data.(uint32))
+		}
 	}
 }
 
@@ -212,6 +217,11 @@ func (sm *sceneManager) onGwPlayerLogin(uid uint32, data []byte) {
 		Sex: user.Sex,
 		RoomId: uint32(user.RoomId),
 	}
+
+	if u, ok := sm.playerMgr.idPlayer[uint32(user.Uid)]; ok {
+		fmt.Println("user enter with info ")
+		sm.playerMgr.delPlayer(u)
+	}
 	sm.playerMgr.addPlayer(player)
 
 	/*
@@ -222,6 +232,7 @@ func (sm *sceneManager) onGwPlayerLogin(uid uint32, data []byte) {
 	*/
 
 	dummyInfo :=  &proto.PlayerLoginRet{
+		ReEnter: player.RoomId != 0,
 		ErrCode: defines.ErrCommonSuccess,
 		UidTest: uid,
 		AccountTest: player.Account,

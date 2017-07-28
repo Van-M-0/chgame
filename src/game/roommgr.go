@@ -49,15 +49,6 @@ func (rm *roomManager) getRoom(id uint32) *room {
 	}
 }
 
-func (rm *roomManager) deleteRoom(id uint32) {
-	rm.sm.lbService.Call("GameService.ReportRoomInfo", &defines.LbReportRoomInfoArg{
-		Kind: 2,
-		ServerId: rm.sm.gameServer.serverId,
-		RoomId: id,
-	}, &defines.LbReportRoomInfoReply{})
-	delete(rm.rooms, id)
-}
-
 func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.PlayerCreateRoom) {
 
 	module := rm.getGameModule(message.Kind)
@@ -85,7 +76,13 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 		data: message,
 	})
 	if !ok {
-		rm.deleteRoom(room.id)
+		rm.sm.lbService.Call("GameService.ReportRoomInfo", &defines.LbReportRoomInfoArg{
+			Kind: 2,
+			ServerId: rm.sm.gameServer.serverId,
+			RoomId: room.id,
+		}, &defines.LbReportRoomInfoReply{})
+		delete(rm.rooms, room.id)
+		return
 	}
 }
 
@@ -100,6 +97,21 @@ func (rm *roomManager) enterRoom(info *defines.PlayerInfo, roomId uint32) {
 		cmd: proto.CmdEnterRoom,
 		user: *info,
 	}
+}
+
+func (rm *roomManager) destroyRoom(roomid uint32) {
+	room := rm.getRoom(roomid)
+	if room == nil {
+		fmt.Println("get room *** err *** ", roomid, rm.rooms)
+		return
+	}
+	delete(rm.rooms, roomid)
+
+	for _, user := range room.users {
+		rm.sm.playerMgr.delPlayer(&user)
+	}
+
+	room.OnStop()
 }
 
 func (rm *roomManager) offline(info *defines.PlayerInfo) {

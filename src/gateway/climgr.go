@@ -11,11 +11,13 @@ type cliManager struct {
 	sync.RWMutex
 	clis 		map[uint32]defines.ITcpClient
 	idGen 		uint32
+	gw 			*gateway
 }
 
-func newCliManager() *cliManager {
+func newCliManager(gw *gateway) *cliManager {
 	return &cliManager{
 		clis: make(map[uint32]defines.ITcpClient),
+		gw: gw,
 	}
 }
 
@@ -31,7 +33,10 @@ func (mgr *cliManager) cliConnect(cli defines.ITcpClient) error {
 }
 
 func (mgr *cliManager) cliDisconnect(cli defines.ITcpClient) {
-
+	mgr.Lock()
+	id := cli.GetId()
+	delete(mgr.clis, id)
+	mgr.Unlock()
 }
 
 func (mgr *cliManager) cliMsg(cli defines.ITcpClient, m *proto.Message) {

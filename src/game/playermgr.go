@@ -35,3 +35,7 @@ func (pm *playerManager) addPlayer(p *defines.PlayerInfo) {
 	pm.idPlayer[p.UserId] = p
 }
 
+func (pm *playerManager) delPlayer(p *defines.PlayerInfo) {
+	delete(pm.uidPlayer, p.Uid)
+	delete(pm.uidPlayer, p.UserId)
+}

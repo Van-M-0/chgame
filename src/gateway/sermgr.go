@@ -66,14 +66,14 @@ func (mgr *serManager) serMessage(client defines.ITcpClient, m *proto.Message) {
 
 func (mgr *serManager) addServer(client defines.ITcpClient, m *proto.RegisterServer) error {
 	mgr.Lock()
-	defer mgr.Unlock()
-
 	mgr.idGen++
 	mgr.sers[mgr.idGen] = &serverInfo{
 		typo: m.Type,
 		id:	mgr.idGen,
 		cli: client,
 	}
+	mgr.Unlock()
+
 	client.Id(mgr.idGen)
 
 	if m.Type == "lobby" {
@@ -104,6 +104,9 @@ func (mgr *serManager) routeClient(client defines.ITcpClient, m *proto.Message) 
 }
 
 func (mgr *serManager) gate2Game(client defines.ITcpClient, cmd uint32, data interface{}) {
+	mgr.Lock()
+	mgr.Unlock()
+
 	msg , err := msgpacker.Marshal(data)
 	if err != nil {
 		fmt.Println("gate2game message error", err)
@@ -118,6 +121,9 @@ func (mgr *serManager) gate2Game(client defines.ITcpClient, cmd uint32, data int
 }
 
 func (mgr *serManager) gate2Lobby(client defines.ITcpClient, cmd uint32, data interface{}) {
+	mgr.Lock()
+	mgr.Unlock()
+
 	msg , err := msgpacker.Marshal(data)
 	if err != nil {
 		fmt.Println("gate2game message error", err)
@@ -132,6 +138,9 @@ func (mgr *serManager) gate2Lobby(client defines.ITcpClient, cmd uint32, data in
 }
 
 func (mgr *serManager) client2Lobby(client defines.ITcpClient, message *proto.Message) {
+	mgr.Lock()
+	defer mgr.Lock()
+
 	lbMessage := &proto.GateLobbyHeader {
 		Uid: client.GetId(),
 		Type: proto.GateMsgTypePlayer,
@@ -155,6 +164,9 @@ func (mgr *serManager) getGameServer() *serverInfo {
 }
 
 func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Message) {
+	mgr.Lock()
+	defer mgr.Unlock()
+
 	//todo
 	//gameId := client.Get("GameId").(uint32)
 	gwMessage := &proto.GateGameHeader {

@@ -21,7 +21,7 @@ type gateway struct {
 func NewGateServer(opt *defines.GatewayOption) *gateway {
 	gateway := &gateway{}
 	gateway.option = opt
-	gateway.cliManger = newCliManager()
+	gateway.cliManger = newCliManager(gateway)
 	gateway.serManager = newSerManager(gateway)
 	return gateway
 }

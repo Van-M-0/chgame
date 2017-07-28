@@ -6,6 +6,7 @@ import (
 	"exportor/defines"
 	"msgpacker"
 	"runtime/debug"
+	"sync/atomic"
 )
 
 type roomNotify struct {
@@ -23,6 +24,7 @@ type room struct {
 	notify 			chan *roomNotify
 	quit 			chan bool
 	users 			map[uint32]defines.PlayerInfo
+	closed 			int32
 }
 
 func newRoom(manager *roomManager) *room {
@@ -45,6 +47,11 @@ func (rm *room) safeCall() {
 	select {
 	case n := <- rm.notify:
 		fmt.Println("room process message ", n)
+		if rm.closed == 1 {
+			fmt.Println("room closed")
+			return
+		}
+
 		if n.cmd == proto.CmdEnterRoom {
 			rm.onUserEnter(n)
 		} else if n.cmd == proto.CmdLeaveRoom {
@@ -152,14 +159,29 @@ func (rm *room) GetRoomId() uint32 {
 	return rm.id
 }
 
-func (rm *room) StopRoom() {
-	rm.manager.deleteRoom(rm.id)
+func (rm *room) ReleaseRoom() {
+	atomic.AddInt32(&rm.closed, 1)
+	rm.manager.sm.sceneNotify <- &request{kind: requestRoom, cmd :"closeroom", data: rm.id}
+}
+
+func (rm *room) OnStop() {
+	rm.manager.sm.lbService.Call("GameService.ReportRoomInfo", &defines.LbReportRoomInfoArg{
+		Kind: 2,
+		ServerId: rm.manager.sm.gameServer.serverId,
+		RoomId: rm.id,
+	}, &defines.LbReportRoomInfoReply{})
+
+	rm.game.OnRelease()
 
 	for _, user := range rm.users {
 		rm.updateUserRoomId(user.UserId, 0)
 	}
 
+	for _, user := range rm.users {
+		rm.SendUserMessage(&user, proto.CmdGamePlayerReturn2lobby, &proto.PlayerReturn2Lobby{})
+	}
 
+	fmt.Println()
 }
 
 func (rm *room) SendGameMessage(info *defines.PlayerInfo, cmd uint32, data interface{}) {
