@@ -49,25 +49,43 @@ func (rm *roomManager) getRoom(id uint32) *room {
 	}
 }
 
-func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.UserCreateRoomReq) {
+func (rm *roomManager) deleteRoom(id uint32) {
+	rm.sm.lbService.Call("GameService.ReportRoomInfo", &defines.LbReportRoomInfoArg{
+		Kind: 2,
+		ServerId: rm.sm.gameServer.serverId,
+		RoomId: id,
+	}, &defines.LbReportRoomInfoReply{})
+	delete(rm.rooms, id)
+}
+
+func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.PlayerCreateRoom) {
 
 	module := rm.getGameModule(message.Kind)
 	if module == nil {
-		rm.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{ErrCode: 2003})
+		rm.sm.SendMessage(info.Uid, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomKind})
+		return
+	}
+
+	var rep defines.LbGetRoomIdReply
+	rm.sm.lbService.Call("GameService.GetRoomId", &defines.LbGetRoomIdArg{}, &rep)
+	if rep.RoomId == 0 {
+		rm.sm.SendMessage(info.Uid, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomRoomId})
 		return
 	}
 
 	room := newRoom(rm)
-	room.id = message.RoomId
+	room.id = rep.RoomId
 	fmt.Println("room id ", room.id)
 	rm.rooms[room.id] = room
 	room.createUserId = info.UserId
 	room.module = *module
-	room.run()
-	room.notify <- &roomNotify{
+	ok := room.onCreate(&roomNotify{
 		cmd: proto.CmdCreateRoom,
 		user: *info,
 		data: message,
+	})
+	if !ok {
+		rm.deleteRoom(room.id)
 	}
 }
 
@@ -75,7 +93,6 @@ func (rm *roomManager) enterRoom(info *defines.PlayerInfo, roomId uint32) {
 	room := rm.getRoom(roomId)
 	info.RoomId = roomId
 	if room == nil {
-		rm.sm.pubEnterRoom(&proto.PMUserEnterRoomRet{ErrCode: defines.ErrEnterRoomNotExists})
 		return
 	}
 
@@ -114,17 +131,12 @@ func (rm *roomManager) broadcastMessage(players []*defines.PlayerInfo, cmd uint3
 	fmt.Println("broadcast message ", players, cmd, data)
 	uids := make([]uint32, len(players))
 	for _, user := range players {
+		if user == nil {
+			fmt.Println("broad cast message find user nil")
+			continue
+		}
 		uids = append(uids, user.Uid)
 	}
 	rm.sm.BroadcastMessage(uids, cmd, data)
 }
-
-func (rm *roomManager) updateUserRoomId(uid uint32, roomid uint32) {
-	p := rm.sm.playerMgr.getPlayerByUid(uid)
-	if p != nil {
-		p.RoomId = roomid
-	}
-}
-
-
 

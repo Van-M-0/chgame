@@ -91,6 +91,8 @@ func testredis() {
 	if _, err := conn.Do("HMSET", arg...); err != nil {
 		log.Fatal(err)
 	}
+
+	conn.Do("hset", "_SER_server2", "id", 100)
 }
 
 func publishm(channel string, args ...interface{}) {

@@ -5,6 +5,7 @@ import (
 	"exportor/proto"
 	"exportor/defines"
 	"msgpacker"
+	"runtime/debug"
 )
 
 type roomNotify struct {
@@ -33,26 +34,35 @@ func newRoom(manager *roomManager) *room {
 	}
 }
 
+func (rm *room) safeCall() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("room call error")
+			debug.PrintStack()
+		}
+	}()
+
+	select {
+	case n := <- rm.notify:
+		fmt.Println("room process message ", n)
+		if n.cmd == proto.CmdEnterRoom {
+			rm.onUserEnter(n)
+		} else if n.cmd == proto.CmdLeaveRoom {
+			rm.onUserLeave(n)
+		} else if n.cmd == proto.CmdGamePlayerMessage {
+			rm.onUserMessage(n)
+		}
+	case <- rm.quit:
+		fmt.Println("room destroy", rm.id)
+		return
+	}
+}
+
 func (rm *room) run() {
 	fmt.Println("room run")
 	go func () {
 		for {
-			select {
-			case n := <- rm.notify:
-				fmt.Println("room process message ", n)
-				if n.cmd == proto.CmdCreateRoom {
-					rm.onCreate(n)
-				} else if n.cmd == proto.CmdEnterRoom {
-					rm.onUserEnter(n)
-				} else if n.cmd == proto.CmdLeaveRoom {
-					rm.onUserLeave(n)
-				} else if n.cmd == proto.CmdGamePlayerMessage {
-					rm.onUserMessage(n)
-				}
-			case <- rm.quit:
-				fmt.Println("room destroy", rm.id)
-				return
-			}
+			rm.safeCall()
 		}
 	}()
 }
@@ -61,59 +71,66 @@ func (rm *room) destroy() {
 
 }
 
-func (rm *room) onCreate(notify *roomNotify) {
+func (rm *room) onCreate(notify *roomNotify) bool {
 
 	replyErr := func(err int) {
-		defer rm.destroy()
-		//rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{ErrCode: err})
-		rm.SendDirectMessage(&notify.user, proto.CmdGameCreateRoom, &proto.UserCreateRoomRet{ErrCode: err})
+		rm.SendUserMessage(&notify.user, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: err})
 	}
 
 	rm.game = rm.module.Creator()
 	if rm.game == nil {
 		replyErr(defines.ErrCreateRoomGameMoudele)
-		return
+		return false
+	}
+
+	if rm.GetUserInfoFromCache(&notify.user) != nil {
+		replyErr(defines.ErrCreateRoomSystme)
+		return false
+	}
+
+	if notify.user.RoomId != 0 {
+		replyErr(defines.ErrCreateRoomHaveRoom)
+		return false
 	}
 
 	if err := rm.game.OnInit(rm, rm.module.GameData); err != nil {
 		replyErr(defines.ErrCreateRoomGameMoudele)
-		return
+		return false
 	}
 
-	if msg, ok := notify.data.(*proto.UserCreateRoomReq); !ok {
+	if msg, ok := notify.data.(*proto.PlayerCreateRoom); !ok {
 		replyErr(defines.ErrCreateRoomSystme)
-		return
+		return false
 	} else {
 		if err := rm.game.OnGameCreate(&notify.user, &defines.CreateRoomConf{
 			RoomId: rm.id,
 			Conf: msg.Conf,
 		}); err != nil {
 			replyErr(defines.ErrCreateRoomSystme)
-			return
+			return false
 		}
 	}
 
-	rm.manager.updateUserRoomId(notify.user.Uid, rm.id)
 	//rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{ErrCode: defines.ErrCreateRoomSuccess})
-	rm.SendDirectMessage(&notify.user, proto.CmdGameCreateRoom, &proto.UserCreateRoomRet{ErrCode: defines.ErrCommonSuccess})
+	rm.SendUserMessage(&notify.user, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCommonSuccess})
+	rm.run()
+	return true
 }
 
 func (rm *room) onUserEnter(notify *roomNotify) {
 	var enter bool
 	if err := rm.game.OnUserEnter(&notify.user); err != nil {
-		enter = false
-		rm.manager.sm.pubEnterRoom(&proto.PMUserEnterRoomRet{ErrCode: defines.ErrEnterRoomMoudle})
+		rm.SendUserMessage(&notify.user, proto.CmdGameEnterRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomMoudle})
 	} else {
 		rm.users[notify.user.UserId] = notify.user
-		rm.manager.updateUserRoomId(notify.user.Uid, rm.id)
-		rm.manager.sm.pubEnterRoom(&proto.PMUserEnterRoomRet{ErrCode: defines.ErrEnterRoomSuccess})
-		enter =true
+		rm.updateUserRoomId(notify.user.UserId, rm.id)
 	}
 	fmt.Println("onuser enter ", rm.users, enter)
 }
 
 func (rm *room) onUserLeave(notify *roomNotify) {
 	rm.game.OnUserLeave(&notify.user)
+	rm.updateUserRoomId(notify.user.UserId, 0)
 	delete(rm.users, notify.user.UserId)
 }
 
@@ -129,10 +146,23 @@ func (rm *room) onUserMessage(notify *roomNotify) {
 	} else {
 
 	}
+}
+
+func (rm *room) GetRoomId() uint32 {
+	return rm.id
+}
+
+func (rm *room) StopRoom() {
+	rm.manager.deleteRoom(rm.id)
+
+	for _, user := range rm.users {
+		rm.updateUserRoomId(user.UserId, 0)
+	}
+
 
 }
 
-func (rm *room) SendUserMessage(info *defines.PlayerInfo, cmd uint32, data interface{}) {
+func (rm *room) SendGameMessage(info *defines.PlayerInfo, cmd uint32, data interface{}) {
 	fmt.Println("send user message ", info, cmd, data)
 	rm.manager.sendMessage(info, proto.CmdGamePlayerMessage, &proto.PlayerGameMessageRet{
 		Cmd: cmd,
@@ -140,17 +170,15 @@ func (rm *room) SendUserMessage(info *defines.PlayerInfo, cmd uint32, data inter
 	})
 }
 
-func (rm *room) SendDirectMessage(info *defines.PlayerInfo, cmd uint32, data interface{}) {
+func (rm *room) SendUserMessage(info *defines.PlayerInfo, cmd uint32, data interface{}) {
 	rm.manager.sendMessage(info, cmd, data)
 }
 
-func (rm *room) BroadcastMessage(cmd uint32, data interface{}) {
+func (rm *room) BroadcastMessage(info []*defines.PlayerInfo, cmd uint32, data interface{}) {
 	fmt.Println("bc user message ", cmd, data)
-	info := make([]*defines.PlayerInfo, 0)
-	fmt.Println(len(rm.users), info)
-	for _, user := range rm.users {
-		info = append(info, &user)
-		fmt.Println(user, info)
+	if info == nil || len(info) == 0 {
+		fmt.Println("broad cast message error ", info)
+		return
 	}
 	rm.manager.broadcastMessage(info, proto.CmdGamePlayerMessage, &proto.PlayerGameMessageRet{
 		Cmd: cmd,
@@ -165,5 +193,43 @@ func (rm *room) SetTimer(id uint32, data interface{}) error {
 
 func (rm *room) KillTimer(id uint32) error {
 	fmt.Println("KillTimer not implement")
+	return nil
+}
+
+func (rm *room) UpdateUserGold(userId uint32, gold int64) {
+	rm.updateProp(userId, "gold", gold)
+}
+
+func (rm *room) updateUserRoomId(userId uint32, roomid uint32) {
+	rm.updateProp(userId, "roomid", roomid)
+}
+
+func (rm *room) updateProp(userId uint32, prop string, value interface{}) {
+	if user, ok := rm.users[userId]; ok {
+		if rm.manager.sm.cc.UpdateUserInfo(userId, prop, value) {
+			if prop == "roomid"	{
+				user.RoomId = value.(uint32)
+			} else if prop == "gold" {
+				user.Gold = value.(int64)
+			}
+		}
+	} else {
+		fmt.Println("update prop user not in")
+	}
+}
+
+func (rm *room) GetUserInfoFromCache(user *defines.PlayerInfo) error {
+	var cu proto.CacheUser
+	err := rm.manager.sm.cc.GetUserInfoById(user.UserId, &cu)
+	if err != nil {
+		return err
+	} else if int(user.UserId) != cu.Uid {
+		return fmt.Errorf("cache user not same %v", user.Uid)
+	} else {
+		user.RoomId = uint32(cu.RoomId)
+		user.Gold = cu.Gold
+		user.RoomCard = cu.RoomCard
+		user.Diamond = cu.Diamond
+	}
 	return nil
 }

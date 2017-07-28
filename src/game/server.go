@@ -8,12 +8,11 @@ import (
 	"msgpacker"
 )
 
-var serverId = 1
-
 type gameServer struct {
 	opt 			*defines.GameOption
 	gwClient 		defines.ITcpClient
 	scmgr 			*sceneManager
+	serverId 		int
 }
 
 func newGameServer(option *defines.GameOption) *gameServer {
@@ -39,6 +38,39 @@ func (gs *gameServer) Start() error {
 
 		},
 		AuthCb: func (client defines.ITcpClient) error {
+			m, err := client.Auth()
+			if err != nil {
+				return err
+			}
+			if m.Cmd != proto.GateRouteGame {
+				err := fmt.Errorf("server auth error ")
+				fmt.Println(err)
+				return err
+			}
+
+			var header proto.GateGameHeader
+			if err := msgpacker.UnMarshal(m.Msg, &header); err != nil {
+				fmt.Println("auth game server ",  err)
+				return err
+			}
+
+
+			if header.Type != proto.GateMsgTypeServer {
+				err := fmt.Errorf("server auth type error ")
+				fmt.Println(err)
+				return err
+			}
+
+			var r proto.RegisterServerRet
+			if err := msgpacker.UnMarshal(header.Msg, &r); err != nil {
+				fmt.Println("auth game server ",  err)
+				return err
+			}
+
+			gs.serverId = r.ServerId
+
+			fmt.Println("game server id ", gs.serverId)
+
 			return nil
 		},
 		MsgCb: func(client defines.ITcpClient, m *proto.Message) {
@@ -66,6 +98,10 @@ func (gs *gameServer) authServer(message *proto.Message) {
 }
 
 func (gs *gameServer) send2players(uids[] uint32, cmd uint32, data interface{}) {
+	if len(uids) == 0 {
+		fmt.Println("send player message empty uids")
+		return
+	}
 	body, err := msgpacker.Marshal(data)
 	if err != nil {
 		fmt.Println("msg 2 player error", uids, data)
@@ -81,7 +117,7 @@ func (gs *gameServer) send2players(uids[] uint32, cmd uint32, data interface{}) 
 }
 
 func (gs *gameServer) getSid() int {
-	return serverId
+	return gs.serverId
 }
 
 

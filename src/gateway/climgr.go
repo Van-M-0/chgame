@@ -40,6 +40,7 @@ func (mgr *cliManager) cliMsg(cli defines.ITcpClient, m *proto.Message) {
 
 func (mgr *cliManager) route2client(uids []uint32, cmd uint32, data []byte) {
 	fmt.Println("route2client ", uids, cmd, data)
+
 	mgr.Lock()
 	defer mgr.Unlock()
 	for _, uid := range uids {

@@ -72,14 +72,14 @@ func (t *tclient) loginGame(uid uint32) {
 }
 
 func (t *tclient) createRoom() {
-	t.Send(proto.CmdCreateRoom, &proto.UserCreateRoomReq {
+	t.Send(proto.CmdCreateRoom, &proto.PlayerCreateRoom {
 		Kind: 1,
 		Enter: true,
 	})
 }
 
 func (t *tclient) enterRoom(id uint32) {
-	t.Send(proto.CmdEnterRoom, &proto.UserEnterRoomReq {
+	t.Send(proto.CmdEnterRoom, &proto.PlayerEnterRoom {
 		RoomId: id,
 	})
 }
@@ -93,11 +93,13 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 		msgpacker.UnMarshal(origin, &loginRet)
 		fmt.Println("recv message ", loginRet, err)
 
+		fmt.Println("__________login ret _______", loginRet.ErrCode)
+
 		if loginRet.ErrCode == defines.ErrClientLoginNeedCreate {
 			t.createAcc()
 		} else if loginRet.ErrCode == defines.ErrCommonSuccess{
 
-			t.loginGame(loginRet.UserId)
+			//t.loginGame(loginRet.UserId)
 
 		} else {
 			fmt.Println("__________login ret _______", loginRet.ErrCode)
@@ -127,7 +129,7 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 			t.createRoom()
 		}
 	} else if message.Cmd == proto.CmdCreateRoom {
-		var ret proto.UserCreateRoomRet
+		var ret proto.PlayerCreateRoomRet
 		var origin []byte
 		err := msgpacker.UnMarshal(message.Msg, &origin)
 		fmt.Println("origin ", origin)
@@ -138,7 +140,7 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 			t.enterRoom(ret.RoomId)
 		}
 	} else if message.Cmd == proto.CmdEnterRoom {
-		var ret proto.UserEnterRoomRet
+		var ret proto.PlayerEnterRoomRet
 		var origin []byte
 		err := msgpacker.UnMarshal(message.Msg, &origin)
 		fmt.Println("origin ", origin)
@@ -170,7 +172,7 @@ func startClient() {
 	c.Connect()
 	t.ITcpClient = c
 
-	t.login("acc_13232")
+	t.login("acc_13232，什么东西？")
 }
 
 func StartProgram(p string, data interface{}) {

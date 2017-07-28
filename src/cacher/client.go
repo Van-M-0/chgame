@@ -135,6 +135,25 @@ func (cc *cacheClient) SetUserInfo(d interface{}, dbRet bool) error {
 	return nil
 }
 
+func (cc *cacheClient) UpdateUserInfo(uid uint32, prop string, value interface{}) bool {
+	var (
+		err error
+		reply interface{}
+	)
+	if prop == "roomid" {
+		reply, err = cc.command("hset", users(int(uid)), "roomid", value)
+	} else if prop == "gold" {
+		g := value.(int64)
+		if g > 0 {
+			reply, err = cc.command("hset", users(int(uid)), "gold", g)
+		}
+	}
+	if err != nil {
+		fmt.Println(reply, err)
+		return false
+	}
+	return true
+}
 
 func (cc *cacheClient) SetServer(server *proto.CacheServer) error {
 	serverKeys := servers(server.Id)
@@ -180,6 +199,13 @@ func (cc *cacheClient) UpdateServer(ser *proto.CacheServer) error {
 		log.Fatal(err)
 	}
 	return nil
+}
+
+func (cc *cacheClient) FlushAll() {
+	if cc.group != "dbproxy" {
+		return
+	}
+	cc.ccConn.Do("flushall")
 }
 
 // ICacheLoader

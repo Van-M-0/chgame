@@ -1,8 +1,6 @@
 package communicator
 
 import (
-	"exportor/defines"
-	"exportor/proto"
 	"gopkg.in/vmihailenco/msgpack.v2"
 	"fmt"
 	"reflect"
@@ -10,6 +8,7 @@ import (
 var register = make(map[string]interface{})
 
 func init() {
+	/*
 	register[defines.ChannelLoadUser] = &proto.PMLoadUser{}
 	register[defines.ChannelLoadUserFinish] = &proto.PMLoadUserFinish{}
 	register[defines.ChannelCreateAccount] = &proto.PMCreateAccount{}
@@ -19,6 +18,7 @@ func init() {
 	register[defines.ChannelEnterRoom] = &proto.PMUserEnterRoom{}
 	register[defines.ChannelEnterRoomFinish] = &proto.PMUserEnterRoomRet{}
 	register[defines.ChannelUpdateNotice] = &proto.PmNoticeUpdate{}
+	*/
 }
 
 func serilize(key string, data interface{}) ([]byte, error) {

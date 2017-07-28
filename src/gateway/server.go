@@ -83,9 +83,10 @@ func (gw *gateway) authClient(client defines.ITcpClient) error {
 }
 
 func (gw *gateway) authServer(client defines.ITcpClient) error {
-
+	fmt.Println("auth server 1")
 	m, err := client.Auth()
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 

@@ -71,7 +71,6 @@ func (mgr *serManager) addServer(client defines.ITcpClient, m *proto.RegisterSer
 	mgr.idGen++
 	mgr.sers[mgr.idGen] = &serverInfo{
 		typo: m.Type,
-		sid: m.ServerId,
 		id:	mgr.idGen,
 		cli: client,
 	}
@@ -82,6 +81,17 @@ func (mgr *serManager) addServer(client defines.ITcpClient, m *proto.RegisterSer
 	}
 
 	fmt.Println("add server ... ", mgr.sers)
+
+	if m.Type == "lobby" {
+		mgr.gate2Lobby(client, proto.CmdRegisterServerRet, &proto.RegisterServer{
+			ServerId: int(mgr.idGen),
+		})
+	} else if m.Type == "game" {
+		mgr.gate2Game(client, proto.CmdRegisterServerRet, &proto.RegisterServerRet{
+			ServerId: int(mgr.idGen),
+		})
+	}
+
 	return nil
 }
 
@@ -93,11 +103,35 @@ func (mgr *serManager) routeClient(client defines.ITcpClient, m *proto.Message) 
 
 }
 
-func (mgr *serManager) client2Lobby(client defines.ITcpClient, message *proto.Message) {
-	if gameId := client.Get("GameId"); gameId != nil {
-		fmt.Println("client route lobby not allowd")
+func (mgr *serManager) gate2Game(client defines.ITcpClient, cmd uint32, data interface{}) {
+	msg , err := msgpacker.Marshal(data)
+	if err != nil {
+		fmt.Println("gate2game message error", err)
 		return
 	}
+	gwMessage := &proto.GateGameHeader {
+		Type: proto.GateMsgTypeServer,
+		Cmd: cmd,
+		Msg: msg,
+	}
+	client.Send(proto.GateRouteGame, gwMessage)
+}
+
+func (mgr *serManager) gate2Lobby(client defines.ITcpClient, cmd uint32, data interface{}) {
+	msg , err := msgpacker.Marshal(data)
+	if err != nil {
+		fmt.Println("gate2game message error", err)
+		return
+	}
+	gwMessage := &proto.GateLobbyHeader {
+		Type: proto.GateMsgTypeServer,
+		Cmd: cmd,
+		Msg: msg,
+	}
+	client.Send(proto.GateRouteLobby, gwMessage)
+}
+
+func (mgr *serManager) client2Lobby(client defines.ITcpClient, message *proto.Message) {
 	lbMessage := &proto.GateLobbyHeader {
 		Uid: client.GetId(),
 		Type: proto.GateMsgTypePlayer,
@@ -111,6 +145,15 @@ func (mgr *serManager) client2Lobby(client defines.ITcpClient, message *proto.Me
 	}
 }
 
+func (mgr *serManager) getGameServer() *serverInfo {
+	for _, serInfo := range mgr.sers {
+		if serInfo.typo == "game" {
+			return serInfo
+		}
+	}
+	return nil
+}
+
 func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Message) {
 	//todo
 	//gameId := client.Get("GameId").(uint32)
@@ -120,11 +163,23 @@ func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Mes
 		Cmd: message.Cmd,
 		Msg: message.Msg,
 	}
-	for _, serInfo := range mgr.sers {
-		if serInfo.typo == "game" {
-			serInfo.cli.Send(proto.ClientRouteGame, gwMessage)
+
+	igame := client.Get("gameid")
+	if igame == nil {
+		ser := mgr.getGameServer()
+		if ser == nil {
+			fmt.Println("game server not alive, or should kick the client")
 			return
 		}
+		client.Set("gameid", ser.id)
+		ser.cli.Send(proto.ClientRouteGame, gwMessage)
+	} else {
+		gameid := igame.(uint32)
+		ser, ok := mgr.sers[gameid]
+		if !ok {
+			fmt.Println("game server not alive, or should kick the client")
+			return
+		}
+		ser.cli.Send(proto.ClientRouteGame, gwMessage)
 	}
-	fmt.Println("game server not alive, or should kick the client")
 }

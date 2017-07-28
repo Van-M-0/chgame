@@ -38,7 +38,8 @@ type userManager struct {
 	pub 			defines.IMsgPublisher
 	con 			defines.IMsgConsumer
 
-	rooms 			map[uint32]*room
+	rooms    		map[uint32]*room
+	roomLock 		sync.RWMutex
 }
 
 func newUserManager() *userManager {
@@ -57,8 +58,8 @@ func (um *userManager) setLobby(lb *lobby) {
 }
 
 func (um *userManager) start() {
-	um.pub.Start()
-	um.con.Start()
+	//um.pub.Start()
+	//um.con.Start()
 	um.cc.Start()
 }
 
@@ -110,7 +111,7 @@ func (um *userManager) addUser(uid uint32, cu *proto.CacheUser) *userInfo {
 }
 
 func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
-	fmt.Println("handle palyer login")
+	fmt.Println("handle palyer login", login)
 	p := um.getUserByAcc(login.Account)
 	var cacheUser proto.CacheUser
 
@@ -141,76 +142,53 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 		replaySuc(user)
 	}
 
-	if p == nil {
-		if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
-			replyErr(defines.ErrCommonCache)
-			return
-		}
-		fmt.Println(" p == nil get user info ", cacheUser)
-		if cacheUser.Uid != 0 {
-			gotUser()
-		} else {
-			fmt.Println("handle palyer wait proxy")
-			um.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelLoadUser, &proto.PMLoadUser{Acc: login.Account})
-			d := um.con.WaitMessage(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, defines.WaitChannelNormal)
-			fmt.Println("handle palyer wait proxy 2", d)
-			if d == nil {
-				replyErr(defines.ErrCommonWait)
-			} else {
-				msg, ok := d.(*proto.PMLoadUserFinish)
-				if !ok {
-					fmt.Println("cast loadfinish error", msg)
-					replyErr(defines.ErrCommonCache)
-				} else if msg.Code == 0 { // user exists
-					if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
-						if cacheUser.Uid != 0 {
-							gotUser()
-						} else {
-							replyErr(defines.ErrCommonCache)
-						}
-					} else {
-						replyErr(defines.ErrCommonCache)
-					}
-				} else if msg.Code == 1 { //user not exists
-					replyErr(defines.ErrClientLoginNeedCreate)
-				}
-			}
-		}
-	} else {
+	if p != nil {
 		userIn()
+	} else {
+		var res defines.DbUserLoginReply
+		um.lb.dbClient.Call("DBService.UserLogin", &defines.DbUserLoginArg{
+			Acc: login.Account,
+		},&res)
+		if res.Err == "ok" {
+			if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
+				if cacheUser.Uid != 0 {
+					gotUser()
+				} else {
+					replyErr(defines.ErrCommonCache)
+				}
+			} else {
+				replyErr(defines.ErrCommonCache)
+			}
+		} else if res.Err == "cache" {
+			replyErr(defines.ErrCommonCache)
+		} else if res.Err == "notexists" {
+			replyErr(defines.ErrClientLoginNeedCreate)
+		}
 	}
 }
 
 func (um *userManager) handleCreateAccount(uid uint32, account *proto.CreateAccount) {
-	um.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelCreateAccount, &proto.PMCreateAccount{
-		Name: account.Name,
-		Sex: account.Sex,
-	})
-	fmt.Println("handle palyer wait proxy 1")
-	d := um.con.WaitMessage(defines.ChannelTypeDb, defines.ChannelCreateAccountFinish, defines.WaitChannelNormal)
-	fmt.Println("handle palyer wait proxy 2", d)
+	fmt.Println("handle create account ", account)
 
 	replyErr := func(code int) {
 		fmt.Println("common error", code)
 		um.lb.send2player(uid, proto.CmdCreateAccount, &proto.CreateAccountRet{ErrCode: code})
 	}
 
-	if d == nil {
-		replyErr(defines.ErrCommonWait)
-	} else {
-		msg, ok := d.(*proto.PMCreateAccountFinish)
-		if !ok {
-			fmt.Println("cast loadfinish error", msg)
-			replyErr(defines.ErrCreateAccountErr)
-		} else if msg.Err == 0{
-			um.lb.send2player(uid, proto.CmdCreateAccount, &proto.CreateAccountRet{
-				ErrCode: defines.ErrCommonSuccess,
-				Account: msg.Account,
-				Pwd: msg.Pwd,
-			})
-		} else {
-			replyErr(msg.Err)
-		}
+	var res defines.DbCreateAccountReply
+	um.lb.dbClient.Call("DBService.CreateAccount", &defines.DbCreateAccountArg{
+		UserName: account.Name,
+	}, &res)
+
+	if res.Err == "ok" {
+		um.lb.send2player(uid, proto.CmdCreateAccount, &proto.CreateAccountRet{
+			ErrCode: defines.ErrCommonSuccess,
+			Account: res.Acc,
+		})
+	} else if res.Err == "cache" {
+		replyErr(defines.ErrCommonCache)
+	} else if res.Err == "exists" {
+		replyErr(defines.ErrCreateAccountExists)
 	}
 }
 
@@ -225,6 +203,7 @@ func (um *userManager) getRoomId() uint32 {
 	return 0
 }
 
+/*
 func (um *userManager) handleCreateRoom(uid uint32, req *proto.UserCreateRoomReq) {
 
 	p := um.getUser(uid)
@@ -310,3 +289,26 @@ func (um *userManager) handleEnterRoom(uid uint32, req *proto.UserEnterRoomReq) 
 
 	um.lb.send2player(uid, proto.CmdEnterRoom, &proto.UserEnterRoomRet{ErrCode: defines.ErrCommonSuccess})
 }
+*/
+
+func (um *userManager) GetRoomId(req *defines.LbGetRoomIdArg, res *defines.LbGetRoomIdReply) error {
+	um.roomLock.Lock()
+	res.RoomId = um.getRoomId()
+	um.roomLock.Unlock()
+	res.Err = "ok"
+	return nil
+}
+
+func (um *userManager) ReportRoomInfo(req *defines.LbReportRoomInfoArg, res *defines.LbReportRoomInfoReply) error {
+	um.roomLock.Lock()
+	if req.Kind == 1 {
+		um.rooms[req.RoomId] = &room{ServerId: req.ServerId}
+	} else if req.Kind == 2 {
+		delete(um.rooms, req.RoomId)
+	}
+	um.roomLock.Unlock()
+
+	return nil
+}
+
+

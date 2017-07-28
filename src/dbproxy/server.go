@@ -2,13 +2,11 @@ package dbproxy
 
 import (
 	"exportor/defines"
-	"cacher"
-	"communicator"
 	"fmt"
-	"exportor/proto"
 	"dbproxy/table"
-	"time"
-	"strconv"
+	"net/rpc"
+	"rpcd"
+	"cacher"
 )
 
 type request struct {
@@ -24,28 +22,39 @@ type dbProxyServer struct {
 	dbClient    		*dbClient
 	chNotify    		chan *request
 	chResNotify 		chan func()
+	dbservice 			*DBService
 }
 
 func newDBProxyServer() *dbProxyServer {
-	return &dbProxyServer{
-		dbClient: newDbClient(),
-		cacheClient: cacher.NewCacheClient("dbproxy"),
-		//com:  communicator.NewCommunicator(),
-		pub: communicator.NewMessagePulisher(),
-		con: communicator.NewMessageConsumer(),
-		chNotify:    make(chan *request, 4096),
-		chResNotify: make(chan func(), 4096),
-	}
+	dbServer := &dbProxyServer{}
+	dbServer.dbClient = newDbClient()
+	dbServer.dbservice = newDbService(dbServer.dbClient)
+	dbServer.cacheClient = cacher.NewCacheClient("dbproxy")
+	return dbServer
 }
 
 func (ds *dbProxyServer) Start() error {
-	ds.con.Start()
-	ds.pub.Start()
 	ds.cacheClient.Start()
-	ds.getMessageFromBroker()
-	ds.handleNotify()
-	ds.handleNotifyRes()
+	ds.dbservice.start()
+	ds.startRpc()
+	ds.load2Cache()
+	//ds.con.Start()
+	//ds.pub.Start()
+	//ds.cacheClient.Start()
+	//ds.getMessageFromBroker()
+	//ds.handleNotify()
+	//ds.handleNotifyRes()
 	return nil
+}
+
+func (ds *dbProxyServer) startRpc() {
+
+	rpc.Register(ds.dbservice)
+
+	start := func() {
+		rpcd.StartServer(defines.DBSerivcePort)
+	}
+	go start()
 }
 
 func (ds *dbProxyServer) Stop() error {
@@ -53,6 +62,8 @@ func (ds *dbProxyServer) Stop() error {
 }
 
 func (ds *dbProxyServer) load2Cache() {
+	ds.cacheClient.FlushAll()
+
 	var notice table.T_Notice
 	ds.dbClient.LoadAll(&notice)
 	fmt.Println("load notice ", notice)
@@ -73,6 +84,7 @@ func (ds *dbProxyServer) getMessageFromBroker () {
 	go getChannelMessage(defines.ChannelCreateAccount)
 }
 
+/*
 func (ds *dbProxyServer) handleNotify() {
 	go func() {
 		for {
@@ -88,7 +100,6 @@ func (ds *dbProxyServer) handleNotify() {
 		}
 	}()
 }
-
 func (ds *dbProxyServer) handleLogin(i interface{}) {
 	req := i.(*proto.PMLoadUser)
 	var userInfo table.T_Users
@@ -109,7 +120,6 @@ func (ds *dbProxyServer) handleLogin(i interface{}) {
 	}
 	fmt.Println("aaaaaaaaaaa", req, ret)
 }
-
 func (ds *dbProxyServer) handleCreateAccount(i interface{}) {
 	req := i.(*proto.PMCreateAccount)
 	fmt.Println("create account ", req.Name)
@@ -153,7 +163,7 @@ func (ds *dbProxyServer) handleCreateAccount(i interface{}) {
 		ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelCreateAccountFinish, res)
 	}
 }
-
+*/
 func (ds *dbProxyServer) handleNotifyRes() {
 	for i :=1; i < 3; i++ {
 		go func() {

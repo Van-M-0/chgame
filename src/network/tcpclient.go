@@ -57,11 +57,11 @@ func (client *tcpClient) Connect() error {
 	fmt.Println("connect addr ", client.opt.Host)
 	client.conn = conn
 	client.opt.ConnectCb(client)
+	go client.sendLoop()
 	if client.opt.AuthCb(client) != nil {
 		client.Close()
 		return errors.New("connect auth error")
 	}
-	go client.sendLoop()
 	client.recvLoop()
 
 	return nil
@@ -118,9 +118,6 @@ func (client *tcpClient) recvLoop() {
 }
 
 func (client *tcpClient) Auth() (*proto.Message, error) {
-	if client.authed {
-		return nil, errors.New("already authed")
-	}
 	return client.readMessage()
 }
 
