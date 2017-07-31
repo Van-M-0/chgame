@@ -17,7 +17,6 @@ type serverInfo struct {
 
 type serManager struct {
 	sync.RWMutex
-	idGen 		uint32
 	sers 		map[uint32]*serverInfo
 
 	gateway 	*gateway
@@ -69,14 +68,14 @@ func (mgr *serManager) serMessage(client defines.ITcpClient, m *proto.Message) {
 func (mgr *serManager) addServer(client defines.ITcpClient, m *proto.RegisterServer) error {
 	mgr.Lock()
 	//mgr.idGen++
-	mgr.sers[mgr.idGen] = &serverInfo{
+	mgr.sers[uint32(m.ServerId)] = &serverInfo{
 		typo: m.Type,
 		id:	uint32(m.ServerId),
 		cli: client,
 	}
 	mgr.Unlock()
 
-	client.Id(mgr.idGen)
+	client.Id(uint32(m.ServerId))
 
 	if m.Type == "lobby" {
 		mgr.lobbyId = uint32(m.ServerId)
@@ -142,8 +141,8 @@ func (mgr *serManager) gate2Lobby(client defines.ITcpClient, cmd uint32, data in
 
 func (mgr *serManager) client2Lobby(client defines.ITcpClient, message *proto.Message) {
 	mgr.Lock()
-	defer mgr.Lock()
-
+	defer mgr.Unlock()
+	fmt.Println("client2lobby ")
 	lbMessage := &proto.GateLobbyHeader {
 		Uid: client.GetId(),
 		Type: proto.GateMsgTypePlayer,
@@ -195,10 +194,11 @@ func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Mes
 			fmt.Println("create room reqeuset errr", err)
 			return
 		}
-		var res defines.MsGsCreateRoomReply
-		mgr.gateway.msClient.Call("ServerService.GetRoomServer", &defines.MsGsCreateRoomArg{Kind: createRoomMessage.Kind}, &res)
-
+		var res defines.MsSelectGameServerReply
+		mgr.gateway.msClient.Call("ServerService.SelectGameServer", &defines.MsSelectGameServerArg{Kind: createRoomMessage.Kind}, &res)
+		fmt.Println("gw create room get room server id ", res.ServerId)
 		send(uint32(res.ServerId))
+		return
 	} else if message.Cmd == proto.CmdGameEnterRoom {
 		var enterRoomMessage proto.PlayerEnterRoom
 		if err := msgpacker.UnMarshal(message.Msg, &enterRoomMessage); err != nil {
@@ -206,13 +206,14 @@ func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Mes
 			return
 		}
 		var res defines.MsGetRoomServerIdReply
-		mgr.gateway.msClient.Call("RoomService.GetRoomServer", &defines.MsGetRoomServerIdArg{RoomId: enterRoomMessage.RoomId}, &res)
+		mgr.gateway.msClient.Call("RoomService.GetRoomServerId", &defines.MsGetRoomServerIdArg{RoomId: enterRoomMessage.RoomId}, &res)
 
 		if res.ServerId == -1 {
 			fmt.Println("enter room id eror")
 			return
 		}
 		send(uint32(res.ServerId))
+		return
 	}
 
 	igame := client.Get("gameid")
@@ -239,6 +240,7 @@ func (mgr *serManager) clientDisconnected(client defines.ITcpClient) {
 				Type: proto.GateMsgTypeServer,
 				Cmd: proto.CmdClientDisconnected,
 			}
+			fmt.Println("client disconnected to gameid ", client.GetId(), sid)
 			ser.cli.Send(proto.GateRouteGame, gwMessage)
 		}
 	}
@@ -249,6 +251,7 @@ func (mgr *serManager) clientDisconnected(client defines.ITcpClient) {
 			Type: proto.GateMsgTypeServer,
 			Cmd: proto.CmdClientDisconnected,
 		}
+		fmt.Println("client disconencted to lobby", client.GetId(), mgr.lobbyId)
 		lb.cli.Send(proto.GateRouteLobby, gwMessage)
 	}
 }

@@ -24,17 +24,28 @@ func newRoomService() *RoomService {
 
 func (rs *RoomService) CreateRoomId(req *defines.MsCreateoomIdArg, res *defines.MsCreateRoomIdReply) error {
 	rs.rmLock.Lock()
-	var rid uint32
+	res.RoomId = 0
 	rand.Seed(time.Now().UnixNano())
 	for i := 0; i < 50; i++ {
 		id := uint32(rand.Intn(899999) + 100000)
 		if _, ok := rs.rooms[id]; !ok {
-			rid = id
+			res.RoomId = id
 			break
 		}
 	}
-	res.RoomId = rid
-	rs.rooms[rid] = &room{ServerId: req.ServerId}
+	rs.rooms[res.RoomId] = &room{ServerId: req.ServerId}
+	rs.rmLock.Unlock()
+	return nil
+}
+
+func (rs *RoomService) ReleaseRoom(req *defines.MsReleaseRoomArg, res *defines.MsReleaseReply) error {
+	rs.rmLock.Lock()
+	res.ErrCode = "error"
+	if room, ok := rs.rooms[req.RoomId]; ok {
+		if room.ServerId == req.ServerId {
+			res.ErrCode = "ok"
+		}
+	}
 	rs.rmLock.Unlock()
 	return nil
 }

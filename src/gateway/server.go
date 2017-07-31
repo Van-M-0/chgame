@@ -7,7 +7,6 @@ import (
 	"msgpacker"
 	"fmt"
 	"rpcd"
-	"net/rpc"
 )
 
 type gateway struct {
@@ -73,6 +72,8 @@ func (gw *gateway) Start() error {
 		},
 	})
 
+	gw.startRpc()
+
 	func() {
 		err := gw.bserver.Start()
 		fmt.Println("bs server start ", err)
@@ -83,6 +84,7 @@ func (gw *gateway) Start() error {
 
 func (gw *gateway) startRpc() {
 	gw.msClient = rpcd.StartClient(defines.MSServicePort)
+	fmt.Println("start master ", gw.msClient)
 }
 
 func (gw *gateway) authClient(client defines.ITcpClient) error {
@@ -102,6 +104,7 @@ func (gw *gateway) authServer(client defines.ITcpClient) error {
 
 	var register proto.RegisterServer
 	if msgpacker.UnMarshal(m.Msg, &register) != nil {
+		fmt.Println("auth server erro")
 		return err
 	}
 

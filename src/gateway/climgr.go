@@ -50,7 +50,6 @@ func (mgr *cliManager) route2client(uids []uint32, cmd uint32, data []byte) {
 	mgr.Lock()
 	defer mgr.Unlock()
 
-	serverId := -1
 	if cmd == proto.CmdGameCreateRoom {
 		var createRes proto.PlayerCreateRoomRet
 		if err := msgpacker.UnMarshal(data, &createRes); err != nil {
@@ -58,11 +57,11 @@ func (mgr *cliManager) route2client(uids []uint32, cmd uint32, data []byte) {
 			return
 		}
 		if createRes.ErrCode == defines.ErrCommonSuccess {
-			serverId = createRes.ServerId
-		}
-		for _, uid := range uids {
-			if client, ok := mgr.clis[uid]; ok {
-				client.Set("gameid", serverId)
+			for _, uid := range uids {
+				if client, ok := mgr.clis[uid]; ok {
+					fmt.Println("gw client set client game id ", uid, uint32(createRes.ServerId))
+					client.Set("gameid", uint32(createRes.ServerId))
+				}
 			}
 		}
 	} else if cmd == proto.CmdGameEnterRoom {
@@ -72,11 +71,11 @@ func (mgr *cliManager) route2client(uids []uint32, cmd uint32, data []byte) {
 			return
 		}
 		if enterRes.ErrCode == defines.ErrCommonSuccess {
-			serverId = enterRes.ServerId
-		}
-		for _, uid := range uids {
-			if client, ok := mgr.clis[uid]; ok {
-				client.Set("gameid", serverId)
+			for _, uid := range uids {
+				if client, ok := mgr.clis[uid]; ok {
+					fmt.Println("gw client set client game id ", uid, uint32(enterRes.ServerId))
+					client.Set("gameid", uint32(enterRes.ServerId))
+				}
 			}
 		}
 	}

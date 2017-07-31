@@ -79,7 +79,8 @@ func (cc *cacheClient) GetUserInfo(account string, user *proto.CacheUser) error 
 	uid, err := cc.GetUserId(account)
 
 	if err == redis.ErrNil {
-		return nil
+		fmt.Println("cache user not in")
+		return err
 	}
 
 	if err != nil {
@@ -94,6 +95,7 @@ func (cc *cacheClient) GetUserInfo(account string, user *proto.CacheUser) error 
 	}
 
 	if err := redis.ScanStruct(values, user); err != nil {
+		fmt.Println("scan stuct error ", err)
 		return err
 	}
 
@@ -119,6 +121,7 @@ func (cc *cacheClient) SetUserInfo(d interface{}, dbRet bool) error {
 
 	if _, err := cc.command("set", accountId(userInfo.Account), userInfo.Userid); err != nil {
 		fmt.Println("set account info err ", accountId(userInfo.Account), userInfo.Account, userInfo.Userid)
+		return err
 	}
 
 	//todo: user int <-> int32
@@ -133,6 +136,23 @@ func (cc *cacheClient) SetUserInfo(d interface{}, dbRet bool) error {
 	}
 
 	return nil
+}
+
+func (cc *cacheClient) SetUserCidUserId(uid uint32, userId int) error {
+	if _, err := cc.command("set", ciduserid(uid), userId); err != nil {
+		fmt.Println("set account info err ", ciduserid(uid), uid, userId)
+		return err
+	}
+	return nil
+}
+
+func (cc *cacheClient) GetUserCidUserId(uid uint32) int {
+	userId, err := redis.Int(cc.command("get", ciduserid(uid)))
+	if err != nil {
+		return -1
+	} else {
+		return userId
+	}
 }
 
 func (cc *cacheClient) UpdateUserInfo(uid uint32, prop string, value interface{}) bool {

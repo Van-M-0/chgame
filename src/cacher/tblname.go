@@ -18,3 +18,6 @@ func serversPattern() string {
 	return "servers.*"
 }
 
+func ciduserid(uid uint32) string {
+	return "cids."+strconv.Itoa(int(uid))
+}

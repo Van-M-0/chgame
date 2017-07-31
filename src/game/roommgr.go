@@ -57,8 +57,8 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 		return
 	}
 
-	var rep defines.LbGetRoomIdReply
-	rm.sm.lbService.Call("GameService.GetRoomId", &defines.LbGetRoomIdArg{}, &rep)
+	var rep defines.MsCreateRoomIdReply
+	rm.sm.msService.Call("RoomService.CreateRoomId", &defines.MsCreateoomIdArg{rm.sm.gameServer.serverId}, &rep)
 	if rep.RoomId == 0 {
 		rm.sm.SendMessage(info.Uid, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomRoomId})
 		return
@@ -76,11 +76,10 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 		data: message,
 	})
 	if !ok {
-		rm.sm.lbService.Call("GameService.ReportRoomInfo", &defines.LbReportRoomInfoArg{
-			Kind: 2,
+		rm.sm.msService.Call("RoomService.ReleaseRoom", &defines.MsReleaseRoomArg{
 			ServerId: rm.sm.gameServer.serverId,
 			RoomId: room.id,
-		}, &defines.LbReportRoomInfoReply{})
+		}, &defines.MsReleaseReply{})
 		delete(rm.rooms, room.id)
 		return
 	}
@@ -115,7 +114,7 @@ func (rm *roomManager) destroyRoom(roomid uint32) {
 }
 
 func (rm *roomManager) offline(info *defines.PlayerInfo) {
-
+	fmt.Println("player off line", info)
 }
 
 func (rm *roomManager) reEnter(info *defines.PlayerInfo) {

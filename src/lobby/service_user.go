@@ -110,6 +110,15 @@ func (um *userManager) addUser(uid uint32, cu *proto.CacheUser) *userInfo {
 	return user
 }
 
+func (um *userManager) delUser(uid uint32) {
+	um.userLock.Lock()
+	if user, ok := um.users[uid]; ok {
+		delete(um.usersAcc, user.account)
+		delete(um.users, uid)
+	}
+	um.userLock.Unlock()
+}
+
 func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 	fmt.Println("handle palyer login", login)
 	p := um.getUserByAcc(login.Account)
@@ -151,13 +160,19 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 		},&res)
 		if res.Err == "ok" {
 			if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
+				fmt.Println("get cache error ", err)
+				replyErr(defines.ErrCommonCache)
+			} else {
+				fmt.Println("get cache user ", cacheUser)
 				if cacheUser.Uid != 0 {
-					gotUser()
+					if um.cc.SetUserCidUserId(uid, cacheUser.Uid) != nil {
+						replyErr(defines.ErrCommonCache)
+					} else {
+						gotUser()
+					}
 				} else {
 					replyErr(defines.ErrCommonCache)
 				}
-			} else {
-				replyErr(defines.ErrCommonCache)
 			}
 		} else if res.Err == "cache" {
 			replyErr(defines.ErrCommonCache)
@@ -165,6 +180,11 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 			replyErr(defines.ErrClientLoginNeedCreate)
 		}
 	}
+}
+
+func (um *userManager) handleClientDisconnect(uid uint32) {
+	fmt.Println("user discconnectd ", um.users[uid])
+	um.delUser(uid)
 }
 
 func (um *userManager) handleCreateAccount(uid uint32, account *proto.CreateAccount) {
@@ -290,25 +310,3 @@ func (um *userManager) handleEnterRoom(uid uint32, req *proto.UserEnterRoomReq) 
 	um.lb.send2player(uid, proto.CmdEnterRoom, &proto.UserEnterRoomRet{ErrCode: defines.ErrCommonSuccess})
 }
 */
-
-func (um *userManager) GetRoomId(req *defines.LbGetRoomIdArg, res *defines.LbGetRoomIdReply) error {
-	um.roomLock.Lock()
-	res.RoomId = um.getRoomId()
-	um.roomLock.Unlock()
-	res.Err = "ok"
-	return nil
-}
-
-func (um *userManager) ReportRoomInfo(req *defines.LbReportRoomInfoArg, res *defines.LbReportRoomInfoReply) error {
-	um.roomLock.Lock()
-	if req.Kind == 1 {
-		um.rooms[req.RoomId] = &room{ServerId: req.ServerId}
-	} else if req.Kind == 2 {
-		delete(um.rooms, req.RoomId)
-	}
-	um.roomLock.Unlock()
-
-	return nil
-}
-
-

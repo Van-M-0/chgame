@@ -32,6 +32,7 @@ type sceneManager struct {
 	con 			defines.IMsgConsumer
 	sceneNotify 	chan *request
 	lbService 		*rpcd.RpcdClient
+	msService 		*rpcd.RpcdClient
 }
 
 func newSceneManager(gs *gameServer) *sceneManager {
@@ -65,6 +66,7 @@ func (sm *sceneManager) start() {
 	sm.pub.Start()
 	sm.cc.Start()
 	sm.lbService = rpcd.StartClient(defines.LbServicePort)
+	sm.msService = rpcd.StartClient(defines.MSServicePort)
 	//sm.getMessageFromBroker()
 	sm.startHandleRequest()
 }
@@ -93,7 +95,7 @@ func (sm *sceneManager) processRequest(r *request) {
 		if r.direct == proto.ClientRouteGame {
 			sm.onGwPlayerMessage(message.Uid, message.Cmd, message.Msg)
 		} else if r.direct == proto.GateRouteGame {
-			sm.onGwServerMessage(message.Cmd, message.Msg)
+			sm.onGwServerMessage(message.Uid, message.Cmd, message.Msg)
 		} else {
 			fmt.Println("gate way msg direction error ", message)
 		}
@@ -152,15 +154,35 @@ func (sm *sceneManager) onBrokerMessage(cmd string, data interface{}) {
 	*/
 }
 
-func (sm *sceneManager) onGwServerMessage(cmd uint32, data []byte) {
-
+func (sm *sceneManager) onGwServerMessage(uid, cmd uint32, data []byte) {
+	if cmd == proto.CmdClientDisconnected {
+		sm.onGwPlayerOffline(uid, data)
+	}
 }
 
 func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
 	fmt.Println("recv client command ", uid, cmd, data)
 
+	replyUserErr := func() {
+	}
+
 	var player *defines.PlayerInfo
-	if cmd != proto.CmdGamePlayerLogin {
+	if cmd == proto.CmdGamePlayerLogin || cmd == proto.CmdGameCreateRoom || cmd == proto.CmdGameEnterRoom {
+		userId := sm.cc.GetUserCidUserId(uid)
+		if userId == -1 {
+			fmt.Println("........... update player error ............ 1")
+			replyUserErr()
+			return
+		} else {
+			ok, p := sm.updateUserInfo(uid, uint32(userId))
+			if ok != "ok" {
+				fmt.Println("........... update player error ............ 2")
+				replyUserErr()
+				return
+			}
+			player = p
+		}
+	} else {
 		player = sm.playerMgr.getPlayerByUid(uid)
 		if player == nil {
 			fmt.Println("must login")
@@ -169,16 +191,18 @@ func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
 	}
 
 	switch cmd {
+	/*
 	case proto.CmdGamePlayerLogin:
 		sm.onGwPlayerLogin(uid, data)
-	case proto.CmdGamePlayerMessage:
-		sm.onGwPlayerGameMessage(player, data)
+	*/
 	case proto.CmdGameCreateRoom:
 		sm.onGwPlayerCreateRoom(player, data)
 	case proto.CmdGameEnterRoom:
 		sm.onGwPlayerEnterRoom(player, data)
 	case proto.CmdGamePlayerLeaveRoom:
 		sm.onGwPlayerLeaveRoom(player, data)
+	case proto.CmdGamePlayerMessage:
+		sm.onGwPlayerGameMessage(player, data)
 	default:
 		fmt.Println("gate way player message error ", cmd)
 	}
@@ -191,38 +215,11 @@ func (sm *sceneManager) onGwPlayerLogin(uid uint32, data []byte) {
 		return
 	}
 
-	var user proto.CacheUser
-	if err := sm.cc.GetUserInfoById(playerLogin.Uid, &user); err != nil {
-		fmt.Println("get cache user info err", playerLogin.Uid)
-		sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode: defines.ErrPlayerLoginErr})
+	err, player := sm.updateUserInfo(uid, playerLogin.Uid)
+	if err != "ok" {
+		sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode:defines.ErrCommonCache})
 		return
 	}
-
-	if user.Uid == 0 {
-		fmt.Println("cache user info uid == 0", user)
-		sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode: defines.ErrPlayerLoginCache})
-		return
-	}
-
-	player := &defines.PlayerInfo{
-		Uid: uid,
-		UserId: uint32(user.Uid),
-		OpenId: user.Openid,
-		HeadImg: user.HeadImg,
-		Name: user.Name,
-		Account: user.Account,
-		Diamond: user.Diamond,
-		Gold: user.Gold,
-		RoomCard: user.RoomCard,
-		Sex: user.Sex,
-		RoomId: uint32(user.RoomId),
-	}
-
-	if u, ok := sm.playerMgr.idPlayer[uint32(user.Uid)]; ok {
-		fmt.Println("user enter with info ")
-		sm.playerMgr.delPlayer(u)
-	}
-	sm.playerMgr.addPlayer(player)
 
 	/*
 	player.Uid = uid
@@ -289,3 +286,36 @@ func (sm *sceneManager) onGwPlayerLeaveRoom(player *defines.PlayerInfo, data []b
 
 }
 
+func (sm *sceneManager) updateUserInfo(uid, userId uint32) (string, *defines.PlayerInfo) {
+	var user proto.CacheUser
+	if err := sm.cc.GetUserInfoById(userId, &user); err != nil {
+		fmt.Println("get cache user info err", uid, userId)
+		return "uiderr", nil
+	}
+
+	if user.Uid == 0 {
+		return "uiderr", nil
+	}
+
+	player := &defines.PlayerInfo{
+		Uid: uid,
+		UserId: uint32(user.Uid),
+		OpenId: user.Openid,
+		HeadImg: user.HeadImg,
+		Name: user.Name,
+		Account: user.Account,
+		Diamond: user.Diamond,
+		Gold: user.Gold,
+		RoomCard: user.RoomCard,
+		Sex: user.Sex,
+		RoomId: uint32(user.RoomId),
+	}
+
+	if u, ok := sm.playerMgr.idPlayer[uint32(user.Uid)]; ok {
+		fmt.Println("user enter with info ")
+		sm.playerMgr.delPlayer(u)
+	}
+	sm.playerMgr.addPlayer(player)
+
+	return "ok", player
+}

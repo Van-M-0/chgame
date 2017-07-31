@@ -17,7 +17,7 @@ type message struct {
 }
 
 type tcpClient struct {
-	netContext
+	*netContext
 	id 				uint32
 	conn 			net.Conn
 	opt 			*defines.NetClientOption
@@ -32,6 +32,7 @@ func newTcpClient(opt *defines.NetClientOption) *tcpClient {
 		opt: opt,
 		sendCh: make(chan *message, 1024),
 		packer: msgpacker.NewMsgPacker(),
+		netContext: newNetContext(),
 	}
 	return client
 }

@@ -8,6 +8,7 @@ import (
 	"cacher"
 	"strconv"
 	"time"
+	"exportor/proto"
 )
 
 type DBService struct {
@@ -28,12 +29,20 @@ func (service *DBService) start() {
 }
 
 func (service *DBService) UserLogin(req *defines.DbUserLoginArg, res *defines.DbUserLoginReply) error {
+
+	var cacheUser proto.CacheUser
+	if err := service.cc.GetUserInfo(req.Acc, &cacheUser); err == nil {
+		res.Err = "ok"
+		return nil
+	}
+
 	var userInfo table.T_Users
 	ret := service.db.GetUserInfo(req.Acc, &userInfo)
 	fmt.Println("user login ", req)
 	if ret == true {
 		err := service.cc.SetUserInfo(&userInfo, ret)
 		if err != nil {
+			fmt.Println("set cache user error ", err)
 			res.Err = "cache"
 		} else {
 			res.Err = "ok"

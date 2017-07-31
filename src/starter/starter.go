@@ -16,7 +16,13 @@ import (
 	"game"
 	"strconv"
 	"math/rand"
+	"master"
+	"time"
 )
+
+func startMaster() {
+	master.NewMasterServer().Start()
+}
 
 func startGate() {
 	gateway.NewGateServer(&defines.GatewayOption{
@@ -59,27 +65,30 @@ func (t *tclient) login(acc string) {
 }
 
 func (t *tclient) createAcc() {
+	rand.Seed(time.Now().UnixNano())
 	t.Send(proto.CmdCreateAccount, &proto.CreateAccount{
 		Name: "acc_"+strconv.Itoa(rand.Intn(1000000000)),
 		Sex: 1,
 	})
 }
 
+/*
 func (t *tclient) loginGame(uid uint32) {
 	t.Send(proto.CmdGamePlayerLogin, &proto.PlayerLogin {
 		Uid: uid,
 	})
 }
+*/
 
 func (t *tclient) createRoom() {
-	t.Send(proto.CmdCreateRoom, &proto.PlayerCreateRoom {
+	t.Send(proto.CmdGameCreateRoom, &proto.PlayerCreateRoom {
 		Kind: 1,
 		Enter: true,
 	})
 }
 
 func (t *tclient) enterRoom(id uint32) {
-	t.Send(proto.CmdEnterRoom, &proto.PlayerEnterRoom {
+	t.Send(proto.CmdGameEnterRoom, &proto.PlayerEnterRoom {
 		RoomId: id,
 	})
 }
@@ -98,9 +107,8 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 		if loginRet.ErrCode == defines.ErrClientLoginNeedCreate {
 			t.createAcc()
 		} else if loginRet.ErrCode == defines.ErrCommonSuccess{
-
-			//t.loginGame(loginRet.UserId)
-
+			fmt.Println("user login ret______ ok ", loginRet)
+			t.createRoom()
 		} else {
 			fmt.Println("__________login ret _______", loginRet.ErrCode)
 		}
@@ -115,6 +123,8 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 
 		if account.ErrCode == defines.ErrCommonSuccess {
 			t.login(account.Account)
+		} else {
+			fmt.Println("create account error ", account)
 		}
 
 	} else if message.Cmd == proto.CmdGamePlayerLogin {
@@ -172,7 +182,7 @@ func startClient() {
 	c.Connect()
 	t.ITcpClient = c
 
-	t.login("acc_13232，什么东西？")
+	t.login("acc_1501053544")
 }
 
 func StartProgram(p string, data interface{}) {
@@ -189,6 +199,8 @@ func StartProgram(p string, data interface{}) {
 		startDbProxy()
 	} else if p == "game" {
 		startGame(data.([]defines.GameModule))
+	} else if p == "master" {
+		startMaster()
 	}
 
 	wg := new(sync.WaitGroup)

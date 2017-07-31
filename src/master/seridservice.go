@@ -3,6 +3,7 @@ package master
 import (
 	"exportor/defines"
 	"sync"
+	"fmt"
 )
 
 type server struct {
@@ -34,6 +35,7 @@ func (ss *ServerService) GetServerId(req *defines.MsServerIdArg, res *defines.Ms
 	}
 	ss.serLoc.Unlock()
 	res.Id = ss.ids
+	fmt.Println("GetServerId -> ", req, res)
 	return nil
 }
 
@@ -54,13 +56,12 @@ func (ss *ServerService) GsStatus (req *defines.MsGsStatusArg, res *defines.MsGs
 	return nil
 }
 
-func (ss *ServerService) GetRoomServer(req *defines.MsGsCreateRoomArg, res *defines.MsGsCreateRoomReply) error {
+func (ss *ServerService) SelectGameServer(req *defines.MsSelectGameServerArg, res *defines.MsSelectGameServerReply) error {
 	ss.serLoc.Lock()
 	res.ServerId = -1
 	for _, ser := range ss.servers {
 		if ser.typo == "game" {
 			res.ServerId = ser.id
-			break
 		}
 	}
 	ss.serLoc.Unlock()

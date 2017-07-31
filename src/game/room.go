@@ -118,9 +118,13 @@ func (rm *room) onCreate(notify *roomNotify) bool {
 		}
 	}
 
-	//rm.manager.sm.pubCreateRoom(&proto.PMUserCreateRoomRet{ErrCode: defines.ErrCreateRoomSuccess})
-	rm.SendUserMessage(&notify.user, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCommonSuccess})
 	rm.run()
+	rm.SendUserMessage(&notify.user, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{
+		ErrCode: defines.ErrCommonSuccess,
+		RoomId: rm.id,
+		ServerId: rm.manager.sm.gameServer.serverId,
+	})
+
 	return true
 }
 
@@ -165,11 +169,12 @@ func (rm *room) ReleaseRoom() {
 }
 
 func (rm *room) OnStop() {
-	rm.manager.sm.lbService.Call("GameService.ReportRoomInfo", &defines.LbReportRoomInfoArg{
-		Kind: 2,
-		ServerId: rm.manager.sm.gameServer.serverId,
-		RoomId: rm.id,
-	}, &defines.LbReportRoomInfoReply{})
+	if rm.id != 0 {
+		rm.manager.sm.msService.Call("RoomService.ReleaseRoom", &defines.MsReleaseRoomArg{
+			ServerId: rm.manager.sm.gameServer.serverId,
+			RoomId: rm.id,
+		}, &defines.MsReleaseReply{})
+	}
 
 	rm.game.OnRelease()
 
@@ -180,8 +185,6 @@ func (rm *room) OnStop() {
 	for _, user := range rm.users {
 		rm.SendUserMessage(&user, proto.CmdGamePlayerReturn2lobby, &proto.PlayerReturn2Lobby{})
 	}
-
-	fmt.Println()
 }
 
 func (rm *room) SendGameMessage(info *defines.PlayerInfo, cmd uint32, data interface{}) {

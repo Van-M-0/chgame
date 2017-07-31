@@ -8,7 +8,6 @@ import (
 	"msgpacker"
 	"fmt"
 	"rpcd"
-	"net/rpc"
 )
 
 type lobby struct {
@@ -23,7 +22,6 @@ type lobby struct {
 	dbClient 		*rpcd.RpcdClient
 	msClient 		*rpcd.RpcdClient
 	serverId 		int
-	gameService 	*GameService
 }
 
 func newLobby(option *defines.LobbyOption) *lobby {
@@ -35,7 +33,6 @@ func newLobby(option *defines.LobbyOption) *lobby {
 	lb.mall = newMallService(lb)
 	lb.hp = newHttpProxy()
 	lb.ns = newNoticeService(lb)
-	lb.gameService = newGameService(lb)
 	return lb
 }
 
@@ -52,7 +49,6 @@ func (lb *lobby) Start() error {
 				Type: "lobby",
 				ServerId: res.Id,
 			})
-
 			return nil
 		},
 		CloseCb: func (client defines.ITcpClient) {
@@ -84,7 +80,6 @@ func (lb *lobby) StartRpc() {
 	lb.msClient = rpcd.StartClient(defines.MSServicePort)
 	lb.dbClient = rpcd.StartClient(defines.DBSerivcePort)
 	start := func() {
-		rpc.Register(lb.gameService)
 		rpcd.StartServer(defines.LbServicePort)
 	}
 	go start()
@@ -107,7 +102,13 @@ func (lb *lobby) onGwMessage(message *proto.Message) {
 			lb.handleClientMessage(header.Uid, header.Cmd, header.Msg)
 		})
 	} else if message.Cmd == proto.GateRouteLobby {
-
+		var header proto.GateLobbyHeader
+		if err := msgpacker.UnMarshal(message.Msg, &header); err != nil {
+			fmt.Println("unmarshal client route lobby header error")
+			return
+		}
+		fmt.Println("lobby on gw message 1", header.Cmd, header)
+		lb.handleGateMessage(header.Uid, header.Cmd, header.Msg)
 	}
 }
 
@@ -119,7 +120,6 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 			fmt.Println("unmarshal client login errr", err)
 			return
 		}
-		fmt.Println("unmarshal client login", login)
 		lb.userMgr.handleUserLogin(uid, &login)
 	case proto.CmdGuestLogin:
 		var guest proto.GuestLogin
@@ -127,14 +127,12 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 			fmt.Println("unmarshal client login errr", err)
 			return
 		}
-		fmt.Println("unmarshal guest login", guest)
 	case proto.CmdCreateAccount:
 		var acc proto.CreateAccount
 		if err := msgpacker.UnMarshal(data, &acc); err != nil {
 			fmt.Println("unmarshal client account errr", err)
 			return
 		}
-		fmt.Println("unmarshal create account", acc)
 		lb.userMgr.handleCreateAccount(uid, &acc)
 	default:
 		fmt.Println("lobby handle invalid client cmd ", cmd)
@@ -168,4 +166,10 @@ func (lb *lobby) broadcastMessage(cmd uint32, data interface{}) {
 	}
 	fmt.Println("lobby send 2 player ", header)
 	lb.gwClient.Send(proto.LobbyRouteClient, &header)
+}
+
+func (lb *lobby) handleGateMessage(uid, cmd uint32, data []byte) {
+	if cmd == proto.CmdClientDisconnected {
+		lb.userMgr.handleClientDisconnect(uid)
+	}
 }
