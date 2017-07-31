@@ -88,3 +88,21 @@ func (service *DBService) CreateAccount(req *defines.DbCreateAccountArg, res *de
 	return nil
 }
 
+func (service *DBService) LoadNotice(req *defines.MsLoadNoticeArg, res *defines.MsLoadNoticeReply) error {
+	var notice []*table.T_Notice
+	service.db.db.Find(&notice)
+	for _, n := range notice {
+		res.Notices = append(res.Notices, &defines.NoticeItem{
+			Id: n.Index,
+			Kind: n.Kind,
+			Content: n.Content,
+			StartTime: n.Starttime,
+			FinishTime: n.Finishtime,
+			Counts: n.Playcount,
+			PlayTime: n.Playtime,
+		})
+	}
+	return nil
+}
+
+func (service *DBService) UpdateNotice()

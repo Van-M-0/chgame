@@ -1,13 +1,13 @@
-package lobby
+package master
 
 import (
-	"net"
-	"net/http"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"exportor/defines"
+	"net/http"
+	"net"
 	"communicator"
+	"io/ioutil"
 )
 
 type appInfo struct {
@@ -107,9 +107,13 @@ func (hp *http2Proxy) notice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hp.pub.WaitPublish(defines.ChannelTtypeNotice, defines.ChannelUpdateNotice, &defines.NoticeItem{
-		Content: n.Content,
+	hp.pub.WaitPublish(defines.ChannelTtypeNotice, defines.ChannelUpdateNotice, &defines.NoticeOperatoin{
+		Operation: "add",
+		Notices: []*defines.NoticeItem{
+
+		},
 	})
+
 }
 
 func (hp *http2Proxy) serve() {
@@ -142,4 +146,3 @@ func (hp *http2Proxy) get2(url string, content string, bHttps bool, cb func(bool
 	}
 	fmt.Println(res)
 }
-

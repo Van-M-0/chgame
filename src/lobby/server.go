@@ -69,10 +69,7 @@ func (lb *lobby) Start() error {
 	lb.userMgr.start()
 	lb.processor.Start()
 	lb.bpro.Start()
-	lb.hp.start()
 	lb.ns.start()
-
-
 	return nil
 }
 

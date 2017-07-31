@@ -31,3 +31,7 @@ func (ms *Master) StartRpc() {
 	}
 	go start()
 }
+
+func (ms *Master) StartHttp() {
+
+}

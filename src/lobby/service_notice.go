@@ -3,14 +3,17 @@ package lobby
 import (
 	"exportor/defines"
 	"cacher"
-	"exportor/proto"
+	"fmt"
+	"sync"
 )
 
 type noticeService struct {
 	cc 			defines.ICacheClient
 	lb 			*lobby
-	notices 	map[int]*proto.NoticeItem
-	noticesList []*proto.NoticeItem
+
+	noticeLock 	sync.RWMutex
+	notices 	map[int]*defines.NoticeItem
+	noticesList []*defines.NoticeItem
 }
 
 func newNoticeService(lb *lobby) *noticeService {
@@ -23,27 +26,21 @@ func newNoticeService(lb *lobby) *noticeService {
 func (ns *noticeService) start() {
 	ns.cc.Start()
 	ns.lb.bpro.Register(defines.ChannelTtypeNotice, defines.ChannelUpdateNotice, ns.noticeUpdate)
-	ns.lb.bpro.Register(defines.ChannelTtypeNotice, defines.ChannelLoadNotice, ns.noticeLoad)
+
+	var res defines.MsLoadNoticeReply
+	ns.lb.dbClient.Call("DBService.LoadNotice", &defines.MsLoadNoticeArg{}, &res)
+
+	ns.noticeLock.Lock()
+	ns.noticesList = res.Notices
+	ns.notices = make(map[int]*defines.NoticeItem)
+	for _, n := range ns.noticesList {
+		ns.notices[n.Id] = n
+	}
+	ns.noticeLock.Unlock()
+
+	fmt.Println("ns notices map", ns.notices)
 }
 
 func (ns *noticeService) noticeUpdate(data interface{}) {
 
-}
-
-func (ns *noticeService) noticeLoad(data interface{}) {
-
-}
-
-func (ns *noticeService) OnUserLoadNotice(info *defines.PlayerInfo, notice *proto.UserLoadNotice) {
-	ns.lb.send2player(info.Uid, proto.CmdUserLoadNotice, &proto.UserLoadNoticeRet{
-		Notices: ns.noticesList,
-	})
-}
-
-func (ns *noticeService) OnUserSendNotice(info *defines.PlayerInfo, notice *proto.UserSendNotice) {
-	ns.lb.broadcastMessage(proto.CmdUserSendMessage, &proto.UserSendNoticeRet{
-		SendUserName: info.Name,
-		Kind: notice.Kind,
-		Content: notice.Content,
-	})
 }

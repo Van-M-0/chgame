@@ -76,22 +76,21 @@ func (client *tcpClient) Close() error {
 }
 
 func (client *tcpClient) Send(cmd uint32, data interface{}) error {
-	fmt.Println("send message 1", cmd, data)
+	//fmt.Println("send message 1", cmd, data)
 	client.sendCh <- &message{cmd: cmd, data: data}
-	fmt.Println("send message 2", cmd, data)
+	//fmt.Println("send message 2", cmd, data)
 	return nil
 }
 
 func (client *tcpClient) sendLoop() {
-	fmt.Println("client send loop error 1")
 	for {
 		select {
 		case m:= <- client.sendCh:
-			fmt.Println("send message 2 --------------->", m)
+			//fmt.Println("send message 2 --------------->", m)
 			if raw, err :=client.packer.Pack(m.cmd, m.data); err != nil {
 				fmt.Println("send msg error ", m, err)
 			} else {
-				fmt.Println("send message 2 --------------____>", raw)
+				fmt.Println("send to client", m.cmd, raw)
 				client.conn.Write(raw)
 			}
 		}
@@ -123,18 +122,15 @@ func (client *tcpClient) Auth() (*proto.Message, error) {
 }
 
 func (client *tcpClient) readMessage() (*proto.Message, error) {
-	fmt.Println("client recv message ")
 	if _, err := io.ReadFull(client.conn, client.headerBuf[:]); err != nil {
 		return nil, err
 	}
 
-	fmt.Println("client recv message headerBuf ", client.headerBuf)
 	header, err := client.packer.Unpack(client.headerBuf[:])
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Println("client recv message header ", header)
 	body := make([]byte, header.Len)
 	if _, err := io.ReadFull(client.conn, body[:]); err != nil {
 		return nil, err

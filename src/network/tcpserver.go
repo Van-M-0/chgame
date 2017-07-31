@@ -31,7 +31,6 @@ func (server *tcpServer) Start() error {
 	}()
 
 		for {
-			fmt.Println("server start ", server.opt.Host)
 			conn, err := l.Accept()
 			fmt.Println("server start ", server.opt.Host, conn, err)
 			if err != nil {

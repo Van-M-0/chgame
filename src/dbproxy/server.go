@@ -3,7 +3,6 @@ package dbproxy
 import (
 	"exportor/defines"
 	"fmt"
-	"dbproxy/table"
 	"net/rpc"
 	"rpcd"
 	"cacher"
@@ -64,9 +63,56 @@ func (ds *dbProxyServer) Stop() error {
 func (ds *dbProxyServer) load2Cache() {
 	ds.cacheClient.FlushAll()
 
-	var notice table.T_Notice
-	ds.dbClient.LoadAll(&notice)
+	/*
+	ft, err := time.Parse("2006-01-02 15:04:05", "2017-08-08 09:04:01")
+	if err != nil {
+		fmt.Println("fmt time error ", err)
+		return
+	}
+	testCreateNotice := func() {
+		ds.dbClient.db.Create(&table.T_Notice{
+			Starttime: time.Now(),
+			Finishtime: ft,
+			Kind: "notice",
+			Content: "你好，世界",
+			Playtime: 10,
+			Playcount: 1,
+		})
+
+		ds.dbClient.db.Create(&table.T_Notice{
+			Starttime: time.Now(),
+			Finishtime: ft,
+			Kind: "notice",
+			Content: "你好，世界 2",
+			Playtime: 10,
+			Playcount: 1,
+		})
+	}
+
+	testCreateNotice()
+	var notice []table.T_Notice
+	ds.dbClient.db.Find(&notice)
 	fmt.Println("load notice ", notice)
+	var cnotice []*proto.CacheNotice
+	for _, n := range notice {
+		cnotice = append(cnotice, &proto.CacheNotice{
+			Id: n.Index,
+			StartTime: n.Starttime.Format("2006-01-02 15:04:05"),
+			FinishTime: n.Finishtime.Format("2006-01-02 15:04:05"),
+			Kind: n.Kind,
+			Content: n.Content,
+			PlayTime: n.Playtime,
+			PlayCount: n.Playcount,
+		})
+	}
+	ds.cacheClient.NoticeOperation(&cnotice, "update")
+
+*/
+	/*
+	var n1 []*proto.CacheNotice
+	ds.cacheClient.NoticeOperation(&n1, "getall")
+	fmt.Println("n1 < ", n1, n1[0])
+	*/
 }
 
 

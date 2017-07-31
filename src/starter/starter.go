@@ -138,7 +138,7 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 		if ret.ErrCode == defines.ErrPlayerLoginSuccess {
 			t.createRoom()
 		}
-	} else if message.Cmd == proto.CmdCreateRoom {
+	} else if message.Cmd == proto.CmdGameCreateRoom {
 		var ret proto.PlayerCreateRoomRet
 		var origin []byte
 		err := msgpacker.UnMarshal(message.Msg, &origin)
@@ -149,7 +149,7 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 		if ret.ErrCode == defines.ErrCommonSuccess {
 			t.enterRoom(ret.RoomId)
 		}
-	} else if message.Cmd == proto.CmdEnterRoom {
+	} else if message.Cmd == proto.CmdGameEnterRoom {
 		var ret proto.PlayerEnterRoomRet
 		var origin []byte
 		err := msgpacker.UnMarshal(message.Msg, &origin)

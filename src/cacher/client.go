@@ -228,4 +228,48 @@ func (cc *cacheClient) FlushAll() {
 	cc.ccConn.Do("flushall")
 }
 
+func (cc *cacheClient) NoticeOperation(notice *[]*proto.CacheNotice, op string) error {
+	if op == "update" {
+		for _, n := range *notice {
+			if _, err := cc.command("hmset", redis.Args{notices(n.Id)}.AddFlat(n)...); err != nil {
+				fmt.Println("set notices error", err)
+			}
+		}
+	} else if op == "del" {
+		ids := []string{}
+		for _, n := range *notice {
+			ids = append(ids, notices(n.Id))
+		}
+		if _, err := cc.command("del", redis.Args{}.AddFlat(ids)...); err != nil {
+			fmt.Println("set notices error", err)
+		}
+	} else if op == "getall" {
+		nids, err := redis.Strings(cc.ccConn.Do("keys", noticesPattern()))
+		if err != nil {
+			return nil
+		}
+
+		for _, key := range nids {
+			values, err := redis.Values(cc.command("hgetall", key))
+			if err != nil {
+				fmt.Println("get notice err ", key, err)
+				continue
+			}
+
+			var ns proto.CacheNotice
+			if err := redis.ScanStruct(values, &ns); err != nil {
+				fmt.Println("get notice scan values error", err)
+				continue
+			}
+
+			fmt.Println("ns is .. ", ns)
+
+			*notice = append(*notice, &ns)
+		}
+	}
+	return nil
+}
+
+
+
 // ICacheLoader

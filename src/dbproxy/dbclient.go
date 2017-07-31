@@ -87,10 +87,6 @@ func (dc *dbClient) DropTable(v ...interface{}) {
 	dc.db.DropTableIfExists(v...)
 }
 
-func (dc *dbClient) LoadAll(data interface{}) {
-	dc.db.Find(data)
-}
-
 // logic handler
 
 func (dc *dbClient) InitTable() {
