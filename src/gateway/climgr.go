@@ -5,6 +5,7 @@ import (
 	"exportor/defines"
 	"sync"
 	"fmt"
+	"msgpacker"
 )
 
 type cliManager struct {
@@ -48,6 +49,38 @@ func (mgr *cliManager) route2client(uids []uint32, cmd uint32, data []byte) {
 
 	mgr.Lock()
 	defer mgr.Unlock()
+
+	serverId := -1
+	if cmd == proto.CmdGameCreateRoom {
+		var createRes proto.PlayerCreateRoomRet
+		if err := msgpacker.UnMarshal(data, &createRes); err != nil {
+			fmt.Println("gw crete room re**********", err)
+			return
+		}
+		if createRes.ErrCode == defines.ErrCommonSuccess {
+			serverId = createRes.ServerId
+		}
+		for _, uid := range uids {
+			if client, ok := mgr.clis[uid]; ok {
+				client.Set("gameid", serverId)
+			}
+		}
+	} else if cmd == proto.CmdGameEnterRoom {
+		var enterRes proto.PlayerEnterRoomRet
+		if err := msgpacker.UnMarshal(data, &enterRes); err != nil {
+			fmt.Println("gw crete room re**********", err)
+			return
+		}
+		if enterRes.ErrCode == defines.ErrCommonSuccess {
+			serverId = enterRes.ServerId
+		}
+		for _, uid := range uids {
+			if client, ok := mgr.clis[uid]; ok {
+				client.Set("gameid", serverId)
+			}
+		}
+	}
+
 	for _, uid := range uids {
 		if client, ok := mgr.clis[uid]; ok {
 			client.Send(cmd, data)

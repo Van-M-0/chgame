@@ -6,11 +6,13 @@ import (
 	"network"
 	"fmt"
 	"msgpacker"
+	"rpcd"
 )
 
 type gameServer struct {
 	opt 			*defines.GameOption
 	gwClient 		defines.ITcpClient
+	msClient 		*rpcd.RpcdClient
 	scmgr 			*sceneManager
 	serverId 		int
 }
@@ -28,9 +30,12 @@ func (gs *gameServer) Start() error {
 		Host: gs.opt.GwHost,
 		ConnectCb: func (client defines.ITcpClient) error {
 			fmt.Println("connect gate succcess, send auth info")
+			var res defines.MsServerIdReply
+			gs.msClient.Call("ServerService.GetServerId", &defines.MsServerIdArg{Type:"game"}, &res)
+			gs.serverId = res.Id
 			client.Send(proto.CmdRegisterServer, &proto.RegisterServer{
 				Type: "game",
-				ServerId: 1,
+				ServerId: res.Id,
 			})
 			return nil
 		},
@@ -38,6 +43,7 @@ func (gs *gameServer) Start() error {
 
 		},
 		AuthCb: func (client defines.ITcpClient) error {
+			/*
 			m, err := client.Auth()
 			if err != nil {
 				return err
@@ -70,7 +76,7 @@ func (gs *gameServer) Start() error {
 			gs.serverId = r.ServerId
 
 			fmt.Println("game server id ", gs.serverId)
-
+			*/
 			return nil
 		},
 		MsgCb: func(client defines.ITcpClient, m *proto.Message) {
@@ -82,11 +88,16 @@ func (gs *gameServer) Start() error {
 			gs.scmgr.onGwMessage(m.Cmd, &header)
 		},
 	})
+	gs.startRpc()
 	gs.gwClient.Connect()
 
 	gs.scmgr.start()
 
 	return nil
+}
+
+func (gs *gameServer) startRpc() {
+	gs.msClient = rpcd.StartClient(defines.MSServicePort)
 }
 
 func (gs *gameServer) Stop() error {

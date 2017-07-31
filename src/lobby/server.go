@@ -21,6 +21,7 @@ type lobby struct {
 	hp 				*http2Proxy
 	ns 				*noticeService
 	dbClient 		*rpcd.RpcdClient
+	msClient 		*rpcd.RpcdClient
 	serverId 		int
 	gameService 	*GameService
 }
@@ -44,54 +45,28 @@ func (lb *lobby) Start() error {
 		Host: lb.opt.GwHost,
 		ConnectCb: func (client defines.ITcpClient) error {
 			fmt.Println("connect gate succcess, send auth info")
+			var res defines.MsServerIdReply
+			lb.msClient.Call("ServerService.GetServerId", &defines.MsServerIdArg{Type:"lobby"}, &res)
+			lb.serverId = res.Id
 			client.Send(proto.CmdRegisterServer, &proto.RegisterServer{
 				Type: "lobby",
+				ServerId: res.Id,
 			})
+
 			return nil
 		},
 		CloseCb: func (client defines.ITcpClient) {
 			fmt.Println("closed gate success")
 		},
 		AuthCb: func (client defines.ITcpClient) error {
-			m, err := client.Auth()
-			if err != nil {
-				return err
-			}
-			if m.Cmd != proto.GateRouteLobby {
-				err := fmt.Errorf("server auth error ")
-				fmt.Println(err)
-				return err
-			}
-
-			var header proto.GateLobbyHeader
-			if err := msgpacker.UnMarshal(m.Msg, &header); err != nil {
-				fmt.Println("auth game server ",  err)
-				return err
-			}
-
-
-			if header.Type != proto.GateMsgTypeServer {
-				err := fmt.Errorf("server auth type error ")
-				fmt.Println(err)
-				return err
-			}
-
-			var r proto.RegisterServerRet
-			if err := msgpacker.UnMarshal(header.Msg, &r); err != nil {
-				fmt.Println("auth game server ",  err)
-				return err
-			}
-
-			lb.serverId = r.ServerId
-
-			fmt.Println("lobby server id ", lb.serverId)
-
 			return nil
 		},
 		MsgCb: func(client defines.ITcpClient, m *proto.Message) {
 			lb.onGwMessage(m)
 		},
 	})
+
+	lb.StartRpc()
 	lb.gwClient.Connect()
 
 	lb.userMgr.setLobby(lb)
@@ -101,13 +76,12 @@ func (lb *lobby) Start() error {
 	lb.hp.start()
 	lb.ns.start()
 
-	lb.StartRpc()
 
 	return nil
 }
 
 func (lb *lobby) StartRpc() {
-
+	lb.msClient = rpcd.StartClient(defines.MSServicePort)
 	lb.dbClient = rpcd.StartClient(defines.DBSerivcePort)
 	start := func() {
 		rpc.Register(lb.gameService)

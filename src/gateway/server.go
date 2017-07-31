@@ -6,6 +6,8 @@ import (
 	"exportor/proto"
 	"msgpacker"
 	"fmt"
+	"rpcd"
+	"net/rpc"
 )
 
 type gateway struct {
@@ -16,6 +18,7 @@ type gateway struct {
 	idGen 		uint32
 	cliManger 	*cliManager
 	serManager 	*serManager
+	msClient 	*rpcd.RpcdClient
 }
 
 func NewGateServer(opt *defines.GatewayOption) *gateway {
@@ -76,6 +79,10 @@ func (gw *gateway) Start() error {
 	}()
 
 	return nil
+}
+
+func (gw *gateway) startRpc() {
+	gw.msClient = rpcd.StartClient(defines.MSServicePort)
 }
 
 func (gw *gateway) authClient(client defines.ITcpClient) error {
