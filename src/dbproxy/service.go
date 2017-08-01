@@ -28,7 +28,7 @@ func (service *DBService) start() {
 	service.cc.Start()
 }
 
-func (service *DBService) UserLogin(req *defines.DbUserLoginArg, res *defines.DbUserLoginReply) error {
+func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUserLoginReply) error {
 
 	var cacheUser proto.CacheUser
 	if err := service.cc.GetUserInfo(req.Acc, &cacheUser); err == nil {
@@ -54,11 +54,11 @@ func (service *DBService) UserLogin(req *defines.DbUserLoginArg, res *defines.Db
 	return nil
 }
 
-func (service *DBService) CreateAccount(req *defines.DbCreateAccountArg, res *defines.DbCreateAccountReply) error {
+func (service *DBService) CreateAccount(req *proto.DbCreateAccountArg, res *proto.DbCreateAccountReply) error {
 	var user table.T_Users
 	var userSuccess *table.T_Users
 	fmt.Println("create account ", req)
-	ret := service.db.GetUserInfoByName(req.UserName, &user)
+	ret := service.db.GetUserInfo(req.UserName, &user)
 	if !ret {
 		acc := "acc_" + strconv.Itoa(int(time.Now().Unix()))
 		pwd := "123456"
@@ -88,11 +88,11 @@ func (service *DBService) CreateAccount(req *defines.DbCreateAccountArg, res *de
 	return nil
 }
 
-func (service *DBService) LoadNotice(req *defines.MsLoadNoticeArg, res *defines.MsLoadNoticeReply) error {
+func (service *DBService) LoadNotice(req *proto.MsLoadNoticeArg, res *proto.MsLoadNoticeReply) error {
 	var notice []*table.T_Notice
 	service.db.db.Find(&notice)
 	for _, n := range notice {
-		res.Notices = append(res.Notices, &defines.NoticeItem{
+		res.Notices = append(res.Notices, &proto.NoticeItem{
 			Id: n.Index,
 			Kind: n.Kind,
 			Content: n.Content,
@@ -105,4 +105,18 @@ func (service *DBService) LoadNotice(req *defines.MsLoadNoticeArg, res *defines.
 	return nil
 }
 
-func (service *DBService) UpdateNotice()
+func (service *DBService) LoadMallItem(req *proto.MsLoadNoticeArg, res *proto.MsLoadMallItemListReply) error {
+	var malls []*table.T_MallItem
+	service.db.db.Find(&malls)
+	for _, n := range malls {
+		res.Malls = append(res.Malls, &proto.MallItem{
+			Id: n.Itemid,
+			Name: n.Itemname,
+			Category: n.Category,
+			BuyValue: n.Buyvalue,
+			Nums: n.Nums,
+			BuyLimt: n.Limit,
+		})
+	}
+	return nil
+}

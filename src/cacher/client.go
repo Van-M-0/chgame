@@ -129,6 +129,10 @@ func (cc *cacheClient) SetUserInfo(d interface{}, dbRet bool) error {
 		Account: userInfo.Account,
 		Name: userInfo.Name,
 		Uid: int(userInfo.Userid),
+		Diamond: int(userInfo.Diamond),
+		RoomId: int(userInfo.Roomid),
+		Gold: int64(userInfo.Gold),
+		Score: int(userInfo.Score),
 	}
 
 	if _, err := cc.command("hmset", redis.Args{users(cu.Uid)}.AddFlat(cu)...); err != nil {
@@ -155,18 +159,25 @@ func (cc *cacheClient) GetUserCidUserId(uid uint32) int {
 	}
 }
 
-func (cc *cacheClient) UpdateUserInfo(uid uint32, prop string, value interface{}) bool {
+func (cc *cacheClient) UpdateUserInfo(uid uint32, prop int, value interface{}) bool {
 	var (
 		err error
 		reply interface{}
 	)
-	if prop == "roomid" {
+	if prop == defines.PpRoomId  {
 		reply, err = cc.command("hset", users(int(uid)), "roomid", value)
-	} else if prop == "gold" {
+	} else if prop ==  defines.PpGold {
 		g := value.(int64)
 		if g > 0 {
 			reply, err = cc.command("hset", users(int(uid)), "gold", g)
 		}
+	} else if prop == defines.PpScore {
+		g := value.(int64)
+		if g > 0 {
+			reply, err = cc.command("hset", users(int(uid)), "gold", g)
+		}
+	} else {
+		return false
 	}
 	if err != nil {
 		fmt.Println(reply, err)

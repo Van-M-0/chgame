@@ -22,6 +22,30 @@ func InitTables() {
 
 func Test() {
 
+
+	dc := newDbClient()
+
+	dc.CreateTableIfNot(&table.T_MallItem{})
+
+	dc.db.Create(&table.T_MallItem{
+		Itemid: 1,
+		Itemname: "种类1-钻石-商品1",
+		Category: 1,
+		Buyvalue: 100,
+		Nums: 1,
+	}).Create(&table.T_MallItem{
+		Itemid: 201,
+		Itemname: "种类2-金币-商品1",
+		Category: 2,
+		Buyvalue: 100,
+		Nums: 10,
+	}).Create(&table.T_MallItem{
+		Itemid: 301,
+		Itemname: "种类3-房卡-商品1",
+		Category: 3,
+		Buyvalue: 100,
+		Nums: 100,
+	})
 }
 
 func newDbClient() *dbClient {

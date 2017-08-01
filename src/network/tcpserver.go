@@ -56,6 +56,7 @@ func (server *tcpServer) handleClient(conn net.Conn) {
 	client.configureConn(conn)
 
 	defer func() {
+		fmt.Println("handle client defer close")
 		client.Close()
 		server.opt.CloseCb(client)
 	}()

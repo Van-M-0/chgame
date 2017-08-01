@@ -178,12 +178,14 @@ func main() {
 
 	//testproto2()
 
-	start_test()
+	//start_test()
 	//testMq()
 
 	//genMysqlTables()
 
 	//test_log()
+
+	orm_test()
 }
 
 

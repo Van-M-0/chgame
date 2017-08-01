@@ -60,6 +60,7 @@ func (client *tcpClient) Connect() error {
 	client.opt.ConnectCb(client)
 	go client.sendLoop()
 	if client.opt.AuthCb(client) != nil {
+		fmt.Println("client auth error")
 		client.Close()
 		return errors.New("connect auth error")
 	}
@@ -100,11 +101,12 @@ func (client *tcpClient) sendLoop() {
 
 func (client *tcpClient) recvLoop() {
 	client.authed = true
-	defer func() {
-		client.Close()
-	}()
-
 	go func() {
+		defer func() {
+			fmt.Println("defer client close")
+			client.Close()
+		}()
+
 		for {
 			m, err := client.readMessage()
 			if err != nil {
@@ -125,7 +127,7 @@ func (client *tcpClient) readMessage() (*proto.Message, error) {
 	if _, err := io.ReadFull(client.conn, client.headerBuf[:]); err != nil {
 		return nil, err
 	}
-
+	fmt.Println("read message ", client.headerBuf)
 	header, err := client.packer.Unpack(client.headerBuf[:])
 	if err != nil {
 		return nil, err

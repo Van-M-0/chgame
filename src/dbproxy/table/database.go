@@ -66,14 +66,15 @@ type T_Users struct {
 	Headimg 	string
 	Level 		uint8 		`gorm:"default:1"`
 	Exp 		uint32		`gorm:"default:0"`
-	Coins 		uint32		`gorm:"default:0"`
-	Gems 		uint32 		`gorm:"default:0"`
-	Roomid 		string 		`gorm:"size:8"`
+	Gold 		int64		`gorm:"default:0"`
+	Diamond 	uint32 		`gorm:"default:0"`
+	Score 		uint32		`gorm:"default:0"`
+	Roomid 		uint32 		`gorm:"default:0"`
 	History 	string 		`gorm:"size:4096;not null;default:''"`
 }
 
 type T_MallItem struct {
-	Itemid 		int 		`gorm:"primary_key;AUTO_INCREMENT;not null"`
+	Itemid 		int 		`gorm:"primary_key;not null"`
 	Itemname	string 		`gorm:"size:32;not null"`
 	Category 	int 		`gorm:"not null"`
 	Buyvalue 	int 		`gorm:"not null"`

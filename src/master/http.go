@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"exportor/defines"
+	"exportor/proto"
 	"net/http"
 	"net"
 	"communicator"
@@ -107,11 +108,7 @@ func (hp *http2Proxy) notice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hp.pub.WaitPublish(defines.ChannelTtypeNotice, defines.ChannelUpdateNotice, &defines.NoticeOperatoin{
-		Operation: "add",
-		Notices: []*defines.NoticeItem{
-
-		},
+	hp.pub.WaitPublish(defines.ChannelTtypeNotice, defines.ChannelUpdateNotice, &proto.NoticeOperatoin{
 	})
 
 }

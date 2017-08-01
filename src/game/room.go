@@ -7,6 +7,7 @@ import (
 	"msgpacker"
 	"runtime/debug"
 	"sync/atomic"
+	"os/user"
 )
 
 type roomNotify struct {
@@ -222,19 +223,19 @@ func (rm *room) KillTimer(id uint32) error {
 }
 
 func (rm *room) UpdateUserGold(userId uint32, gold int64) {
-	rm.updateProp(userId, "gold", gold)
+	rm.updateProp(userId, defines.PpGold, gold)
 }
 
 func (rm *room) updateUserRoomId(userId uint32, roomid uint32) {
-	rm.updateProp(userId, "roomid", roomid)
+	rm.updateProp(userId, defines.PpRoomId, roomid)
 }
 
-func (rm *room) updateProp(userId uint32, prop string, value interface{}) {
+func (rm *room) updateProp(userId uint32, prop int, value interface{}) {
 	if user, ok := rm.users[userId]; ok {
 		if rm.manager.sm.cc.UpdateUserInfo(userId, prop, value) {
-			if prop == "roomid"	{
+			if prop == defines.PpRoomId {
 				user.RoomId = value.(uint32)
-			} else if prop == "gold" {
+			} else if prop == defines.PpGold {
 				user.Gold = value.(int64)
 			}
 		}

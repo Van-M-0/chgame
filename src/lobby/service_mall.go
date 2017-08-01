@@ -3,7 +3,6 @@ package lobby
 import (
 	"exportor/defines"
 	"exportor/proto"
-	"cacher"
 	"fmt"
 	"sync"
 )
@@ -13,12 +12,10 @@ type mallService struct {
 	itemsLock 	sync.RWMutex
 	items 		map[int]*proto.MallItem
 	itemList 	[]*proto.MallItem
-	cc 			defines.ICacheClient
 }
 
 func newMallService(lb *lobby) *mallService {
 	ms := &mallService{}
-	ms.cc = cacher.NewCacheClient("mall")
 	ms.items = make(map[int]*proto.MallItem)
 	ms.itemList = make([]*proto.MallItem, 0)
 	ms.lb = lb
@@ -26,60 +23,54 @@ func newMallService(lb *lobby) *mallService {
 }
 
 func (ms *mallService) start() {
-	ms.cc.Start()
-	ms.lb.bpro.Register(defines.ChannelTypeMall, defines.ChannelUpdateMall, func(data interface{}) {
-		ms.itemUpdate(data)
-	})
-	ms.lb.bpro.Register(defines.ChannelTypeMall, defines.ChannelLoadMall, func(data interface{}) {
-		ms.itemLoaded(data)
-	})
+	var res proto.MsLoadMallItemListReply
+	ms.lb.dbClient.Call("DBService.LoadMallItem", &proto.MsLoadMallItemListArg{}, &res)
+
+	ms.itemsLock.Lock()
+	ms.itemList = res.Malls
+	ms.items = make(map[int]*proto.MallItem)
+	for _, n := range ms.itemList {
+		ms.items[n.Id] = n
+	}
+	ms.itemsLock.Unlock()
+	fmt.Println("ns notices map", ms.items)
 }
 
-func (ms *mallService) itemUpdate(data interface{}) {
-	items, ok := data.(*proto.PMMallItemUdpate)
-	if !ok {
-		fmt.Println("mall item update error")
-		return
+func (ms *mallService) onUserLoadMalls(uid uint32, req *proto.ClientLoadMallList) {
+	l := make([]proto.MallItem, len(ms.itemList))
+	ms.itemsLock.Lock()
+	for i := 0; i < len(ms.itemList); i++ {
+		l[i] = *ms.itemList[i]
 	}
+	ms.itemsLock.Unlock()
 
-	for _, item := range items.Items {
-		ms.items[item.Id] = &item
-	}
-	ms.makeMallItemList()
-}
-
-func (ms *mallService) itemLoaded(data interface{}) {
-	items, ok := data.(*proto.PMMallItemLoaded)
-	if !ok {
-		fmt.Println("mall item update error")
-		return
-	}
-
-	for _, item := range items.Items {
-		ms.items[item.Id] = &item
-	}
-	ms.makeMallItemList()
-}
-
-func (ms *mallService) makeMallItemList() {
-	items := []*proto.MallItem{}
-	for _, item := range ms.items {
-		items = append(items, item)
-	}
-	ms.itemList = items
-}
-
-func (ms *mallService) OnUserLoadItem(info *defines.PlayerInfo, item *proto.ClientLoadMallItem) {
-	ms.lb.send2player(info.Uid, proto.CmdClientLoadMallItem, &proto.ClientLoadMallItemRet{
-		Items: ms.itemList,
+	ms.lb.send2player(uid, proto.CmdClientLoadMallList, &proto.ClientLoadMallListRet{
+		Items: l,
 	})
 }
 
-func (ms *mallService) OnUserBy(info *defines.PlayerInfo, req *proto.ClientBuyReq) {
-	_, ok := ms.items[req.ItemId]
-	if !ok {
-		ms.lb.send2player(info.Uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
+func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
+	var item proto.MallItem
+	ms.itemsLock.Lock()
+	pItem, ok := ms.items[req.ItemId]
+	if ok {
+		item = *pItem
+	}
+	ms.itemsLock.Unlock()
+
+	if item.Id == 0 {
+		ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
 			ErrCode: defines.ErrClientBuyItemNotExists,
 		})
 	}
+
+	var v interface{}
+	if item.Category == defines.MallItemCategoryDiamond {
+		v = ms.lb.userMgr.getUserProp(uid, defines.PpDiamond).(int)
+	} else if item.Category == defines.MallItemCategoryGold {
+		v = ms.lb.userMgr.getUserProp(uid, defines.PpGold).(int64)
+	} else if item.Category == defines.MallItemCategoryRoomCard {
+		v = ms.lb.userMgr.getUserProp(uid, defines.PpRoomCard).(int)
+	}
+	fmt.Println(v)
 }

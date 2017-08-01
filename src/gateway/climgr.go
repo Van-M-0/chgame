@@ -80,9 +80,15 @@ func (mgr *cliManager) route2client(uids []uint32, cmd uint32, data []byte) {
 		}
 	}
 
-	for _, uid := range uids {
-		if client, ok := mgr.clis[uid]; ok {
-			client.Send(cmd, data)
+	if uids == nil {
+		for _, cli := range mgr.clis {
+			cli.Send(cmd, data)
+		}
+	} else {
+		for _, uid := range uids {
+			if client, ok := mgr.clis[uid]; ok {
+				client.Send(cmd, data)
+			}
 		}
 	}
 }

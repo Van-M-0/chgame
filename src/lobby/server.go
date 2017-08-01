@@ -31,7 +31,6 @@ func newLobby(option *defines.LobbyOption) *lobby {
 	lb.processor = newUserProcessorMgr()
 	lb.bpro = newBrokerProcessor()
 	lb.mall = newMallService(lb)
-	lb.hp = newHttpProxy()
 	lb.ns = newNoticeService(lb)
 	return lb
 }
@@ -42,8 +41,8 @@ func (lb *lobby) Start() error {
 		Host: lb.opt.GwHost,
 		ConnectCb: func (client defines.ITcpClient) error {
 			fmt.Println("connect gate succcess, send auth info")
-			var res defines.MsServerIdReply
-			lb.msClient.Call("ServerService.GetServerId", &defines.MsServerIdArg{Type:"lobby"}, &res)
+			var res proto.MsServerIdReply
+			lb.msClient.Call("ServerService.GetServerId", &proto.MsServerIdArg{Type:"lobby"}, &res)
 			lb.serverId = res.Id
 			client.Send(proto.CmdRegisterServer, &proto.RegisterServer{
 				Type: "lobby",
@@ -131,6 +130,34 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 			return
 		}
 		lb.userMgr.handleCreateAccount(uid, &acc)
+	case proto.CmdUserLoadNotice:
+		var req proto.LoadNoticeListReq
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal client account errr", err)
+			return
+		}
+		lb.ns.handleLoadNotices(uid, &req)
+	case proto.CmdHornMessage:
+		var req proto.UserHornMessageReq
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal client account errr", err)
+			return
+		}
+		lb.userMgr.handleUserHornMessage(uid, &req)
+	case proto.CmdClientLoadMallList:
+		var req proto.ClientLoadMallList
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal client account errr", err)
+			return
+		}
+		lb.mall.onUserLoadMalls(uid, &req)
+	case proto.CmdClientBuyItem:
+		var req proto.ClientBuyReq
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal client account errr", err)
+			return
+		}
+		lb.mall.OnUserBy(uid, &req)
 	default:
 		fmt.Println("lobby handle invalid client cmd ", cmd)
 	}
@@ -162,6 +189,20 @@ func (lb *lobby) broadcastMessage(cmd uint32, data interface{}) {
 		Msg: body,
 	}
 	fmt.Println("lobby send 2 player ", header)
+	lb.gwClient.Send(proto.LobbyRouteClient, &header)
+}
+
+func (lb *lobby) broadcastWorldMessage(cmd uint32, data interface{}) {
+	body, err := msgpacker.Marshal(data)
+	if err != nil {
+		return
+	}
+	header := &proto.LobbyGateHeader{
+		Uids: nil,
+		Cmd: cmd,
+		Msg: body,
+	}
+	fmt.Println("bc world message ", header)
 	lb.gwClient.Send(proto.LobbyRouteClient, &header)
 }
 
