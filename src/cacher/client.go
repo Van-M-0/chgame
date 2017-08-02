@@ -127,12 +127,14 @@ func (cc *cacheClient) SetUserInfo(d interface{}, dbRet bool) error {
 	//todo: user int <-> int32
 	cu := &proto.CacheUser{
 		Account: userInfo.Account,
-		Name: userInfo.Name,
+		Openid: userInfo.OpenId,
 		Uid: int(userInfo.Userid),
+		Name: userInfo.Name,
 		Diamond: int(userInfo.Diamond),
-		RoomId: int(userInfo.Roomid),
+		RoomCard: int(userInfo.RoomCard),
 		Gold: int64(userInfo.Gold),
 		Score: int(userInfo.Score),
+		RoomId: int(userInfo.Roomid),
 	}
 
 	if _, err := cc.command("hmset", redis.Args{users(cu.Uid)}.AddFlat(cu)...); err != nil {

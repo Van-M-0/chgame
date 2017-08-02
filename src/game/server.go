@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"msgpacker"
 	"rpcd"
+	"errors"
 )
 
 type gameServer struct {
@@ -30,9 +31,35 @@ func (gs *gameServer) Start() error {
 		Host: gs.opt.GwHost,
 		ConnectCb: func (client defines.ITcpClient) error {
 			fmt.Println("connect gate succcess, send auth info")
-			var res defines.MsServerIdReply
-			gs.msClient.Call("ServerService.GetServerId", &defines.MsServerIdArg{Type:"game"}, &res)
+			var res proto.MsServerIdReply
+			gs.msClient.Call("ServerService.GetServerId", &proto.MsServerIdArg{Type:"game"}, &res)
 			gs.serverId = res.Id
+
+			registerModules := func() string {
+				var modReply proto.MsGameMoudleRegisterReply
+				modList := make([]proto.MsModuleItem, 0)
+				for _, m := range gs.opt.Moudles {
+					modList = append(modList, proto.MsModuleItem{
+						Kind: m.Type,
+						GameConf: m.GameConf,
+						GatewayHost: gs.opt.GwHost,
+					})
+				}
+				err := gs.msClient.Call("GameModuleService.RegisterModule", &proto.MsGameMoudleRegisterArg{
+					ServerId: gs.serverId,
+					ModList: modList,
+				}, &modReply)
+
+				fmt.Println("registe server reply", modReply, err)
+
+				return modReply.ErrCode
+			}
+
+			if err := registerModules(); err != "ok" {
+				fmt.Println("register game moudles error ", err)
+				return errors.New("register server module error")
+			}
+
 			client.Send(proto.CmdRegisterServer, &proto.RegisterServer{
 				Type: "game",
 				ServerId: res.Id,
@@ -40,43 +67,9 @@ func (gs *gameServer) Start() error {
 			return nil
 		},
 		CloseCb: func (client defines.ITcpClient) {
-
+			fmt.Println("gameserver closed")
 		},
 		AuthCb: func (client defines.ITcpClient) error {
-			/*
-			m, err := client.Auth()
-			if err != nil {
-				return err
-			}
-			if m.Cmd != proto.GateRouteGame {
-				err := fmt.Errorf("server auth error ")
-				fmt.Println(err)
-				return err
-			}
-
-			var header proto.GateGameHeader
-			if err := msgpacker.UnMarshal(m.Msg, &header); err != nil {
-				fmt.Println("auth game server ",  err)
-				return err
-			}
-
-
-			if header.Type != proto.GateMsgTypeServer {
-				err := fmt.Errorf("server auth type error ")
-				fmt.Println(err)
-				return err
-			}
-
-			var r proto.RegisterServerRet
-			if err := msgpacker.UnMarshal(header.Msg, &r); err != nil {
-				fmt.Println("auth game server ",  err)
-				return err
-			}
-
-			gs.serverId = r.ServerId
-
-			fmt.Println("game server id ", gs.serverId)
-			*/
 			return nil
 		},
 		MsgCb: func(client defines.ITcpClient, m *proto.Message) {

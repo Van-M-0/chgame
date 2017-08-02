@@ -7,7 +7,6 @@ import (
 	"cacher"
 	"communicator"
 	"fmt"
-	"os/user"
 )
 
 type userInfo struct {
@@ -99,7 +98,12 @@ func (um *userManager) addUser(uid uint32, cu *proto.CacheUser) *userInfo {
 		name: cu.Name,
 		uid: uid,
 		userId: uint32(cu.Uid),
+		diamond: cu.Diamond,
 		gold: cu.Gold,
+		roomcard: cu.RoomCard,
+		score: cu.Score,
+		headimg: cu.HeadImg,
+		openid: cu.Openid,
 	}
 	um.userLock.Lock()
 	um.users[uid]=user
@@ -172,6 +176,7 @@ func (um *userManager) getUserProp(uid uint32, prop int) interface{} {
 			return user.score
 		}
 	}
+	return nil
 }
 
 func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
@@ -204,6 +209,12 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 		fmt.Println("handle palyer login userin")
 		user := um.getUser(uid)
 		replaySuc(user)
+	}
+
+	if err := um.cc.GetUserInfo(login.Account, &cacheUser); err == nil {
+		fmt.Println("get cache user info")
+		gotUser()
+		return
 	}
 
 	if p != nil {

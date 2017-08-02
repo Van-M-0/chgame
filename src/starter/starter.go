@@ -18,6 +18,7 @@ import (
 	"math/rand"
 	"master"
 	"time"
+	"runtime"
 )
 
 func startMaster() {
@@ -187,6 +188,9 @@ func startClient() {
 
 func StartProgram(p string, data interface{}) {
 	fmt.Println("stgart progoram ", p, data)
+
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	if p == "client" {
 		startClient()
 	} else if p == "lobby" {

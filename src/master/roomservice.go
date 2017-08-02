@@ -1,7 +1,7 @@
 package master
 
 import (
-	"exportor/defines"
+	"exportor/proto"
 	"sync"
 	"time"
 	"math/rand"
@@ -22,7 +22,7 @@ func newRoomService() *RoomService {
 	return rs
 }
 
-func (rs *RoomService) CreateRoomId(req *defines.MsCreateoomIdArg, res *defines.MsCreateRoomIdReply) error {
+func (rs *RoomService) CreateRoomId(req *proto.MsCreateoomIdArg, res *proto.MsCreateRoomIdReply) error {
 	rs.rmLock.Lock()
 	res.RoomId = 0
 	rand.Seed(time.Now().UnixNano())
@@ -38,7 +38,7 @@ func (rs *RoomService) CreateRoomId(req *defines.MsCreateoomIdArg, res *defines.
 	return nil
 }
 
-func (rs *RoomService) ReleaseRoom(req *defines.MsReleaseRoomArg, res *defines.MsReleaseReply) error {
+func (rs *RoomService) ReleaseRoom(req *proto.MsReleaseRoomArg, res *proto.MsReleaseReply) error {
 	rs.rmLock.Lock()
 	res.ErrCode = "error"
 	if room, ok := rs.rooms[req.RoomId]; ok {
@@ -50,7 +50,7 @@ func (rs *RoomService) ReleaseRoom(req *defines.MsReleaseRoomArg, res *defines.M
 	return nil
 }
 
-func (rs *RoomService) GetRoomServerId(req *defines.MsGetRoomServerIdArg, res *defines.MsGetRoomServerIdReply) error {
+func (rs *RoomService) GetRoomServerId(req *proto.MsGetRoomServerIdArg, res *proto.MsGetRoomServerIdReply) error {
 	rs.rmLock.Lock()
 	res.ServerId = -1
 	if ser, ok := rs.rooms[req.RoomId]; ok {

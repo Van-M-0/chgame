@@ -4,6 +4,7 @@ import (
 	"gopkg.in/vmihailenco/msgpack.v2"
 	"fmt"
 	"reflect"
+	"exportor/proto"
 	"exportor/defines"
 )
 var register = make(map[string]interface{})
@@ -21,7 +22,7 @@ func init() {
 	register[defines.ChannelUpdateNotice] = &proto.PmNoticeUpdate{}
 	*/
 
-	register[defines.ChannelUpdateNotice] = &defines.NoticeOperatoin{}
+	register[defines.ChannelUpdateNotice] = &proto.NoticeOperatoin{}
 }
 
 func serilize(key string, data interface{}) ([]byte, error) {

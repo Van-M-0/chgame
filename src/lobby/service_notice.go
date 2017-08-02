@@ -2,7 +2,6 @@ package lobby
 
 import (
 	"exportor/defines"
-	"cacher"
 	"fmt"
 	"sync"
 	"exportor/proto"

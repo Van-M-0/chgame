@@ -7,15 +7,18 @@ import (
 )
 
 type Master struct {
+	hp 		*http2Proxy
 }
 
 func NewMasterServer () defines.IServer {
 	return &Master{
+		hp: newHttpProxy(),
 	}
 }
 
 func (ms *Master) Start() error {
 	ms.StartRpc()
+	ms.StartHttp()
 	return nil
 }
 
@@ -27,11 +30,12 @@ func (ms *Master) StartRpc() {
 	start := func() {
 		rpc.Register(newServerService())
 		rpc.Register(newRoomService())
+		rpc.Register(GameModService)
 		rpcd.StartServer(defines.MSServicePort)
 	}
 	go start()
 }
 
 func (ms *Master) StartHttp() {
-
+	ms.hp.start()
 }

@@ -30,12 +30,6 @@ func (service *DBService) start() {
 
 func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUserLoginReply) error {
 
-	var cacheUser proto.CacheUser
-	if err := service.cc.GetUserInfo(req.Acc, &cacheUser); err == nil {
-		res.Err = "ok"
-		return nil
-	}
-
 	var userInfo table.T_Users
 	ret := service.db.GetUserInfo(req.Acc, &userInfo)
 	fmt.Println("user login ", req)
@@ -72,8 +66,8 @@ func (service *DBService) CreateAccount(req *proto.DbCreateAccountArg, res *prot
 				Name: req.UserName,
 				Level: 1,
 				Exp: 0,
-				Coins: 100,
-				Gems: 1,
+				Gold: 100,
+				RoomCard: 1,
 			}
 			r = service.db.AddUserInfo(userSuccess)
 			res.Err = "ok"

@@ -7,7 +7,6 @@ import (
 	"msgpacker"
 	"runtime/debug"
 	"sync/atomic"
-	"os/user"
 )
 
 type roomNotify struct {
@@ -24,7 +23,7 @@ type room struct {
 	manager 		*roomManager
 	notify 			chan *roomNotify
 	quit 			chan bool
-	users 			map[uint32]defines.PlayerInfo
+	users 			map[uint32]*defines.PlayerInfo
 	closed 			int32
 }
 
@@ -33,7 +32,7 @@ func newRoom(manager *roomManager) *room {
 		manager: manager,
 		notify: make(chan *roomNotify, 1024),
 		quit: make(chan bool),
-		users: make(map[uint32]defines.PlayerInfo),
+		users: make(map[uint32]*defines.PlayerInfo),
 	}
 }
 
@@ -134,7 +133,7 @@ func (rm *room) onUserEnter(notify *roomNotify) {
 	if err := rm.game.OnUserEnter(&notify.user); err != nil {
 		rm.SendUserMessage(&notify.user, proto.CmdGameEnterRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomMoudle})
 	} else {
-		rm.users[notify.user.UserId] = notify.user
+		rm.users[notify.user.UserId] = &notify.user
 		rm.updateUserRoomId(notify.user.UserId, rm.id)
 	}
 	fmt.Println("onuser enter ", rm.users, enter)
@@ -171,10 +170,10 @@ func (rm *room) ReleaseRoom() {
 
 func (rm *room) OnStop() {
 	if rm.id != 0 {
-		rm.manager.sm.msService.Call("RoomService.ReleaseRoom", &defines.MsReleaseRoomArg{
+		rm.manager.sm.msService.Call("RoomService.ReleaseRoom", &proto.MsReleaseRoomArg{
 			ServerId: rm.manager.sm.gameServer.serverId,
 			RoomId: rm.id,
-		}, &defines.MsReleaseReply{})
+		}, &proto.MsReleaseReply{})
 	}
 
 	rm.game.OnRelease()
@@ -184,7 +183,7 @@ func (rm *room) OnStop() {
 	}
 
 	for _, user := range rm.users {
-		rm.SendUserMessage(&user, proto.CmdGamePlayerReturn2lobby, &proto.PlayerReturn2Lobby{})
+		rm.SendUserMessage(user, proto.CmdGamePlayerReturn2lobby, &proto.PlayerReturn2Lobby{})
 	}
 }
 

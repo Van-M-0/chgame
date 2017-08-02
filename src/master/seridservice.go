@@ -1,7 +1,7 @@
 package master
 
 import (
-	"exportor/defines"
+	"exportor/proto"
 	"sync"
 	"fmt"
 )
@@ -26,7 +26,7 @@ func newServerService() *ServerService {
 	return ss
 }
 
-func (ss *ServerService) GetServerId(req *defines.MsServerIdArg, res *defines.MsServerIdReply) error {
+func (ss *ServerService) GetServerId(req *proto.MsServerIdArg, res *proto.MsServerIdReply) error {
 	ss.serLoc.Lock()
 	ss.ids++
 	ss.servers[ss.ids] = &server{
@@ -39,7 +39,7 @@ func (ss *ServerService) GetServerId(req *defines.MsServerIdArg, res *defines.Ms
 	return nil
 }
 
-func (ss *ServerService) ServerDisconnected(req *defines.MsServerDiscArg, res *defines.MsServerDisReply) error {
+func (ss *ServerService) ServerDisconnected(req *proto.MsServerDiscArg, res *proto.MsServerDisReply) error {
 	ss.serLoc.Lock()
 	if _, ok := ss.servers[req.Id]; ok {
 		delete(ss.servers, req.Id)
@@ -51,12 +51,12 @@ func (ss *ServerService) ServerDisconnected(req *defines.MsServerDiscArg, res *d
 	return nil
 }
 
-func (ss *ServerService) GsStatus (req *defines.MsGsStatusArg, res *defines.MsGsStatusReply) error {
+func (ss *ServerService) GsStatus (req *proto.MsGsStatusArg, res *proto.MsGsStatusReply) error {
 
 	return nil
 }
 
-func (ss *ServerService) SelectGameServer(req *defines.MsSelectGameServerArg, res *defines.MsSelectGameServerReply) error {
+func (ss *ServerService) SelectGameServer(req *proto.MsSelectGameServerArg, res *proto.MsSelectGameServerReply) error {
 	ss.serLoc.Lock()
 	res.ServerId = -1
 	for _, ser := range ss.servers {

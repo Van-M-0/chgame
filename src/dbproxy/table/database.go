@@ -2,12 +2,6 @@ package table
 
 import "time"
 
-type T_MyTest struct {
-	Account 	string 		`gorm:"size:20;type:char(20)"`
-	Name 		string
-	Status 		int
-}
-
 type T_Accounts struct {
 	Account 	string		`gorm:"primary_key"`
 	Password	string
@@ -61,13 +55,15 @@ type T_RoomUser struct {
 type T_Users struct {
 	Userid 		uint32		`gorm:"primary_key;AUTO_INCREMENT;not null"`
 	Account 	string 		`gorm:"size:32;not null;default:'';index:acc_index"`
+	OpenId 		string		`gorm:"index;openid_index"`
 	Name 		string 		`gorm:"size:32;default:null"`
 	Sex 		uint8
 	Headimg 	string
 	Level 		uint8 		`gorm:"default:1"`
 	Exp 		uint32		`gorm:"default:0"`
-	Gold 		int64		`gorm:"default:0"`
 	Diamond 	uint32 		`gorm:"default:0"`
+	RoomCard 	uint32		`gorm:"default:0"`
+	Gold 		int64		`gorm:"default:0"`
 	Score 		uint32		`gorm:"default:0"`
 	Roomid 		uint32 		`gorm:"default:0"`
 	History 	string 		`gorm:"size:4096;not null;default:''"`

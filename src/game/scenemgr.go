@@ -8,6 +8,7 @@ import (
 	"cacher"
 	"communicator"
 	"rpcd"
+	"runtime/debug"
 )
 
 const (
@@ -90,6 +91,13 @@ func (sm *sceneManager) startHandleRequest() {
 }
 
 func (sm *sceneManager) processRequest(r *request) {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println("********** process request error **********")
+			debug.PrintStack()
+		}
+	}()
+
 	if r.kind == requestKindGate {
 		message := r.data.(*proto.GateGameHeader)
 		if r.direct == proto.ClientRouteGame {

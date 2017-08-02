@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"exportor/defines"
+	"exportor/proto"
 	"communicator"
 )
 
@@ -107,7 +108,7 @@ func (hp *http2Proxy) notice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hp.pub.WaitPublish(defines.ChannelTtypeNotice, defines.ChannelUpdateNotice, &defines.NoticeItem{
+	hp.pub.WaitPublish(defines.ChannelTtypeNotice, defines.ChannelUpdateNotice, &proto.NoticeItem{
 		Content: n.Content,
 	})
 }

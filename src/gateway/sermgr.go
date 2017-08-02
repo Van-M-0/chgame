@@ -194,8 +194,8 @@ func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Mes
 			fmt.Println("create room reqeuset errr", err)
 			return
 		}
-		var res defines.MsSelectGameServerReply
-		mgr.gateway.msClient.Call("ServerService.SelectGameServer", &defines.MsSelectGameServerArg{Kind: createRoomMessage.Kind}, &res)
+		var res proto.MsSelectGameServerReply
+		mgr.gateway.msClient.Call("ServerService.SelectGameServer", &proto.MsSelectGameServerArg{Kind: createRoomMessage.Kind}, &res)
 		fmt.Println("gw create room get room server id ", res.ServerId)
 		send(uint32(res.ServerId))
 		return
@@ -205,8 +205,8 @@ func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Mes
 			fmt.Println("enter room request error", err)
 			return
 		}
-		var res defines.MsGetRoomServerIdReply
-		mgr.gateway.msClient.Call("RoomService.GetRoomServerId", &defines.MsGetRoomServerIdArg{RoomId: enterRoomMessage.RoomId}, &res)
+		var res proto.MsGetRoomServerIdReply
+		mgr.gateway.msClient.Call("RoomService.GetRoomServerId", &proto.MsGetRoomServerIdArg{RoomId: enterRoomMessage.RoomId}, &res)
 
 		if res.ServerId == -1 {
 			fmt.Println("enter room id eror")

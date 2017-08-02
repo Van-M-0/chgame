@@ -57,8 +57,8 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 		return
 	}
 
-	var rep defines.MsCreateRoomIdReply
-	rm.sm.msService.Call("RoomService.CreateRoomId", &defines.MsCreateoomIdArg{rm.sm.gameServer.serverId}, &rep)
+	var rep proto.MsCreateRoomIdReply
+	rm.sm.msService.Call("RoomService.CreateRoomId", &proto.MsCreateoomIdArg{rm.sm.gameServer.serverId}, &rep)
 	if rep.RoomId == 0 {
 		rm.sm.SendMessage(info.Uid, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomRoomId})
 		return
@@ -76,10 +76,10 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 		data: message,
 	})
 	if !ok {
-		rm.sm.msService.Call("RoomService.ReleaseRoom", &defines.MsReleaseRoomArg{
+		rm.sm.msService.Call("RoomService.ReleaseRoom", &proto.MsReleaseRoomArg{
 			ServerId: rm.sm.gameServer.serverId,
 			RoomId: room.id,
-		}, &defines.MsReleaseReply{})
+		}, &proto.MsReleaseReply{})
 		delete(rm.rooms, room.id)
 		return
 	}
@@ -107,7 +107,7 @@ func (rm *roomManager) destroyRoom(roomid uint32) {
 	delete(rm.rooms, roomid)
 
 	for _, user := range room.users {
-		rm.sm.playerMgr.delPlayer(&user)
+		rm.sm.playerMgr.delPlayer(user)
 	}
 
 	room.OnStop()

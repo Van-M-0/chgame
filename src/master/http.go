@@ -113,6 +113,34 @@ func (hp *http2Proxy) notice(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (hp *http2Proxy) getGameModules(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("game moudles visited")
+	r.ParseForm()
+	v := r.Form["province"]
+
+	type clientModReply struct {
+		ErrCode 	string
+		List 		[]ClientList
+	}
+
+	rep := clientModReply{ErrCode:"ok"}
+	if GameModService != nil {
+		rep.ErrCode = "ok"
+		l := GameModService.getModuleList(v[0])
+		rep.List = l
+	}
+
+	fmt.Println("rep >", rep, GameModService != nil)
+
+	data, err := json.Marshal(rep)
+	fmt.Println("data", data)
+	if err != nil {
+		w.Write([]byte("error"))
+	} else {
+		w.Write(data)
+	}
+}
+
 func (hp *http2Proxy) serve() {
 	hp.pub.Start()
 
@@ -121,6 +149,7 @@ func (hp *http2Proxy) serve() {
 	})
 	http.HandleFunc("/wechat", hp.wechatLogin)
 	http.HandleFunc("/notices", hp.notice)
+	http.HandleFunc("/clientList", hp.getGameModules)
 
 	fmt.Println("http server start...", hp.httpAddr)
 

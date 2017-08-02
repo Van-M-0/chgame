@@ -21,8 +21,7 @@ func InitTables() {
 }
 
 func Test() {
-
-
+/*
 	dc := newDbClient()
 
 	dc.CreateTableIfNot(&table.T_MallItem{})
@@ -46,6 +45,7 @@ func Test() {
 		Buyvalue: 100,
 		Nums: 100,
 	})
+	*/
 }
 
 func newDbClient() *dbClient {
@@ -133,7 +133,6 @@ func (dc *dbClient) InitTable() {
 	dc.CreateTableIfNot(&table.T_Rooms{})
 	dc.CreateTableIfNot(&table.T_RoomUser{})
 	dc.CreateTableIfNot(&table.T_Users{})
-	dc.CreateTableIfNot(&table.T_MyTest{})
 	dc.CreateTableIfNot(&table.T_MallItem{})
 	dc.CreateTableIfNot(&table.T_Notice{})
 }
