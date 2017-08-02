@@ -29,9 +29,11 @@ func (service *DBService) start() {
 }
 
 func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUserLoginReply) error {
-
 	var userInfo table.T_Users
+	service.lock.Lock()
 	ret := service.db.GetUserInfo(req.Acc, &userInfo)
+	service.lock.Unlock()
+
 	fmt.Println("user login ", req)
 	if ret == true {
 		err := service.cc.SetUserInfo(&userInfo, ret)
@@ -52,7 +54,9 @@ func (service *DBService) CreateAccount(req *proto.DbCreateAccountArg, res *prot
 	var user table.T_Users
 	var userSuccess *table.T_Users
 	fmt.Println("create account ", req)
+	service.lock.Lock()
 	ret := service.db.GetUserInfo(req.UserName, &user)
+	service.lock.Unlock()
 	if !ret {
 		acc := "acc_" + strconv.Itoa(int(time.Now().Unix()))
 		pwd := "123456"

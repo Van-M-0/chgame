@@ -162,30 +162,51 @@ func (cc *cacheClient) GetUserCidUserId(uid uint32) int {
 }
 
 func (cc *cacheClient) UpdateUserInfo(uid uint32, prop int, value interface{}) bool {
-	var (
-		err error
-		reply interface{}
-	)
-	if prop == defines.PpRoomId  {
-		reply, err = cc.command("hset", users(int(uid)), "roomid", value)
-	} else if prop ==  defines.PpGold {
-		g := value.(int64)
-		if g > 0 {
-			reply, err = cc.command("hset", users(int(uid)), "gold", g)
+
+	updateIntProp := func(key int, val interface{}) bool {
+		if v, ok := val.(int); ok {
+			if v > 0 {
+				reply, err := cc.command("hset", users(int(uid)), key, v)
+				if err != nil {
+					fmt.Println("UpdateUserInfo set cache error ", uid, key, val, reply, err)
+				} else {
+					return true
+				}
+			} else {
+				fmt.Println("UpdateUserInfo update cache value ?? ", key, v)
+			}
+		} else {
+			fmt.Println("UpdateUserInfo value not right", prop, value)
 		}
-	} else if prop == defines.PpScore {
-		g := value.(int64)
-		if g > 0 {
-			reply, err = cc.command("hset", users(int(uid)), "gold", g)
-		}
-	} else {
 		return false
 	}
-	if err != nil {
-		fmt.Println(reply, err)
+
+	updateInt64Prop := func(key int, val interface{}) bool {
+		if v, ok := val.(int64); ok {
+			if v > 0 {
+				reply, err := cc.command("hset", users(int(uid)), key, v)
+				if err != nil {
+					fmt.Println("UpdateUserInfo set cache error ", uid, key, val, reply, err)
+				} else {
+					return true
+				}
+			} else {
+				fmt.Println("UpdateUserInfo update cache value ?? ", key, v)
+			}
+		} else {
+			fmt.Println("UpdateUserInfo value not right", prop, value)
+		}
 		return false
 	}
-	return true
+
+	if prop == defines.PpRoomId || prop == defines.PpScore || prop == defines.PpDiamond || prop == defines.PpRoomCard {
+		return updateIntProp(prop, value)
+	} else if prop == defines.PpGold {
+		return updateInt64Prop(prop, value)
+	}
+
+	fmt.Println("UpdateUserInfo udpate prop not exists ", prop)
+	return false
 }
 
 func (cc *cacheClient) SetServer(server *proto.CacheServer) error {

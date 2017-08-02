@@ -129,19 +129,28 @@ func (rm *room) onCreate(notify *roomNotify) bool {
 }
 
 func (rm *room) onUserEnter(notify *roomNotify) {
-	var enter bool
+
+	if rm.GetUserInfoFromCache(&notify.user) != nil {
+		rm.SendUserMessage(&notify.user, proto.CmdGameEnterRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrCommonCache})
+		return
+	}
+
 	if err := rm.game.OnUserEnter(&notify.user); err != nil {
 		rm.SendUserMessage(&notify.user, proto.CmdGameEnterRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomMoudle})
 	} else {
 		rm.users[notify.user.UserId] = &notify.user
-		rm.updateUserRoomId(notify.user.UserId, rm.id)
+		rm.UpdateProp(notify.user.UserId, defines.PpRoomId, rm.id)
+		rm.SendUserMessage(&notify.user, proto.CmdGameEnterRoom, &proto.PlayerEnterRoomRet{
+			ErrCode: defines.ErrCommonSuccess,
+			ServerId: rm.manager.sm.gameServer.serverId,
+		})
 	}
-	fmt.Println("onuser enter ", rm.users, enter)
+	fmt.Println("onuser enter ", rm.users)
 }
 
 func (rm *room) onUserLeave(notify *roomNotify) {
 	rm.game.OnUserLeave(&notify.user)
-	rm.updateUserRoomId(notify.user.UserId, 0)
+	rm.UpdateProp(notify.user.UserId, defines.PpRoomId, 0)
 	delete(rm.users, notify.user.UserId)
 }
 
@@ -179,7 +188,7 @@ func (rm *room) OnStop() {
 	rm.game.OnRelease()
 
 	for _, user := range rm.users {
-		rm.updateUserRoomId(user.UserId, 0)
+		rm.UpdateProp(user.UserId, defines.PpRoomId, 0)
 	}
 
 	for _, user := range rm.users {
@@ -221,21 +230,31 @@ func (rm *room) KillTimer(id uint32) error {
 	return nil
 }
 
-func (rm *room) UpdateUserGold(userId uint32, gold int64) {
-	rm.updateProp(userId, defines.PpGold, gold)
-}
-
-func (rm *room) updateUserRoomId(userId uint32, roomid uint32) {
-	rm.updateProp(userId, defines.PpRoomId, roomid)
-}
-
-func (rm *room) updateProp(userId uint32, prop int, value interface{}) {
+func (rm *room) UpdateProp(userId uint32, prop int, value interface{}) {
 	if user, ok := rm.users[userId]; ok {
 		if rm.manager.sm.cc.UpdateUserInfo(userId, prop, value) {
+			update := true
 			if prop == defines.PpRoomId {
 				user.RoomId = value.(uint32)
 			} else if prop == defines.PpGold {
 				user.Gold = value.(int64)
+			} else if prop == defines.PpDiamond {
+				user.Diamond = value.(int)
+			} else if prop == defines.PpRoomCard {
+				user.RoomCard = value.(int)
+			} else if prop == defines.PpScore {
+				user.Score = value.(int)
+			} else {
+				update = false
+				fmt.Println("update user prop not exists ", userId, prop)
+			}
+			if update {
+				rm.manager.sendMessage(user, proto.CmdBaseUpsePropUpdate, &proto.SyncUserProps {
+					Props: proto.UserProp{
+						Ppkey: prop,
+						PpVal: value,
+					},
+				})
 			}
 		}
 	} else {

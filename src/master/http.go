@@ -135,7 +135,7 @@ func (hp *http2Proxy) getGameModules(w http.ResponseWriter, r *http.Request) {
 	data, err := json.Marshal(rep)
 	fmt.Println("data", data)
 	if err != nil {
-		w.Write([]byte("error"))
+		w.Write([]byte(`{"ErrCode":"error"}`))
 	} else {
 		w.Write(data)
 	}

@@ -175,7 +175,7 @@ func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
 	}
 
 	var player *defines.PlayerInfo
-	if cmd == proto.CmdGamePlayerLogin || cmd == proto.CmdGameCreateRoom || cmd == proto.CmdGameEnterRoom {
+	if cmd == proto.CmdGameCreateRoom || cmd == proto.CmdGameEnterRoom {
 		userId := sm.cc.GetUserCidUserId(uid)
 		if userId == -1 {
 			fmt.Println("........... update player error ............ 1")
@@ -199,10 +199,6 @@ func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
 	}
 
 	switch cmd {
-	/*
-	case proto.CmdGamePlayerLogin:
-		sm.onGwPlayerLogin(uid, data)
-	*/
 	case proto.CmdGameCreateRoom:
 		sm.onGwPlayerCreateRoom(player, data)
 	case proto.CmdGameEnterRoom:
@@ -274,7 +270,7 @@ func (sm *sceneManager) onGwPlayerCreateRoom(player *defines.PlayerInfo, data []
 	}
 
 	if player.RoomId != 0 {
-		fmt.Println("palyer already have room")
+		fmt.Println("player already have room")
 		sm.SendMessage(player.Uid, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomHaveRoom})
 		return
 	}
@@ -287,14 +283,20 @@ func (sm *sceneManager) onGwPlayerEnterRoom(player *defines.PlayerInfo, data []b
 	if err := msgpacker.UnMarshal(data, &message); err != nil {
 		return
 	}
-	sm.roomMgr.enterRoom(player, message.RoomId)
+	if player.RoomId == 0 {
+		sm.roomMgr.enterRoom(player, message.RoomId)
+	} else if player.RoomId == player.RoomId {
+		sm.roomMgr.reEnter(player)
+	} else {
+		sm.SendMessage(player.Uid, proto.CmdGameCreateRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomNotSame})
+	}
 }
 
 func (sm *sceneManager) onGwPlayerLeaveRoom(player *defines.PlayerInfo, data []byte) {
 
 }
 
-func (sm *sceneManager) updateUserInfo(uid, userId uint32) (string, *defines.PlayerInfo) {
+func (sm *sceneManager) updateUserInfo(uid, userId uint32) (string, *defines.PlayerInfo)  {
 	var user proto.CacheUser
 	if err := sm.cc.GetUserInfoById(userId, &user); err != nil {
 		fmt.Println("get cache user info err", uid, userId)
@@ -322,8 +324,10 @@ func (sm *sceneManager) updateUserInfo(uid, userId uint32) (string, *defines.Pla
 	if u, ok := sm.playerMgr.idPlayer[uint32(user.Uid)]; ok {
 		fmt.Println("user enter with info ")
 		sm.playerMgr.delPlayer(u)
+		sm.playerMgr.addPlayer(player)
+		return "reenter", player
+	} else {
+		sm.playerMgr.addPlayer(player)
+		return "new", player
 	}
-	sm.playerMgr.addPlayer(player)
-
-	return "ok", player
 }

@@ -89,6 +89,7 @@ func (rm *roomManager) enterRoom(info *defines.PlayerInfo, roomId uint32) {
 	room := rm.getRoom(roomId)
 	info.RoomId = roomId
 	if room == nil {
+		rm.sm.SendMessage(info.Uid, proto.CmdGameCreateRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomNotExists})
 		return
 	}
 

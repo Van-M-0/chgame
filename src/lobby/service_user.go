@@ -122,13 +122,11 @@ func (um *userManager) delUser(uid uint32) {
 }
 
 func (um *userManager) updateUserProp(u *userInfo, prop int, val interface{}) bool {
-	update := false
-	updateProp := func() {
+	updateProp := func() bool {
 		um.userLock.Lock()
 		um.userLock.Unlock()
 		user, ok := um.users[u.uid]
-		update = ok && user != nil
-		if update {
+		if ok && user != nil {
 			if prop == defines.PpDiamond {
 				user.diamond = val.(int)
 			} else if prop == defines.PpRoomCard {
@@ -138,13 +136,13 @@ func (um *userManager) updateUserProp(u *userInfo, prop int, val interface{}) bo
 			} else if prop == defines.PpScore {
 				user.score = val.(int)
 			} else {
-				fmt.Println("update prop not exists", prop)
-				update = false
+				return false
 			}
+			return true
 		}
+		return false
 	}
-	updateProp()
-
+	update := updateProp()
 	if update {
 		um.lb.send2player(u.uid, proto.CmdBaseUpsePropUpdate, &proto.SyncUserProps{
 			Props: proto.UserProp{
@@ -153,8 +151,9 @@ func (um *userManager) updateUserProp(u *userInfo, prop int, val interface{}) bo
 			},
 		})
 		um.cc.UpdateUserInfo(u.userId, prop, val)
+	} else {
+		fmt.Println("udpate user prop error ", u.userId, prop, val)
 	}
-
 	return update
 }
 
@@ -196,6 +195,10 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 			Account: user.account,
 			Name: user.name,
 			UserId: user.userId,
+			Diamond: user.diamond,
+			Gold: user.gold,
+			RoomCard: user.roomcard,
+			Score: user.score,
 		})
 	}
 
