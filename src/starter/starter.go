@@ -29,10 +29,15 @@ import (
 type configFile struct {
 	FrontHost 		string
 	BackendHost 	string
+	HttpHost 		string
 	GameModules 	[]int
 }
 
 var cfg configFile
+
+func GetHttpAddr() string {
+	return cfg.HttpHost
+}
 
 func init() {
 	file, err := exec.LookPath(os.Args[0])

@@ -9,6 +9,7 @@ import (
 	"net"
 	"communicator"
 	"io/ioutil"
+	"starter"
 )
 
 type appInfo struct {
@@ -35,7 +36,7 @@ type http2Proxy struct {
 
 func newHttpProxy() *http2Proxy {
 	return &http2Proxy{
-		httpAddr: ":11740",
+		httpAddr: starter.GetHttpAddr(),
 		pub: communicator.NewMessagePulisher(),
 	}
 }
@@ -181,7 +182,7 @@ func (hp *http2Proxy) serve() {
 	fmt.Println("http server start...", hp.httpAddr)
 
 	if err := http.ListenAndServe(hp.httpAddr, nil); err != nil {
-		panic("listen http error " + hp.httpAddr)
+		panic("listen http error " + hp.httpAddr + err.Error())
 	} else {
 		fmt.Println("http server listen port", hp.httpAddr)
 	}
