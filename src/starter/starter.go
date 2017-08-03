@@ -19,7 +19,45 @@ import (
 	"master"
 	"time"
 	"runtime"
+	"os/exec"
+	"os"
+	"path/filepath"
+	"io/ioutil"
+	"encoding/json"
 )
+
+type configFile struct {
+	FrontHost 		string
+	BackendHost 	string
+	GameModules 	[]int
+}
+
+var cfg configFile
+
+func init() {
+	file, err := exec.LookPath(os.Args[0])
+	if err != nil {
+		panic(fmt.Errorf("get exe path err %v", err).Error())
+	}
+	path, err := filepath.Abs(file)
+	if err != nil {
+		panic(fmt.Errorf("get file path err %v", err).Error())
+	}
+	dir, _ := filepath.Split(path)
+	configFile := dir + "config"
+	fmt.Println("config file ", configFile)
+
+	content, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		panic(fmt.Errorf("read file err %v", err).Error())
+	}
+
+	if err := json.Unmarshal(content, &cfg); err != nil {
+		panic(fmt.Errorf("config file invalid err %v", err).Error())
+	}
+
+	fmt.Println(cfg)
+}
 
 func startMaster() {
 	master.NewMasterServer().Start()
@@ -27,22 +65,42 @@ func startMaster() {
 
 func startGate() {
 	gateway.NewGateServer(&defines.GatewayOption{
-		FrontHost: ":9890",
-		BackHost: ":9891",
+		FrontHost: cfg.FrontHost,
+		BackHost: cfg.BackendHost,
 		MaxClient: 100,
 	}).Start()
 }
 
 func startLobby() {
 	lobby.NewLobby(&defines.LobbyOption{
-		GwHost: ":9891",
+		GwHost: cfg.FrontHost,
 	}).Start()
 }
 
 func startGame(moduels []defines.GameModule) {
 	fmt.Println("start game server")
+
+	checkMap := map[int]bool {}
+	for _, k := range cfg.GameModules {
+		checkMap[k] = true
+	}
+
+	for _, m := range moduels {
+		if _, ok := checkMap[m.Type]; ok {
+			delete(checkMap, m.Type)
+		} else {
+			fmt.Println("register moulde not match config game moudles")
+			return
+		}
+	}
+
+	for range checkMap {
+		fmt.Println("register moulde not match config game moudles")
+		return
+	}
+
 	game.NewGameServer(&defines.GameOption{
-		GwHost: ":9891",
+		GwHost: cfg.FrontHost,
 		Moudles: moduels,
 	}).Start()
 }
