@@ -88,3 +88,16 @@ func (gms *GameModuleService) getModuleList(province string) []ClientList {
 	fmt.Println("mods ", l)
 	return l
 }
+
+func (gms *GameModuleService) getProvinceList() []string {
+	gms.modLock.Lock()
+	mods := gms.modules
+	gms.modLock.Unlock()
+
+	l := []string{}
+	for k, _ := range mods {
+		l = append(l, infoList[k].P)
+	}
+
+	return l
+}

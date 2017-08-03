@@ -118,3 +118,23 @@ func (service *DBService) LoadMallItem(req *proto.MsLoadNoticeArg, res *proto.Ms
 	}
 	return nil
 }
+
+func (service *DBService) LoadUserRank(req *proto.MsLoadUserRankArg, res *proto.MsLoadUserRankReply) error {
+	var users []*table.T_Users
+	res.ErrCode = "error"
+	if req.RankType == defines.RankTypeDiamond {
+		service.db.db.Order("diamond desc").Limit(req.Count).Find(&users)
+		for i, u := range users {
+			res.Users = append(res.Users, &proto.UserRankItem{
+				Rank: i,
+				Name: u.Name,
+				UserId: int(u.Userid),
+				HeadImg: u.Headimg,
+				Value: int64(u.Diamond),
+			})
+		}
+		res.ErrCode = "ok"
+	}
+	fmt.Println("serveice.loaduserrank ", users)
+	return nil
+}

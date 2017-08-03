@@ -19,6 +19,7 @@ type lobby struct {
 	mall 			*mallService
 	hp 				*http2Proxy
 	ns 				*noticeService
+	rs 				*rankService
 	dbClient 		*rpcd.RpcdClient
 	msClient 		*rpcd.RpcdClient
 	serverId 		int
@@ -32,6 +33,7 @@ func newLobby(option *defines.LobbyOption) *lobby {
 	lb.bpro = newBrokerProcessor()
 	lb.mall = newMallService(lb)
 	lb.ns = newNoticeService(lb)
+	lb.rs = newRankService(lb)
 	return lb
 }
 
@@ -69,6 +71,8 @@ func (lb *lobby) Start() error {
 	lb.processor.Start()
 	lb.bpro.Start()
 	lb.ns.start()
+	lb.rs.start()
+
 	return nil
 }
 

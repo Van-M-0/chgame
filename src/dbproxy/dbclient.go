@@ -46,6 +46,36 @@ func Test() {
 		Nums: 100,
 	})
 	*/
+
+	type t_Myrank struct {
+		UserId 		int
+		Score 		int
+	}
+
+/*
+	dc := newDbClient()
+	dc.CreateTableIfNot(&t_Myrank{})
+	dc.db.Create(&t_Myrank{
+		UserId: 1,
+		Score: 100,
+	}).Create(&t_Myrank{
+		UserId: 2,
+		Score: 200,
+	}).Create(&t_Myrank{
+		UserId: 3,
+		Score: 300,
+	}).Create(&t_Myrank{
+		UserId: 4,
+		Score: 400,
+	}).Create(&t_Myrank{
+		UserId: 5,
+		Score: 500,
+	})
+
+	var ranks []t_Myrank
+	dc.db.Order("score desc").Limit(3).Find(&ranks)
+	fmt.Println(ranks)
+	*/
 }
 
 func newDbClient() *dbClient {

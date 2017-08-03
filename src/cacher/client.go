@@ -304,6 +304,4 @@ func (cc *cacheClient) NoticeOperation(notice *[]*proto.CacheNotice, op string) 
 	return nil
 }
 
-
-
 // ICacheLoader

@@ -281,8 +281,6 @@ func (um *userManager) handleCreateAccount(uid uint32, account *proto.CreateAcco
 	}
 }
 
-
-
 func (um *userManager) handleUserHornMessage(uid uint32, message *proto.UserHornMessageReq) {
 	if uid != message.Uid {
 		um.lb.send2player(uid, proto.CmdHornMessage, &proto.UserHornMessgaeRet{

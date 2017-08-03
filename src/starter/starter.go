@@ -187,7 +187,7 @@ func startClient() {
 }
 
 func StartProgram(p string, data interface{}) {
-	fmt.Println("stgart progoram ", p, data)
+	fmt.Println("stgart progoram ", p, data, runtime.NumCPU())
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
