@@ -156,6 +156,40 @@ func (dc *dbClient) InitTable() {
 	dc.DropTable(&table.T_Users{})
 	dc.DropTable(&table.T_MyTest{})
 */
+	if !dc.db.HasTable(&table.T_ItemConfig{}) {
+		dc.DropTable(&table.T_ItemArea{})
+
+		dc.CreateTable(&table.T_ItemConfig{})
+		dc.db.Create(&table.T_ItemConfig{
+			Itemid: 1,
+			Itemname: "钻石",
+			Category: 1,
+			Nums: 10,
+			Sell: 1,
+			Buyvalue: 10,
+			Area: 1,
+			Description: "钻石-1",
+		}).Create(&table.T_ItemConfig{
+			Itemid: 2,
+			Itemname: "房卡",
+			Category: 2,
+			Nums: 10,
+			Sell: 1,
+			Buyvalue: 10,
+			Area: 1,
+			Description: "钻石-1",
+		})
+
+		dc.CreateTable(&table.T_ItemArea{})
+		dc.db.Create(&table.T_ItemArea{
+			Area: 1,
+			Gamelib: 1,
+		}).Create(&table.T_ItemArea{
+			Area: 1,
+			Gamelib: 2,
+		})
+	}
+
 	dc.CreateTableIfNot(&table.T_Accounts{})
 	dc.CreateTableIfNot(&table.T_Games{})
 	dc.CreateTableIfNot(&table.T_GamesArchive{})
@@ -163,7 +197,6 @@ func (dc *dbClient) InitTable() {
 	dc.CreateTableIfNot(&table.T_Rooms{})
 	dc.CreateTableIfNot(&table.T_RoomUser{})
 	dc.CreateTableIfNot(&table.T_Users{})
-	dc.CreateTableIfNot(&table.T_MallItem{})
 	dc.CreateTableIfNot(&table.T_Notice{})
 }
 
@@ -184,21 +217,18 @@ func (dc *dbClient) AddUserInfo(userInfo *table.T_Users) bool {
 
 func (dc *dbClient) GetUserInfo(account string, userInfo *table.T_Users) bool {
 	return dc.db.Where("account = ? ", account).
-		Select("userid, account, name, sex, headimg, level, exp, coins, gems, roomid").
 		Find(&userInfo).
 		RowsAffected != 0
 }
 
 func (dc *dbClient) GetUserInfoByName(name string, users *table.T_Users) bool {
 	return dc.db.Where("name = ?", name).
-		Select("userid, account, name, sex, headimg, level, exp, coins, gems, roomid").
 		Find(&users).
 		RowsAffected != 0
 }
 
 func (dc *dbClient) GetUserInfoByUserid(userid uint32, userInfo *table.T_Users) bool {
 	return dc.db.Where("userid = ? ", userid).
-		Select("userid, account, name, sex, headimg, level, exp, coins, gems, roomid").
 		Find(&userInfo).
 		RowsAffected != 0
 }

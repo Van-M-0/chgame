@@ -69,6 +69,28 @@ type T_Users struct {
 	History 	string 		`gorm:"size:4096;not null;default:''"`
 }
 
+type T_UserItem struct {
+	Itemid 		uint32 		`gorm:"primary_key"`
+	Userid 		int 		`gorm:"index:user_index;not null"`
+	Count 		int 		`gorm:"not null; default:0"`
+}
+
+type T_ItemConfig struct {
+	Itemid		uint32 		`gomr:"primary_key"`
+	Itemname 	string		`gorm:"size:32"`
+	Category 	int 		`gorm:"not null"`	//种类 1钻石，2房卡
+	Nums 		int 		`gorm:"not null"`
+	Sell 		int 		`gorm:"not null"`	//1 商店显示
+	Buyvalue 	int 		`gorm:"not null"`
+	Area	 	int 		`gorm:"not null"`	//所在区域
+	Description string 		`gorm:"default:'';"`
+}
+
+type T_ItemArea struct {
+	Area 		int 		`gorm:"not null"`
+	Gamelib 	int 		`gorm:"not null"`
+}
+
 type T_MallItem struct {
 	Itemid 		int 		`gorm:"primary_key;not null"`
 	Itemname	string 		`gorm:"size:32;not null"`

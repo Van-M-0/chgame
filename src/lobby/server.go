@@ -162,6 +162,13 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 			return
 		}
 		lb.mall.OnUserBy(uid, &req)
+	case proto.CmdUserLoadRank:
+		var req proto.ClientLoadUserRank
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal client account errr", err)
+			return
+		}
+		lb.rs.onUserGetRanks(uid, &req)
 	default:
 		fmt.Println("lobby handle invalid client cmd ", cmd)
 	}

@@ -104,17 +104,21 @@ func (service *DBService) LoadNotice(req *proto.MsLoadNoticeArg, res *proto.MsLo
 }
 
 func (service *DBService) LoadMallItem(req *proto.MsLoadNoticeArg, res *proto.MsLoadMallItemListReply) error {
-	var malls []*table.T_MallItem
-	service.db.db.Find(&malls)
-	for _, n := range malls {
-		res.Malls = append(res.Malls, &proto.MallItem{
-			Id: n.Itemid,
-			Name: n.Itemname,
-			Category: n.Category,
-			BuyValue: n.Buyvalue,
-			Nums: n.Nums,
-			BuyLimt: n.Limit,
-		})
+	var items []*table.T_ItemConfig
+	service.db.db.Find(&items)
+	var itemarea []*table.T_ItemArea
+	service.db.db.Find(&itemarea)
+
+	for _, n := range items {
+		if n.Sell == 1 {
+			res.Malls = append(res.Malls, &proto.MallItem{
+				Id:       int(n.Itemid),
+				Name:     n.Itemname,
+				Category: n.Category,
+				BuyValue: n.Buyvalue,
+				Nums:     n.Nums,
+			})
+		}
 	}
 	return nil
 }
