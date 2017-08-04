@@ -146,6 +146,12 @@ func (t *tclient) enterRoom(id uint32) {
 	})
 }
 
+func (t *tclient) sendReady() {
+	t.Send(proto.CmdGamePlayerMessage, &proto.PlayerGameMessage {
+		A: 111,
+	})
+}
+
 func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 	if message.Cmd == proto.CmdClientLogin {
 		var loginRet proto.ClientLoginRet
@@ -209,6 +215,10 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 		fmt.Println("origin ", origin)
 		msgpacker.UnMarshal(origin, &ret)
 		fmt.Println("enter room ret message ", ret, err)
+		if ret.ErrCode == defines.ErrCommonSuccess {
+			fmt.Println("send user ready message")
+			t.sendReady()
+		}
 	}
 }
 

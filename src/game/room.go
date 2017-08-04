@@ -46,7 +46,7 @@ func (rm *room) safeCall() {
 
 	select {
 	case n := <- rm.notify:
-		fmt.Println("room process message ", n)
+		fmt.Println("room process message ", n.cmd, n)
 		if rm.closed == 1 {
 			fmt.Println("room closed")
 			return
