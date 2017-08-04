@@ -21,7 +21,7 @@ func newRankService(lb *lobby) *rankService {
 }
 
 func (rs *rankService) start() {
-	rs.loadUserRanks(defines.RankTypeDiamond, 20)
+	rs.loadUserRanks(defines.RankTypeDiamond, 19)
 }
 
 func (rs *rankService) loadUserRanks(rankType int, count int) {

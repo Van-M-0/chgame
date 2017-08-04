@@ -26,18 +26,7 @@ import (
 	"encoding/json"
 )
 
-type configFile struct {
-	FrontHost 		string
-	BackendHost 	string
-	HttpHost 		string
-	GameModules 	[]int
-}
-
-var cfg configFile
-
-func GetHttpAddr() string {
-	return cfg.HttpHost
-}
+var cfg defines.StartConfigFile
 
 func init() {
 	file, err := exec.LookPath(os.Args[0])
@@ -65,7 +54,7 @@ func init() {
 }
 
 func startMaster() {
-	master.NewMasterServer().Start()
+	master.NewMasterServer(&cfg).Start()
 }
 
 func startGate() {
@@ -78,7 +67,7 @@ func startGate() {
 
 func startLobby() {
 	lobby.NewLobby(&defines.LobbyOption{
-		GwHost: cfg.FrontHost,
+		GwHost: cfg.BackendHost,
 	}).Start()
 }
 
@@ -105,7 +94,7 @@ func startGame(moduels []defines.GameModule) {
 	}
 
 	game.NewGameServer(&defines.GameOption{
-		GwHost: cfg.FrontHost,
+		GwHost: cfg.BackendHost,
 		Moudles: moduels,
 	}).Start()
 }
@@ -246,7 +235,7 @@ func startClient() {
 	c.Connect()
 	t.ITcpClient = c
 
-	t.login("acc_1501053544")
+	t.login("name_9431023")
 }
 
 func StartProgram(p string, data interface{}) {

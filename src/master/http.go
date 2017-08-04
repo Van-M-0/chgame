@@ -9,7 +9,6 @@ import (
 	"net"
 	"communicator"
 	"io/ioutil"
-	"starter"
 )
 
 type appInfo struct {
@@ -34,9 +33,9 @@ type http2Proxy struct {
 	pub 			defines.IMsgPublisher
 }
 
-func newHttpProxy() *http2Proxy {
+func newHttpProxy(addr string) *http2Proxy {
 	return &http2Proxy{
-		httpAddr: starter.GetHttpAddr(),
+		httpAddr: addr,
 		pub: communicator.NewMessagePulisher(),
 	}
 }

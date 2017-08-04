@@ -50,6 +50,7 @@ func (lb *lobby) Start() error {
 				Type: "lobby",
 				ServerId: res.Id,
 			})
+			fmt.Println("lobby auth ", res.Id)
 			return nil
 		},
 		CloseCb: func (client defines.ITcpClient) {

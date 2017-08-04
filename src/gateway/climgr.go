@@ -77,6 +77,7 @@ func (mgr *cliManager) route2client(uids []uint32, cmd uint32, data []byte) {
 					client.Set("gameid", uint32(enterRes.ServerId))
 				}
 			}
+			return
 		}
 	}
 

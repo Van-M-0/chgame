@@ -55,27 +55,29 @@ func (service *DBService) CreateAccount(req *proto.DbCreateAccountArg, res *prot
 	var userSuccess *table.T_Users
 	fmt.Println("create account ", req)
 	service.lock.Lock()
-	ret := service.db.GetUserInfo(req.UserName, &user)
+	ret := service.db.GetUserInfo(req.Acc, &user)
 	service.lock.Unlock()
 	if !ret {
-		acc := "acc_" + strconv.Itoa(int(time.Now().Unix()))
+		name := "name_" + strconv.Itoa(int(time.Now().Unix()))
 		pwd := "123456"
 		r := service.db.AddAccountInfo(&table.T_Accounts{
-			Account: acc,
+			Account: req.Acc,
 			Password: pwd,
 		})
 		if r {
 			userSuccess = &table.T_Users{
-				Account: acc,
-				Name: req.UserName,
+				Account: req.Acc,
+				Name: name,
 				Level: 1,
 				Exp: 0,
 				Gold: 100,
+				Diamond: 10,
 				RoomCard: 1,
+				Score: 0,
 			}
 			r = service.db.AddUserInfo(userSuccess)
 			res.Err = "ok"
-			res.Acc = acc
+			res.Acc = req.Acc
 		} else {
 			res.Err = "cache"
 		}

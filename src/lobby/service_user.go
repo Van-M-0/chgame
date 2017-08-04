@@ -266,7 +266,7 @@ func (um *userManager) handleCreateAccount(uid uint32, account *proto.CreateAcco
 
 	var res proto.DbCreateAccountReply
 	um.lb.dbClient.Call("DBService.CreateAccount", &proto.DbCreateAccountArg{
-		UserName: account.Name,
+		Acc : account.Name,
 	}, &res)
 
 	if res.Err == "ok" {

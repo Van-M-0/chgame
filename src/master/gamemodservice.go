@@ -12,19 +12,21 @@ var GameModService = newGameModuleService()
 type ClientList struct {
 	Province 		string
 	City 			string
+	Name 			string
 	Kind 			int
 	Conf 			interface{}
 	GateIp 			string
 }
 
 type moduleInfo struct {
-	 P, C 		string
+	 P, C,N 		string
 }
 
 var infoList = map[int]moduleInfo {
 	defines.GameModuleXz: moduleInfo{
 		P: "SiChuan",
 		C: "ChengDu",
+		N: "成都市",
 	},
 }
 
@@ -79,6 +81,7 @@ func (gms *GameModuleService) getModuleList(province string) []ClientList {
 		l = append(l, ClientList{
 			Province: infoList[k].P,
 			City:     infoList[k].C,
+			Name: 	  infoList[k].N,
 			Kind:     k,
 			Conf:     m.ModuleConf,
 			GateIp:   m.GatewayHost,

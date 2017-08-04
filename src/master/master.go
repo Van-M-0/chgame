@@ -10,9 +10,9 @@ type Master struct {
 	hp 		*http2Proxy
 }
 
-func NewMasterServer () defines.IServer {
+func NewMasterServer (cfg *defines.StartConfigFile) defines.IServer {
 	return &Master{
-		hp: newHttpProxy(),
+		hp: newHttpProxy(cfg.HttpHost),
 	}
 }
 

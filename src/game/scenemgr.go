@@ -183,8 +183,9 @@ func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
 			return
 		} else {
 			ok, p := sm.updateUserInfo(uid, uint32(userId))
+			fmt.Println("update player info", ok, p)
 			if ok != "ok" {
-				fmt.Println("........... update player error ............ 2")
+				fmt.Println("........... update player error x ............ 2", ok, p)
 				replyUserErr()
 				return
 			}
@@ -325,9 +326,9 @@ func (sm *sceneManager) updateUserInfo(uid, userId uint32) (string, *defines.Pla
 		fmt.Println("user enter with info ")
 		sm.playerMgr.delPlayer(u)
 		sm.playerMgr.addPlayer(player)
-		return "reenter", player
+		return "ok", player
 	} else {
 		sm.playerMgr.addPlayer(player)
-		return "new", player
+		return "ok", player
 	}
 }
