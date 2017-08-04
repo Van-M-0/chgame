@@ -12,6 +12,9 @@ type mallService struct {
 	itemsLock 	sync.RWMutex
 	items 		map[int]*proto.MallItem
 	itemList 	[]*proto.MallItem
+
+	ItemConfigList []proto.ItemConfig
+	ItemAreaList   []proto.ItemArea
 }
 
 func newMallService(lb *lobby) *mallService {
@@ -26,12 +29,17 @@ func (ms *mallService) start() {
 	var res proto.MsLoadMallItemListReply
 	ms.lb.dbClient.Call("DBService.LoadMallItem", &proto.MsLoadMallItemListArg{}, &res)
 
+	var r proto.MsLoadItemConfigReply
+	ms.lb.dbClient.Call("DBService.LoadItemConfig", &proto.MsLoadItemConfigReply{}, &r)
+
 	ms.itemsLock.Lock()
 	ms.itemList = res.Malls
 	ms.items = make(map[int]*proto.MallItem)
 	for _, n := range ms.itemList {
 		ms.items[n.Id] = n
 	}
+	ms.ItemConfigList = r.ItemConfigList
+	ms.ItemAreaList = r.ItemAreaList
 	ms.itemsLock.Unlock()
 	fmt.Println("ns notices map", ms.items)
 }

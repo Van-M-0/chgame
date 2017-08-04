@@ -30,6 +30,7 @@ func (service *DBService) start() {
 
 func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUserLoginReply) error {
 	var userInfo table.T_Users
+
 	service.lock.Lock()
 	ret := service.db.GetUserInfo(req.Acc, &userInfo)
 	service.lock.Unlock()
@@ -42,6 +43,17 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 			res.Err = "cache"
 		} else {
 			res.Err = "ok"
+			/*
+			var itemlist []table.T_UserItem
+			service.db.db.Find(&itemlist).Where("userid = ?",  userInfo.Userid)
+			for _, item := range itemlist {
+				res.UserItemList = append(res.UserItemList, proto.UserItem {
+					ItemId: item.Itemid,
+					Area: item.Area,
+					Count: item.Count,
+				})
+			}
+			*/
 		}
 	} else {
 		res.Err = "notexists"
@@ -122,6 +134,35 @@ func (service *DBService) LoadMallItem(req *proto.MsLoadNoticeArg, res *proto.Ms
 			})
 		}
 	}
+	return nil
+}
+
+func (service *DBService) LoadItemConfig(req *proto.MsLoadItemConfigArg, res *proto.MsLoadItemConfigReply) error {
+	var items []*table.T_ItemConfig
+	service.db.db.Find(&items)
+	var itemarea []*table.T_ItemArea
+	service.db.db.Find(&itemarea)
+
+	for _, item := range items {
+		res.ItemConfigList = append(res.ItemConfigList, proto.ItemConfig{
+			Itemid: item.Itemid,
+			Itemname: item.Itemname,
+			Category: item.Category,
+			Nums: item.Nums,
+			Sell: item.Sell,
+			Buyvalue: item.Buyvalue,
+			Area: item.Area,
+			Description: item.Description,
+		})
+	}
+
+	for _, area := range itemarea {
+		res.ItemAreaList = append(res.ItemAreaList, proto.ItemArea{
+			Area: area.Area,
+			Gamelib: area.Gamelib,
+		})
+	}
+
 	return nil
 }
 

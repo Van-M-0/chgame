@@ -7,6 +7,8 @@ import (
 	"encoding/binary"
 	"io"
 	"msgpacker"
+	"time"
+	"os"
 )
 /*
 func testpb() {
@@ -185,7 +187,19 @@ func main() {
 
 	//test_log()
 
-	orm_test()
+	//orm_test()
+
+	signalChan := make(chan os.Signal, 1)
+	go func() {
+		//阻塞程序运行，直到收到终止的信号
+		<-signalChan
+		println(".........")
+		os.Exit(0)
+	}()
+
+	time.Sleep(time.Duration(10) * time.Second)
+	println("exit")
+
 }
 
 

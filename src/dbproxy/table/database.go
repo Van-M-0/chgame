@@ -70,8 +70,9 @@ type T_Users struct {
 }
 
 type T_UserItem struct {
-	Itemid 		uint32 		`gorm:"primary_key"`
-	Userid 		int 		`gorm:"index:user_index;not null"`
+	Userid 		uint32 		`gorm:"primary_key"`
+	Itemid 		uint32 		`gorm:"index:item_index;not null"`
+	Area 		int			`gorm:"not null"`
 	Count 		int 		`gorm:"not null; default:0"`
 }
 

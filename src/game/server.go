@@ -86,6 +86,17 @@ func (gs *gameServer) Start() error {
 
 	gs.scmgr.start()
 
+	/*
+	go func() {
+		signalChan := make(chan os.Signal, 1)
+		<-signalChan
+		var res proto.MsServerReleaseReply
+		gs.msClient.Call("ServerService.GetServerId", &proto.MsServerReleaseArg{Id: gs.serverId}, &res)
+		println("safe exit")
+		os.Exit(0)
+	}()
+	*/
+
 	return nil
 }
 
