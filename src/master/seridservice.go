@@ -17,7 +17,6 @@ type ServerService struct {
 	serLoc 		sync.RWMutex
 	ids 		int
 	servers 	map[int]*server
-	testServerId 	int
 }
 
 func newServerService() *ServerService {
@@ -34,7 +33,6 @@ func (ss *ServerService) GetServerId(req *proto.MsServerIdArg, res *proto.MsServ
 		typo: req.Type,
 		id: ss.ids,
 	}
-	ss.testServerId = ss.ids
 	ss.serLoc.Unlock()
 	res.Id = ss.ids
 	fmt.Println("GetServerId -> ", req, res)
@@ -62,25 +60,22 @@ func (ss *ServerService) ServerDisconnected(req *proto.MsServerDiscArg, res *pro
 		res.ErrCode = "error"
 	}
 	ss.serLoc.Unlock()
+	fmt.Println("release serverid", req.Id, res)
 	return nil
 }
 
 func (ss *ServerService) GsStatus (req *proto.MsGsStatusArg, res *proto.MsGsStatusReply) error {
-
 	return nil
 }
 
 func (ss *ServerService) SelectGameServer(req *proto.MsSelectGameServerArg, res *proto.MsSelectGameServerReply) error {
 	ss.serLoc.Lock()
-	res.ServerId = ss.testServerId
-	/*
 	res.ServerId = -1
 	for _, ser := range ss.servers {
 		if ser.typo == "game" {
 			res.ServerId = ser.id
 		}
 	}
-	*/
 	ss.serLoc.Unlock()
 	return nil
 }

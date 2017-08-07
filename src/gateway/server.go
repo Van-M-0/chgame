@@ -62,9 +62,11 @@ func (gw *gateway) Start() error {
 		},
 		CloseCb: func(client defines.ITcpClient) {
 			gw.serManager.serDisconnected(client)
+			var res proto.MsServerDisReply
+			err := gw.msClient.Call("ServerService.ServerDisconnected", &proto.MsServerDiscArg{Id: int(client.GetId())}, &res)
+			fmt.Println("server disconnect ", err, res.ErrCode)
 		},
 		MsgCb: func(client defines.ITcpClient, m *proto.Message) {
-			fmt.Println("handle bs server message ", m)
 			gw.serManager.serMessage(client, m)
 		},
 		AuthCb: func(client defines.ITcpClient) error {
