@@ -29,3 +29,11 @@ func notices(index int) string {
 func noticesPattern() string {
 	return "notices.*"
 }
+
+func useritems(userid uint32, id uint32) string {
+	return "items."+strconv.Itoa(int(userid))+"."+strconv.Itoa(int(id))
+}
+
+func alluseritems(userid uint32) string {
+	return "items."+strconv.Itoa(int(userid))+".*"
+}

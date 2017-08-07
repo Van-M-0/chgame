@@ -73,6 +73,7 @@ func (lb *lobby) Start() error {
 	lb.bpro.Start()
 	lb.ns.start()
 	lb.rs.start()
+	lb.mall.start()
 
 	return nil
 }

@@ -326,9 +326,11 @@ func (sm *sceneManager) updateUserInfo(uid, userId uint32) (string, *defines.Pla
 		fmt.Println("user enter with info ")
 		sm.playerMgr.delPlayer(u)
 		sm.playerMgr.addPlayer(player)
-		return "ok", player
 	} else {
 		sm.playerMgr.addPlayer(player)
-		return "ok", player
 	}
+
+	player.Items, _ = sm.cc.GetUserItems(player.UserId)
+
+	return "ok", player
 }

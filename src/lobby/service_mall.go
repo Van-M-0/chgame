@@ -24,12 +24,11 @@ func newMallService(lb *lobby) *mallService {
 func (ms *mallService) start() {
 	var r proto.MsLoadItemConfigReply
 	ms.lb.dbClient.Call("DBService.LoadItemConfig", &proto.MsLoadItemConfigReply{}, &r)
-
 	ms.itemsLock.Lock()
 	ms.ItemConfigList = r.ItemConfigList
 	ms.itemsLock.Unlock()
 
-	fmt.Println("ns notices map", r)
+	fmt.Println("local item config", r)
 }
 
 func (ms *mallService) onUserLoadMalls(uid uint32, req *proto.ClientLoadMallList) {
@@ -72,13 +71,16 @@ func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 		return
 	}
 
+	user := ms.lb.userMgr.getUser(uid)
+	fmt.Println("user buy", user)
+
 	var v interface{}
 	if item.Category == defines.MallItemCategoryDiamond {
-		v = ms.lb.userMgr.getUserProp(uid, defines.PpDiamond).(int)
+		//v = ms.lb.userMgr.getUserProp(uid, defines.PpDiamond).(int)
 	} else if item.Category == defines.MallItemCategoryGold {
-		v = ms.lb.userMgr.getUserProp(uid, defines.PpGold).(int64)
+		//v = ms.lb.userMgr.getUserProp(uid, defines.PpGold).(int64)
 	} else if item.Category == defines.MallItemCategoryRoomCard {
-		v = ms.lb.userMgr.getUserProp(uid, defines.PpRoomCard).(int)
+		//v = ms.lb.userMgr.getUserProp(uid, defines.PpRoomCard).(int)
 	}
 
 	fmt.Println(v)

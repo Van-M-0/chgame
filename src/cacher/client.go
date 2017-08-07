@@ -305,13 +305,47 @@ func (cc *cacheClient) NoticeOperation(notice *[]*proto.CacheNotice, op string) 
 }
 
 func(cc *cacheClient) UpdateUserItems(userid uint32, items []proto.UserItem) error {
-
+	for _, item := range items {
+		citem := proto.CacheUserItem{
+			Id: int(item.ItemId),
+			Count: item.Count,
+		}
+		if _, err := cc.command("hmset", redis.Args{useritems(userid, item.ItemId)}.AddFlat(&citem)...); err != nil {
+			fmt.Println("set notices error", err)
+		}
+	}
 	return nil
 }
 
 func(cc *cacheClient) GetUserItems(userid uint32) ([]proto.UserItem, error) {
 
-	return nil, nil
+	skeys, err := redis.Strings(cc.ccConn.Do("keys", alluseritems(userid)))
+	if err != nil {
+		return nil, err
+	}
+
+	items := []proto.UserItem{}
+
+	for _, key := range skeys {
+		values, err := redis.Values(cc.command("hgetall", key))
+		if err != nil {
+			fmt.Println("get user items err ", key, err)
+			continue
+		}
+
+		var i proto.CacheUserItem
+		if err := redis.ScanStruct(values, i); err != nil {
+			fmt.Println("get user items scan values error", err)
+			continue
+		}
+
+		items = append(items, proto.UserItem{
+			ItemId: uint32(i.Id),
+			Count: i.Count,
+		})
+	}
+
+	return items, nil
 }
 
 // ICacheLoader

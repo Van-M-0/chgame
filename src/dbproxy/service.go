@@ -45,12 +45,15 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 			res.Err = "ok"
 			var itemlist []table.T_UserItem
 			service.db.db.Find(&itemlist).Where("userid = ?",  userInfo.Userid)
+
+			var items []proto.UserItem
 			for _, item := range itemlist {
-				res.UserItemList = append(res.UserItemList, proto.UserItem {
+				items = append(items, proto.UserItem {
 					ItemId: item.Itemid,
 					Count: item.Count,
 				})
 			}
+			service.cc.UpdateUserItems(userInfo.Userid, items)
 		}
 	} else {
 		res.Err = "notexists"
