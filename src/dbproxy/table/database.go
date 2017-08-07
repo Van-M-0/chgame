@@ -72,7 +72,6 @@ type T_Users struct {
 type T_UserItem struct {
 	Userid 		uint32 		`gorm:"primary_key"`
 	Itemid 		uint32 		`gorm:"index:item_index;not null"`
-	Area 		int			`gorm:"not null"`
 	Count 		int 		`gorm:"not null; default:0"`
 }
 
@@ -83,15 +82,11 @@ type T_ItemConfig struct {
 	Nums 		int 		`gorm:"not null"`
 	Sell 		int 		`gorm:"not null"`	//1 商店显示
 	Buyvalue 	int 		`gorm:"not null"`
-	Area	 	int 		`gorm:"not null"`	//所在区域
-	Description string 		`gorm:"default:'';"`
+	GameKind 	int
+	Description string 		`gorm:"default:''"`
 }
 
-type T_ItemArea struct {
-	Area 		int 		`gorm:"not null"`
-	Gamelib 	int 		`gorm:"not null"`
-}
-
+/*
 type T_MallItem struct {
 	Itemid 		int 		`gorm:"primary_key;not null"`
 	Itemname	string 		`gorm:"size:32;not null"`
@@ -100,6 +95,7 @@ type T_MallItem struct {
 	Nums 		int 		`gorm:"not null;default:1"`
 	Limit 		int 		`gorm:"not null;default:0"`
 }
+*/
 
 type T_Notice struct {
 	Index 		int 		`gorm:"primary_key;AUTO_INCREMENT;not null"`
@@ -109,4 +105,12 @@ type T_Notice struct {
 	Content 	string 		`gorm:"size:128;not null"`
 	Playtime 	int 		`gorm:"not null;default:0"`
 	Playcount 	int			`gorm:"not null;default:1"`
+}
+
+type T_Gamelib struct {
+	Id 			int			`gorm:"primary_key"`
+	Name 		string
+	Area 		string
+	City 		string
+	Province 	string
 }

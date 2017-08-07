@@ -5,6 +5,7 @@ import (
 	"sync"
 	"exportor/defines"
 	"fmt"
+	"rpcd"
 )
 
 var GameModService = newGameModuleService()
@@ -22,14 +23,6 @@ type moduleInfo struct {
 	 P, C,N 		string
 }
 
-var infoList = map[int]moduleInfo {
-	defines.GameModuleXz: moduleInfo{
-		P: "SiChuan",
-		C: "ChengDu",
-		N: "成都市",
-	},
-}
-
 type gameModule struct {
 	ModuleConf 		interface{}
 	GatewayHost 	string
@@ -38,6 +31,8 @@ type gameModule struct {
 type GameModuleService struct {
 	modLock 		sync.RWMutex
 	modules 		map[int]gameModule
+	dbClient 		*rpcd.RpcdClient
+	libs 			[]proto.GameLibItem
 }
 
 func newGameModuleService() *GameModuleService {
@@ -46,12 +41,28 @@ func newGameModuleService() *GameModuleService {
 	return gms
 }
 
+func (gms *GameModuleService) load() {
+	gms.dbClient = rpcd.StartClient(defines.DBSerivcePort)
+	var r proto.MsLoadGameLibsReply
+	gms.dbClient.Call("DBService.LoadGameLibs", &proto.MsLoadGameLibsArg{}, &r)
+	if r.ErrCode == "ok" {
+		gms.libs = r.Libs
+	}
+}
+
 func (gms *GameModuleService) RegisterModule(req *proto.MsGameMoudleRegisterArg, res *proto.MsGameMoudleRegisterReply) error {
 	fmt.Println("gms request ", req)
 	res.ErrCode = "ok"
 
 	for _, mod := range req.ModList {
-		if _, ok := infoList[mod.Kind]; !ok {
+		found := false
+		for _, lib := range gms.libs {
+			if mod.Kind == lib.Id {
+				found = true
+				break
+			}
+		}
+		if !found {
 			res.ErrCode = "NotDefine"
 			return nil
 		}
@@ -77,15 +88,18 @@ func (gms *GameModuleService) getModuleList(province string) []ClientList {
 	fmt.Println("mods ", mods)
 
 	l := []ClientList{}
-	for k, m := range mods {
-		l = append(l, ClientList{
-			Province: infoList[k].P,
-			City:     infoList[k].C,
-			Name: 	  infoList[k].N,
-			Kind:     k,
-			Conf:     m.ModuleConf,
-			GateIp:   m.GatewayHost,
-		})
+	for _, lib := range gms.libs {
+		c := ClientList{
+			Province: lib.Province,
+			City:     lib.City,
+			Name: 	  lib.Name,
+			Kind:     lib.Id,
+		}
+		if m, ok := mods[lib.Id]; ok {
+			c.Conf = m.ModuleConf
+			c.GateIp = m.GatewayHost
+		}
+		l = append(l, c)
 	}
 
 	fmt.Println("mods ", l)
@@ -93,14 +107,14 @@ func (gms *GameModuleService) getModuleList(province string) []ClientList {
 }
 
 func (gms *GameModuleService) getProvinceList() []string {
-	gms.modLock.Lock()
-	mods := gms.modules
-	gms.modLock.Unlock()
-
+	indexs := map[string]bool{}
 	l := []string{}
-	for k, _ := range mods {
-		l = append(l, infoList[k].P)
+	for _, p := range gms.libs {
+		if _, ok := indexs[p.Province]; ok {
+			continue
+		}
+		indexs[p.Province] = true
+		l = append(l, p.Province)
 	}
-
 	return l
 }

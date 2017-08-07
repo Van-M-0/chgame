@@ -157,8 +157,6 @@ func (dc *dbClient) InitTable() {
 	dc.DropTable(&table.T_MyTest{})
 */
 	if !dc.db.HasTable(&table.T_ItemConfig{}) {
-		dc.DropTable(&table.T_ItemArea{})
-
 		dc.CreateTable(&table.T_ItemConfig{})
 		dc.db.Create(&table.T_ItemConfig{
 			Itemid: 1,
@@ -167,7 +165,7 @@ func (dc *dbClient) InitTable() {
 			Nums: 10,
 			Sell: 1,
 			Buyvalue: 10,
-			Area: 1,
+			GameKind: 1,
 			Description: "钻石-1",
 		}).Create(&table.T_ItemConfig{
 			Itemid: 2,
@@ -176,17 +174,19 @@ func (dc *dbClient) InitTable() {
 			Nums: 10,
 			Sell: 1,
 			Buyvalue: 10,
-			Area: 1,
+			GameKind: 1,
 			Description: "钻石-1",
 		})
+	}
 
-		dc.CreateTable(&table.T_ItemArea{})
-		dc.db.Create(&table.T_ItemArea{
-			Area: 1,
-			Gamelib: 1,
-		}).Create(&table.T_ItemArea{
-			Area: 1,
-			Gamelib: 2,
+	if !dc.db.HasTable(&table.T_Gamelib{}) {
+		dc.db.CreateTable(&table.T_Gamelib{})
+		dc.db.Create(&table.T_Gamelib{
+			Id: 1,
+			Name: "血战麻将",
+			Area: "成都",
+			City: "成都市",
+			Province: "四川省",
 		})
 	}
 
@@ -198,6 +198,7 @@ func (dc *dbClient) InitTable() {
 	dc.CreateTableIfNot(&table.T_RoomUser{})
 	dc.CreateTableIfNot(&table.T_Users{})
 	dc.CreateTableIfNot(&table.T_Notice{})
+	dc.CreateTableIfNot(&table.T_UserItem{})
 }
 
 // t_accounts : account info

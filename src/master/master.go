@@ -8,6 +8,7 @@ import (
 
 type Master struct {
 	hp 		*http2Proxy
+
 }
 
 func NewMasterServer (cfg *defines.StartConfigFile) defines.IServer {
@@ -19,7 +20,12 @@ func NewMasterServer (cfg *defines.StartConfigFile) defines.IServer {
 func (ms *Master) Start() error {
 	ms.StartRpc()
 	ms.StartHttp()
+	ms.loadData()
 	return nil
+}
+
+func (ms *Master) loadData() {
+	GameModService.load()
 }
 
 func (ms *Master) Stop() error {

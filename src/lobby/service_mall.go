@@ -10,8 +10,6 @@ import (
 type mallService struct {
 	lb 			*lobby
 	itemsLock 	sync.RWMutex
-	items 		map[int]*proto.MallItem
-	itemList 	[]*proto.MallItem
 
 	ItemConfigList []proto.ItemConfig
 	ItemAreaList   []proto.ItemArea
@@ -19,36 +17,35 @@ type mallService struct {
 
 func newMallService(lb *lobby) *mallService {
 	ms := &mallService{}
-	ms.items = make(map[int]*proto.MallItem)
-	ms.itemList = make([]*proto.MallItem, 0)
 	ms.lb = lb
 	return ms
 }
 
 func (ms *mallService) start() {
-	var res proto.MsLoadMallItemListReply
-	ms.lb.dbClient.Call("DBService.LoadMallItem", &proto.MsLoadMallItemListArg{}, &res)
-
 	var r proto.MsLoadItemConfigReply
 	ms.lb.dbClient.Call("DBService.LoadItemConfig", &proto.MsLoadItemConfigReply{}, &r)
 
 	ms.itemsLock.Lock()
-	ms.itemList = res.Malls
-	ms.items = make(map[int]*proto.MallItem)
-	for _, n := range ms.itemList {
-		ms.items[n.Id] = n
-	}
 	ms.ItemConfigList = r.ItemConfigList
-	ms.ItemAreaList = r.ItemAreaList
 	ms.itemsLock.Unlock()
-	fmt.Println("ns notices map", ms.items)
+
+	fmt.Println("ns notices map", r)
 }
 
 func (ms *mallService) onUserLoadMalls(uid uint32, req *proto.ClientLoadMallList) {
-	l := make([]proto.MallItem, len(ms.itemList))
+	l := []proto.MallItem{}
 	ms.itemsLock.Lock()
-	for i := 0; i < len(ms.itemList); i++ {
-		l[i] = *ms.itemList[i]
+	for _, item := range ms.ItemConfigList {
+		if item.Sell == 1 {
+			m := proto.MallItem{
+				Id: int(item.Itemid),
+				Name: item.Itemname,
+				Category: item.Category,
+				BuyValue: item.Buyvalue,
+				Nums: item.Nums,
+			}
+			l = append(l, m)
+		}
 	}
 	ms.itemsLock.Unlock()
 
@@ -58,18 +55,21 @@ func (ms *mallService) onUserLoadMalls(uid uint32, req *proto.ClientLoadMallList
 }
 
 func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
-	var item proto.MallItem
+	var item proto.ItemConfig
 	ms.itemsLock.Lock()
-	pItem, ok := ms.items[req.ItemId]
-	if ok {
-		item = *pItem
+	for _, i := range ms.ItemConfigList {
+		if int(i.Itemid) == req.ItemId {
+			item = i
+			break
+		}
 	}
 	ms.itemsLock.Unlock()
 
-	if item.Id == 0 {
+	if item.Itemid == 0 {
 		ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
 			ErrCode: defines.ErrClientBuyItemNotExists,
 		})
+		return
 	}
 
 	var v interface{}
@@ -80,5 +80,6 @@ func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 	} else if item.Category == defines.MallItemCategoryRoomCard {
 		v = ms.lb.userMgr.getUserProp(uid, defines.PpRoomCard).(int)
 	}
+
 	fmt.Println(v)
 }

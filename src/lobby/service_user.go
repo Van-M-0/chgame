@@ -20,6 +20,7 @@ type userInfo struct {
 	gold 		int64
 	roomcard 	int
 	score 		int
+	itemList 	[]proto.UserItem
 }
 
 type room struct {
@@ -238,6 +239,8 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 						replyErr(defines.ErrCommonCache)
 					} else {
 						gotUser()
+						u := um.getUser(uid)
+						u.itemList = res.UserItemList
 					}
 				} else {
 					replyErr(defines.ErrCommonCache)

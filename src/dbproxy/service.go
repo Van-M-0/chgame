@@ -43,17 +43,14 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 			res.Err = "cache"
 		} else {
 			res.Err = "ok"
-			/*
 			var itemlist []table.T_UserItem
 			service.db.db.Find(&itemlist).Where("userid = ?",  userInfo.Userid)
 			for _, item := range itemlist {
 				res.UserItemList = append(res.UserItemList, proto.UserItem {
 					ItemId: item.Itemid,
-					Area: item.Area,
 					Count: item.Count,
 				})
 			}
-			*/
 		}
 	} else {
 		res.Err = "notexists"
@@ -118,6 +115,7 @@ func (service *DBService) LoadNotice(req *proto.MsLoadNoticeArg, res *proto.MsLo
 }
 
 func (service *DBService) LoadMallItem(req *proto.MsLoadNoticeArg, res *proto.MsLoadMallItemListReply) error {
+	/*
 	var items []*table.T_ItemConfig
 	service.db.db.Find(&items)
 	var itemarea []*table.T_ItemArea
@@ -134,15 +132,13 @@ func (service *DBService) LoadMallItem(req *proto.MsLoadNoticeArg, res *proto.Ms
 			})
 		}
 	}
+	*/
 	return nil
 }
 
 func (service *DBService) LoadItemConfig(req *proto.MsLoadItemConfigArg, res *proto.MsLoadItemConfigReply) error {
 	var items []*table.T_ItemConfig
 	service.db.db.Find(&items)
-	var itemarea []*table.T_ItemArea
-	service.db.db.Find(&itemarea)
-
 	for _, item := range items {
 		res.ItemConfigList = append(res.ItemConfigList, proto.ItemConfig{
 			Itemid: item.Itemid,
@@ -151,18 +147,10 @@ func (service *DBService) LoadItemConfig(req *proto.MsLoadItemConfigArg, res *pr
 			Nums: item.Nums,
 			Sell: item.Sell,
 			Buyvalue: item.Buyvalue,
-			Area: item.Area,
+			GameKind: item.GameKind,
 			Description: item.Description,
 		})
 	}
-
-	for _, area := range itemarea {
-		res.ItemAreaList = append(res.ItemAreaList, proto.ItemArea{
-			Area: area.Area,
-			Gamelib: area.Gamelib,
-		})
-	}
-
 	return nil
 }
 
@@ -183,5 +171,21 @@ func (service *DBService) LoadUserRank(req *proto.MsLoadUserRankArg, res *proto.
 		res.ErrCode = "ok"
 	}
 	fmt.Println("serveice.loaduserrank ", users)
+	return nil
+}
+
+func (service *DBService) LoadGameLibs(req *proto.MsLoadGameLibsArg, res *proto.MsLoadGameLibsReply) error {
+	var l []table.T_Gamelib
+	service.db.db.Find(&l)
+	res.ErrCode = "ok"
+	for _, lib := range l {
+		res.Libs = append(res.Libs, proto.GameLibItem{
+			Id: lib.Id,
+			Name: lib.Name,
+			Area: lib.Area,
+			City: lib.City,
+			Province: lib.Province,
+		})
+	}
 	return nil
 }

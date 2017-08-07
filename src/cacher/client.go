@@ -304,4 +304,14 @@ func (cc *cacheClient) NoticeOperation(notice *[]*proto.CacheNotice, op string) 
 	return nil
 }
 
+func(cc *cacheClient) UpdateUserItems(userid uint32, items []proto.UserItem) error {
+
+	return nil
+}
+
+func(cc *cacheClient) GetUserItems(userid uint32) ([]proto.UserItem, error) {
+
+	return nil, nil
+}
+
 // ICacheLoader
