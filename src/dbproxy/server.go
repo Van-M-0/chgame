@@ -39,6 +39,7 @@ func (ds *dbProxyServer) Start() error {
 	ds.dbservice.start()
 	ds.startRpc()
 	ds.load2Cache()
+	ds.dtSaver.start()
 	//ds.con.Start()
 	//ds.pub.Start()
 	//ds.cacheClient.Start()

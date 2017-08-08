@@ -9,18 +9,29 @@ import (
 	"dbproxy/table"
 )
 
+type user_item_key struct {
+	uid 		uint32
+	iid 		uint32
+}
+
 type dataSaver struct {
 	t 			map[string]time.Duration
 	cc 			defines.ICacheClient
 	ch 			chan interface{}
 	dc 			*dbClient
+
+	lsUsers 		map[uint32]*table.T_Users
+	lsUserItems		map[user_item_key]*table.T_UserItem
 }
 
 func newDataSaver(dc *dbClient) *dataSaver {
 	ds := &dataSaver{}
 	ds.cc = cacher.NewCacheClient("saver")
 	ds.t = make(map[string]time.Duration)
+	ds.ch = make(chan interface{})
 	ds.dc = dc
+	ds.lsUsers = make(map[uint32]*table.T_Users)
+	ds.lsUserItems = make(map[user_item_key]*table.T_UserItem)
 	return ds
 }
 
@@ -44,10 +55,9 @@ func (ds *dataSaver) safeRoutine(fn func()) {
 
 func (ds *dataSaver) start() {
 	ds.cc.Start()
-
 	timeoutFn := func(tm time.Duration, fn func()) {
-		t := time.NewTimer(time.Second * tm)
 		for {
+			t := time.NewTimer(time.Minute * tm)
 			select {
 			case <- t.C:
 				fn()
@@ -55,11 +65,9 @@ func (ds *dataSaver) start() {
 		}
 	}
 	ds.safeRoutine(func() {
-		timeoutFn(2, ds.collect)
+		timeoutFn(1, ds.collect)
 	})
-	ds.safeRoutine(func() {
-		timeoutFn(2, ds.save)
-	})
+	ds.safeRoutine(ds.save)
 }
 
 func (ds *dataSaver) stop() {
@@ -96,9 +104,9 @@ func (ds *dataSaver) collect() {
 			l := []*table.T_UserItem{}
 			for _, item := range userItems {
 				l = append(l, &table.T_UserItem{
+					Itemid: uint32(item.Id),
 					Userid: uint32(item.UserId),
 					Count: item.Count,
-					Itemid: uint32(item.Id),
 				})
 			}
 			ds.ch <- l
@@ -110,19 +118,37 @@ func (ds *dataSaver) collect() {
 }
 
 func (ds *dataSaver) save() {
-	fmt.Println("saver start")
 	for {
 		select {
 		case d := <- ds.ch:
 			switch data := d.(type) {
 			case []*table.T_Users:
 				for _, u := range data {
-					ds.dc.db.Save(u)
+					if ou, ok := ds.lsUsers[u.Userid]; ok {
+						if *ou != *u {
+							ds.dc.db.Save(u)
+							ds.lsUsers[u.Userid] = u
+						}
+					} else {
+						ds.dc.db.Save(u)
+						ds.lsUsers[u.Userid] = u
+					}
 				}
 			case []*table.T_UserItem:
-				for _, u := range data {
-					ds.dc.db.Save(u)
+				for _, item := range data {
+					key := user_item_key{uid: item.Userid, iid: item.Itemid}
+					if oi, ok := ds.lsUserItems[key]; ok {
+						if *oi != *item {
+							ds.lsUserItems[key] = item
+							ds.dc.db.Update()
+						}
+					} else {
+						ds.lsUserItems[key] = item
+						ds.dc.db.Save()
+					}
 				}
+			default:
+				fmt.Println("no handler data ", d)
 			}
 		}
 	}

@@ -369,7 +369,7 @@ func (cc *cacheClient) GetAllUsers() ([]*proto.CacheUser, error) {
 		}
 
 		var i proto.CacheUser
-		if err := redis.ScanStruct(values, i); err != nil {
+		if err := redis.ScanStruct(values, &i); err != nil {
 			fmt.Println("get user scan values error", err)
 			continue
 		}
@@ -399,7 +399,7 @@ func (cc *cacheClient) GetAllUserItem() ([]*proto.CacheUserItem, error) {
 		}
 
 		var i proto.CacheUserItem
-		if err := redis.ScanStruct(values, i); err != nil {
+		if err := redis.ScanStruct(values, &i); err != nil {
 			fmt.Println("get user items scan values error", err)
 			continue
 		}
