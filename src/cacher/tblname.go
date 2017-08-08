@@ -10,6 +10,10 @@ func users(uid int) string {
 	return "users."+strconv.Itoa(uid)
 }
 
+func allUsers() string {
+	return "users.*"
+}
+
 func servers(id int) string {
 	return "servers."+strconv.Itoa(id)
 }
@@ -36,4 +40,8 @@ func useritems(userid uint32, id uint32) string {
 
 func alluseritems(userid uint32) string {
 	return "items."+strconv.Itoa(int(userid))+".*"
+}
+
+func allItems() string {
+	return "items.*"
 }

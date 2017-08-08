@@ -187,7 +187,7 @@ func main() {
 
 	//test_log()
 
-	//orm_test()
+	orm_test()
 
 	signalChan := make(chan os.Signal, 1)
 	go func() {

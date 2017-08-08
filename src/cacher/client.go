@@ -307,6 +307,7 @@ func (cc *cacheClient) NoticeOperation(notice *[]*proto.CacheNotice, op string) 
 func(cc *cacheClient) UpdateUserItems(userid uint32, items []proto.UserItem) error {
 	for _, item := range items {
 		citem := proto.CacheUserItem{
+			UserId: int(userid),
 			Id: int(item.ItemId),
 			Count: item.Count,
 		}
@@ -346,6 +347,67 @@ func(cc *cacheClient) GetUserItems(userid uint32) ([]proto.UserItem, error) {
 	}
 
 	return items, nil
+}
+
+
+func (cc *cacheClient) GetAllUsers() ([]*proto.CacheUser, error) {
+	if cc.group != "saver" {
+		return nil, nil
+	}
+
+	keys, err := redis.Strings(cc.ccConn.Do("keys", allUsers()))
+	if err != nil {
+		return nil, err
+	}
+
+	l := []*proto.CacheUser{}
+	for _, key := range keys {
+		values, err := redis.Values(cc.command("hgetall", key))
+		if err != nil {
+			fmt.Println("get user err ", key, err)
+			continue
+		}
+
+		var i proto.CacheUser
+		if err := redis.ScanStruct(values, i); err != nil {
+			fmt.Println("get user scan values error", err)
+			continue
+		}
+
+		l = append(l, &i)
+	}
+
+	return l, nil
+}
+
+func (cc *cacheClient) GetAllUserItem() ([]*proto.CacheUserItem, error) {
+	if cc.group != "saver" {
+		return nil, nil
+	}
+
+	keys, err := redis.Strings(cc.ccConn.Do("keys", allItems()))
+	if err != nil {
+		return nil, err
+	}
+
+	l := []*proto.CacheUserItem{}
+	for _, key := range keys {
+		values, err := redis.Values(cc.command("hgetall", key))
+		if err != nil {
+			fmt.Println("get user items err ", key, err)
+			continue
+		}
+
+		var i proto.CacheUserItem
+		if err := redis.ScanStruct(values, i); err != nil {
+			fmt.Println("get user items scan values error", err)
+			continue
+		}
+
+		l = append(l, &i)
+	}
+
+	return l, nil
 }
 
 // ICacheLoader

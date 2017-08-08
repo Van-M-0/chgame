@@ -22,12 +22,14 @@ type dbProxyServer struct {
 	chNotify    		chan *request
 	chResNotify 		chan func()
 	dbservice 			*DBService
+	dtSaver 			*dataSaver
 }
 
 func newDBProxyServer() *dbProxyServer {
 	dbServer := &dbProxyServer{}
 	dbServer.dbClient = newDbClient()
 	dbServer.dbservice = newDbService(dbServer.dbClient)
+	dbServer.dtSaver = newDataSaver(dbServer.dbClient)
 	dbServer.cacheClient = cacher.NewCacheClient("dbproxy")
 	return dbServer
 }
