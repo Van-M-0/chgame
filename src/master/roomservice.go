@@ -9,6 +9,7 @@ import (
 
 type room struct {
 	ServerId 	int
+	Conf 		[]byte
 }
 
 type RoomService struct {
@@ -33,7 +34,7 @@ func (rs *RoomService) CreateRoomId(req *proto.MsCreateoomIdArg, res *proto.MsCr
 			break
 		}
 	}
-	rs.rooms[res.RoomId] = &room{ServerId: req.ServerId}
+	rs.rooms[res.RoomId] = &room{ServerId: req.ServerId, Conf: req.Conf}
 	rs.rmLock.Unlock()
 	return nil
 }
@@ -55,6 +56,7 @@ func (rs *RoomService) GetRoomServerId(req *proto.MsGetRoomServerIdArg, res *pro
 	res.ServerId = -1
 	if ser, ok := rs.rooms[req.RoomId]; ok {
 		res.ServerId = ser.ServerId
+		res.Conf = ser.Conf
 	}
 	rs.rmLock.Unlock()
 	return nil

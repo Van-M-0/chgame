@@ -55,6 +55,20 @@ func (ds *dataSaver) safeRoutine(fn func()) {
 
 func (ds *dataSaver) start() {
 	ds.cc.Start()
+
+	preList := []*table.T_UserItem{}
+	ds.dc.db.Find(&preList)
+	for _, i := range preList {
+		ds.lsUserItems[user_item_key{
+			uid: i.Userid,
+			iid: i.Itemid,
+		}] = &table.T_UserItem{
+			Userid: i.Userid,
+			Itemid: i.Itemid,
+			Count: i.Count,
+		}
+	}
+
 	timeoutFn := func(tm time.Duration, fn func()) {
 		for {
 			t := time.NewTimer(time.Minute * tm)
@@ -139,12 +153,19 @@ func (ds *dataSaver) save() {
 					key := user_item_key{uid: item.Userid, iid: item.Itemid}
 					if oi, ok := ds.lsUserItems[key]; ok {
 						if *oi != *item {
-							ds.lsUserItems[key] = item
-							ds.dc.db.Update()
+							if item.Count != 0 {
+								ds.lsUserItems[key] = item
+								ds.dc.db.Model(item).Where("userid = ? and itemid = ?", item.Userid, item.Itemid).Update("count", item.Count)
+							} else {
+								ds.dc.db.Where("userid = ? and itemid = ?", item.Userid, item.Itemid).Delete(item)
+								delete(ds.lsUserItems, key)
+							}
 						}
 					} else {
-						ds.lsUserItems[key] = item
-						ds.dc.db.Save()
+						if item.Count != 0 {
+							ds.lsUserItems[key] = item
+							ds.dc.db.Save(item)
+						}
 					}
 				}
 			default:

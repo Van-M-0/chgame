@@ -58,7 +58,10 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 	}
 
 	var rep proto.MsCreateRoomIdReply
-	rm.sm.msService.Call("RoomService.CreateRoomId", &proto.MsCreateoomIdArg{rm.sm.gameServer.serverId}, &rep)
+	rm.sm.msService.Call("RoomService.CreateRoomId", &proto.MsCreateoomIdArg{
+		ServerId: rm.sm.gameServer.serverId,
+		Conf: message.Conf,
+	}, &rep)
 	if rep.RoomId == 0 {
 		rm.sm.SendMessage(info.Uid, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomRoomId})
 		return

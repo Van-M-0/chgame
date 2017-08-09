@@ -168,9 +168,6 @@ func (mgr *serManager) getGameServer() *serverInfo {
 func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Message) {
 
 	send := func(serId uint32) {
-		mgr.Lock()
-		defer mgr.Unlock()
-
 		//todo
 		//gameId := client.Get("GameId").(uint32)
 		gwMessage := &proto.GateGameHeader {
@@ -179,6 +176,9 @@ func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Mes
 			Cmd: message.Cmd,
 			Msg: message.Msg,
 		}
+
+		mgr.Lock()
+		defer mgr.Unlock()
 
 		ser, ok := mgr.sers[serId]
 		if !ok {
@@ -205,14 +205,22 @@ func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Mes
 			fmt.Println("enter room request error", err)
 			return
 		}
-		var res proto.MsGetRoomServerIdReply
-		mgr.gateway.msClient.Call("RoomService.GetRoomServerId", &proto.MsGetRoomServerIdArg{RoomId: enterRoomMessage.RoomId}, &res)
+		if enterRoomMessage.ServerId == 0 {
+			var res proto.MsGetRoomServerIdReply
+			mgr.gateway.msClient.Call("RoomService.GetRoomServerId", &proto.MsGetRoomServerIdArg{RoomId: enterRoomMessage.RoomId}, &res)
 
-		if res.ServerId == -1 {
-			fmt.Println("enter room id eror")
-			return
+			if res.ServerId == -1 {
+				fmt.Println("enter room id eror")
+				return
+			}
+			//reply to client
+			client.Send(proto.CmdEnterRoom, &proto.PlayerCreateRoomRet{
+				ErrCode: defines.ErrEnterRoomQueryConf,
+				Conf: res.Conf,
+			})
+		} else {
+			send(enterRoomMessage.ServerId)
 		}
-		send(uint32(res.ServerId))
 		return
 	}
 

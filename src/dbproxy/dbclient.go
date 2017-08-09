@@ -187,6 +187,12 @@ func (dc *dbClient) InitTable() {
 			Area: "成都",
 			City: "成都市",
 			Province: "四川省",
+		}).Create(&table.T_Gamelib{
+			Id: 2,
+			Name: "斗地主",
+			Area: "成都",
+			City: "成都市",
+			Province: "四川省",
 		})
 	}
 
