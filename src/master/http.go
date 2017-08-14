@@ -40,6 +40,50 @@ func newHttpProxy(addr string) *http2Proxy {
 	}
 }
 
+func (hp *http2Proxy) clientWechatLogin(code, device string) (string, string){
+	type access struct {
+		Appid	string		`json:"appid"`
+		Secret 	string		`json:"secret"`
+		Code 	string		`json:"code"`
+		GrantType string	`json:"grant_type"`
+	}
+
+	request := "appid=" + "wx85469eaffc224f1b" + "&"+
+				"secret=" + "76c8d4ba5c7b27820f6da88d712d21fd" + "&" +
+				"code=" + code + "&" +
+				"grant_type=authorization_code"
+
+	type response struct {
+		AccToken 		string 	`json:"access_token"`
+		ExpiresIn		int 	`json:"expires_in"`
+		RefToken 		string  `json:"refresh_token"`
+		OpenId 			string 	`json:"openid"`
+		Scope 			string  `json:"scope"`
+		SnsapiUserInfo 	string 	`json:"snsapi_userinfo"`
+		Unionid 		string 	`json:"unionid"`
+	}
+
+	var AccToken, OpenId string
+	hp.get2("https://api.weixin.qq.com/sns/oauth2/access_token", request, true, func(suc bool, d interface{}) {
+		//hp.get2("https://api.weixin.qq.com/sns/userinfo", string(d), true, func(suc bool, data interface{}) {
+		//})
+		data := d.([]byte)
+		var r response
+		err := json.Unmarshal(data, &r)
+		if err == nil {
+			AccToken = r.AccToken
+			OpenId = r.OpenId
+		} else {
+			fmt.Println("wechatlogin error")
+			fmt.Println(request)
+			fmt.Println(d)
+			fmt.Println(err)
+		}
+	})
+
+	return AccToken, OpenId
+}
+
 func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	//code := r.Form["code"]
@@ -64,7 +108,6 @@ func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("json.marshal access error ")
 		return
 	}
-
 
 	hp.get2("https://api.weixin.qq.com/sns/oauth2/access_token", string(d), true, func(suc bool, data interface{}) {
 		token := ""
@@ -192,10 +235,14 @@ func (hp *http2Proxy) start() {
 }
 
 func (hp *http2Proxy) get2(url string, content string, bHttps bool, cb func(bool, interface{})) {
-	res, err := http.Get(url+"?"+content)
-	if err != nil {
-		fmt.Println("get error ", url, content, err)
-		return
+	request := url + "?" + content
+	res, err := http.Get(request)
+
+	if res.StatusCode == 200 {
+		body, _ := ioutil.ReadAll(res.Body)
+		fmt.Println("get ", request, res, err, string(body))
+		cb(true, body)
+	} else {
+		cb(false, nil)
 	}
-	fmt.Println(res)
 }

@@ -129,6 +129,29 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 			fmt.Println("unmarshal client login errr", err)
 			return
 		}
+	case proto.CmdWechatLogin:
+		var login proto.WechatLoginReq
+		if err := msgpacker.UnMarshal(data, &login); err != nil {
+			fmt.Println("unmarshal client login errr", err)
+			return
+		}
+		go func() {
+			var res proto.MsSdkWechatLoginReply
+			err := lb.msClient.Call("SdkService.WechatLogin", &proto.MsSdkWechatLoginArg{
+				Code: login.Code,
+				Device: login.Device,
+			},&res)
+			fmt.Println("wechat login call ", err)
+			loginRet := &proto.WechatLoginRet{}
+			loginRet.ErrCode = "ok"
+			loginRet.Code = login.Code
+			if res.ErrCode == "ok" {
+				loginRet.OpenId = res.OpenId
+				loginRet.Token = res.Token
+			}
+			fmt.Println("wechat login ret ", loginRet)
+			lb.send2player(uid, proto.CmdWechatLogin, loginRet)
+		}()
 	case proto.CmdCreateAccount:
 		var acc proto.CreateAccount
 		if err := msgpacker.UnMarshal(data, &acc); err != nil {

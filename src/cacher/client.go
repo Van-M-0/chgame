@@ -129,6 +129,7 @@ func (cc *cacheClient) SetUserInfo(d interface{}, dbRet bool) error {
 		Account: userInfo.Account,
 		Openid: userInfo.OpenId,
 		Uid: int(userInfo.Userid),
+		Sex: userInfo.Sex,
 		Name: userInfo.Name,
 		Diamond: int(userInfo.Diamond),
 		RoomCard: int(userInfo.RoomCard),
@@ -260,6 +261,7 @@ func (cc *cacheClient) FlushAll() {
 		return
 	}
 	cc.ccConn.Do("flushall")
+
 }
 
 func (cc *cacheClient) NoticeOperation(notice *[]*proto.CacheNotice, op string) error {

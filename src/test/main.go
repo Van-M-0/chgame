@@ -186,7 +186,6 @@ func main() {
 	//genMysqlTables()
 
 	//test_log()
-
 	orm_test()
 
 	signalChan := make(chan os.Signal, 1)

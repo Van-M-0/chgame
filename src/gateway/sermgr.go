@@ -214,10 +214,12 @@ func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Mes
 				return
 			}
 			//reply to client
-			client.Send(proto.CmdEnterRoom, &proto.PlayerCreateRoomRet{
+			data,_ := msgpacker.Marshal(&proto.PlayerEnterRoomRet{
 				ErrCode: defines.ErrEnterRoomQueryConf,
 				Conf: res.Conf,
+				ServerId: res.ServerId,
 			})
+			client.Send(proto.CmdGameEnterRoom, data)
 		} else {
 			send(enterRoomMessage.ServerId)
 		}

@@ -57,8 +57,8 @@ type T_Users struct {
 	Account 	string 		`gorm:"size:32;not null;default:'';index:acc_index"`
 	OpenId 		string		`gorm:"index:openid_index"`
 	Name 		string 		`gorm:"size:32;default:null"`
-	Sex 		uint8
-	Headimg 	string
+	Sex 		uint8		`gorm:"not null"`
+	Headimg 	string		`gorm:"size:64;default:''"`
 	Level 		uint8 		`gorm:"default:1"`
 	Exp 		uint32		`gorm:"default:0"`
 	Diamond 	uint32 		`gorm:"default:0"`
@@ -67,6 +67,9 @@ type T_Users struct {
 	Score 		uint32		`gorm:"default:0"`
 	Roomid 		uint32 		`gorm:"default:0"`
 	History 	string 		`gorm:"size:4096;not null;default:''"`
+	Agentid		int
+	Regtime 	time.Time	`gorm:"not null"`
+	Ip 			string 		`gorm:"not null"`
 }
 
 type T_UserItem struct {
@@ -113,4 +116,25 @@ type T_Gamelib struct {
 	Area 		string
 	City 		string
 	Province 	string
+}
+
+type T_Activity struct {
+	Id 			int 		`gorm:"primary_key;"`
+	Desc 		string
+	Actype 		string
+	Starttime 	time.Time
+	Finishtime 	time.Time
+	Rewardids 	string
+}
+
+type T_ActivityReward struct {
+	Id 			int 		`gorm:"primary_key;"`
+	RewardType 	string
+	ItemId 		int
+	Num 		int
+}
+
+type T_Userdata struct {
+	Userid 		uint32 		`gorm:"primary_key"`
+	Data 		[]byte
 }

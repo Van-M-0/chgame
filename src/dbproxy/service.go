@@ -35,6 +35,39 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 	ret := service.db.GetUserInfo(req.Acc, &userInfo)
 	service.lock.Unlock()
 
+	if req.LoginType == defines.LoginTypeWechat {
+		if !ret {
+			name := req.Name
+			pwd := "11111"
+			r := service.db.AddAccountInfo(&table.T_Accounts{
+				Account: req.Acc,
+				Password: pwd,
+			})
+			var userSuccess *table.T_Users
+			if r {
+				userSuccess = &table.T_Users{
+					Account:  req.Acc,
+					Name:     name,
+					Headimg:  req.Headimg,
+					Sex: 	  uint8(req.Sex),
+					OpenId:   req.Acc,
+					Level:    1,
+					Exp:      0,
+					Gold:     100,
+					Diamond:  10,
+					RoomCard: 1,
+					Score:    0,
+				}
+				r = service.db.AddUserInfo(userSuccess)
+			}
+		}
+		service.lock.Lock()
+		ret = service.db.GetUserInfo(req.Acc, &userInfo)
+		service.lock.Unlock()
+
+		userInfo.Headimg = req.Headimg
+	}
+
 	fmt.Println("user login ", req)
 	if ret == true {
 		err := service.cc.SetUserInfo(&userInfo, ret)
@@ -190,5 +223,35 @@ func (service *DBService) LoadGameLibs(req *proto.MsLoadGameLibsArg, res *proto.
 			Province: lib.Province,
 		})
 	}
+	return nil
+}
+
+func (service *DBService) LoadActivity(req *proto.MsLoadActivitysArg, res *proto.MsLoadActivitysReply) error {
+	var la []*table.T_Activity
+	var lr []*table.T_ActivityReward
+	service.db.db.Find(&la)
+	service.db.db.Find(&lr)
+
+	res.ErrCode = "ok"
+	for _, a := range la {
+		res.Activitys = append(res.Activitys, &proto.ActivityItem{
+			Id: a.Id,
+			Desc: a.Desc,
+			Actype: a.Actype,
+			Starttime: a.Starttime,
+			Finishtime: a.Finishtime,
+			Rewardids: a.Rewardids,
+		})
+	}
+
+	for _, r := range lr {
+		res.ActivityRewards = append(res.ActivityRewards, &proto.ActivityRewardItem{
+			Id: r.Id,
+			RewardType: r.RewardType,
+			ItemId: r.ItemId,
+			Num: r.Num,
+		})
+	}
+
 	return nil
 }

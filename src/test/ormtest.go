@@ -3,8 +3,7 @@ package main
 import (
 	"fmt"
 	"runtime/debug"
-	"time"
-	"sync"
+	"dbproxy"
 )
 
 func sfroutine(fn func()) {
@@ -32,25 +31,7 @@ func sayhello() {
 }
 
 func orm_test() {
-	//dbproxy.Test()
+	dbproxy.Test()
 
-	timeoutFn := func(tm time.Duration, fn func()) {
-		for {
-			fmt.Println("for{} .......")
-			t := time.NewTimer(time.Second * tm)
-			select {
-			case <- t.C:
-				fn()
-			}
-		}
-	}
 
-	sfroutine(func() {
-		timeoutFn(1, sayhello)
-	})
-
-	fmt.Println("waiting.......")
-	wg := new(sync.WaitGroup)
-	wg.Add(1)
-	wg.Wait()
 }

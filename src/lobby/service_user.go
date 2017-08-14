@@ -226,7 +226,11 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 	} else {
 		var res proto.DbUserLoginReply
 		um.lb.dbClient.Call("DBService.UserLogin", &proto.DbUserLoginArg{
+			LoginType: login.LoginType,
+			Name: login.Name,
 			Acc: login.Account,
+			Headimg: login.Headimg,
+			Sex: login.Sex,
 		},&res)
 		if res.Err == "ok" {
 			if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {

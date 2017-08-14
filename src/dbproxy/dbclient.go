@@ -6,6 +6,7 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/jinzhu/gorm"
 	"dbproxy/table"
+	"time"
 )
 
 //CREATE DATABASE IF NOT EXISTS mygame default charset utf8 COLLATE utf8_general_ci;
@@ -21,6 +22,14 @@ func InitTables() {
 }
 
 func Test() {
+
+	dc := newDbClient()
+
+	type T_HelloTest struct {
+		A 		int 		`gorm:"comment:aa"`
+	}
+	dc.db.CreateTable(&T_HelloTest{})
+
 /*
 	dc := newDbClient()
 
@@ -196,6 +205,25 @@ func (dc *dbClient) InitTable() {
 		})
 	}
 
+	if !dc.db.HasTable(&table.T_Activity{}) {
+		dc.db.CreateTable(&table.T_Activity{})
+		dc.db.Create(&table.T_Activity{
+			Id: 101,
+			Desc: "首冲有礼",
+			Actype: "always",
+			Starttime: time.Now(),
+			Finishtime: time.Now(),
+			Rewardids: "1",
+		})
+
+		dc.db.CreateTable(&table.T_ActivityReward{})
+		dc.db.Create(&table.T_ActivityReward{
+			Id: 1,
+			RewardType: "addition",
+			Num: 1,
+		})
+	}
+
 	dc.CreateTableIfNot(&table.T_Accounts{})
 	dc.CreateTableIfNot(&table.T_Games{})
 	dc.CreateTableIfNot(&table.T_GamesArchive{})
@@ -205,6 +233,7 @@ func (dc *dbClient) InitTable() {
 	dc.CreateTableIfNot(&table.T_Users{})
 	dc.CreateTableIfNot(&table.T_Notice{})
 	dc.CreateTableIfNot(&table.T_UserItem{})
+	dc.CreateTableIfNot(&table.T_Userdata{})
 }
 
 // t_accounts : account info

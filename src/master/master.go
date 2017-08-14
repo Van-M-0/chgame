@@ -8,13 +8,14 @@ import (
 
 type Master struct {
 	hp 		*http2Proxy
-
+	sdk 	*SdkService
 }
 
 func NewMasterServer (cfg *defines.StartConfigFile) defines.IServer {
-	return &Master{
-		hp: newHttpProxy(cfg.HttpHost),
-	}
+	ms := &Master{}
+	ms.hp = newHttpProxy(cfg.HttpHost)
+	ms.sdk = newSdkService(ms)
+	return ms
 }
 
 func (ms *Master) Start() error {
@@ -37,6 +38,7 @@ func (ms *Master) StartRpc() {
 		rpc.Register(newServerService())
 		rpc.Register(newRoomService())
 		rpc.Register(GameModService)
+		rpc.Register(ms.sdk)
 		rpcd.StartServer(defines.MSServicePort)
 	}
 	go start()
