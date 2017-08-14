@@ -7,7 +7,7 @@ import (
 	"sync"
 	"fmt"
 	"gopkg.in/vmihailenco/msgpack.v2"
-	"exportor/proto"
+	"cacher"
 )
 
 type Conf struct {
@@ -64,6 +64,43 @@ func testredis() {
 	}
 	defer conn.Close()
 
+	/*
+	type HelloWorld struct {
+		A 		int
+		Str 	string
+	}
+
+	data, err := msgpack.Marshal(&HelloWorld{A:97, Str:"hello world"})
+	conn.Do("set", "record", data)
+
+	br, e := redis.Bytes(conn.Do("get", "record"))
+	fmt.Println("get record reply ", br, e)
+
+	var h HelloWorld
+	err = msgpacker.UnMarshal(br, &h)
+	fmt.Println(h,  err)
+
+	keys, err := redis.Strings(conn.Do("keys", "ak.*"))
+	fmt.Println("keys ..... ", keys)
+
+	sort.Strings(keys)
+
+	fmt.Println("keys ..... ", keys)
+	*/
+
+	cc := cacher.NewCacheClient("a")
+	cc.Start()
+
+	rid := cc.SaveGameRecord([]byte{12,12}, []byte{34, 34})
+	cc.SaveUserRecord(100, rid)
+
+	m, err := cc.GetGameRecordHead(100)
+	fmt.Println("user record ", m, err)
+	c, err := cc.GetGameRecordContent(rid)
+	fmt.Println("content ", c, err)
+
+
+	/*
 	servers := map[string]*proto.CacheServer {
 		"_SER_server1": &proto.CacheServer{
 			Type: "server1",
@@ -93,6 +130,7 @@ func testredis() {
 	}
 
 	conn.Do("hset", "_SER_server2", "id", 100)
+	*/
 }
 
 func publishm(channel string, args ...interface{}) {

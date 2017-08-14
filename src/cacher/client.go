@@ -9,6 +9,9 @@ import (
 	"exportor/proto"
 	"dbproxy/table"
 	"errors"
+	"sort"
+	"strings"
+	"strconv"
 )
 
 
@@ -387,7 +390,7 @@ func (cc *cacheClient) GetAllUserItem() ([]*proto.CacheUserItem, error) {
 		return nil, nil
 	}
 
-	keys, err := redis.Strings(cc.ccConn.Do("keys", allItems()))
+	keys, err := redis.Strings(cc.command("keys", allItems()))
 	if err != nil {
 		return nil, err
 	}
@@ -412,4 +415,55 @@ func (cc *cacheClient) GetAllUserItem() ([]*proto.CacheUserItem, error) {
 	return l, nil
 }
 
-// ICacheLoader
+func (cc *cacheClient) SaveGameRecord(head, content []byte) int {
+	id, _ := redis.Int(cc.command("incr", recordId()))
+	id += 100000
+	cc.ccConn.Do("set", recordHead(id), head, "ex", int(time.Hour * 24 * 7))
+	cc.ccConn.Do("set", recordContent(id), content, "ex", int(time.Hour * 24 * 7))
+	return id
+}
+
+func (cc *cacheClient) SaveUserRecord(userId, recordId int) error {
+	keys, _ := redis.Strings(cc.command("keys", userAllRecord(userId)))
+	if len(keys) > 10 {
+		sort.Strings(keys)
+		cc.command("del", keys[0])
+	}
+	cc.command("set", userRecord(userId, recordId), recordId)
+	return nil
+}
+
+func(cc *cacheClient) GetGameRecordHead(userId int) (map[int][]byte, error) {
+	keys, err := redis.Strings(cc.command("keys", userAllRecord(userId)))
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(keys)
+
+	hrids := []string{}
+	for _, key := range keys {
+		x := strings.Split(key, ".")
+		i, _ := strconv.Atoi(x[len(x)-1])
+		hrids = append(hrids, recordHead(i))
+	}
+
+	m := make(map[int][]byte)
+	heads, err := redis.ByteSlices(cc.command("mget", redis.Args{}.AddFlat(hrids)...))
+	if err != nil {
+		return nil, err
+	}
+
+	for i, key := range keys {
+		x := strings.Split(key, ".")
+		id, err := strconv.Atoi(x[len(x)-1])
+		fmt.Println("inner ", i, id)
+		if err == nil {
+			m[id] = heads[i]
+		}
+	}
+
+	return m, nil
+}
+func(cc *cacheClient) GetGameRecordContent(id int) ([]byte, error) {
+	return redis.Bytes(cc.command("get", recordContent(id)))
+}

@@ -20,6 +20,7 @@ type lobby struct {
 	hp 				*http2Proxy
 	ns 				*noticeService
 	rs 				*rankService
+	cs 				*recordService
 	dbClient 		*rpcd.RpcdClient
 	msClient 		*rpcd.RpcdClient
 	serverId 		int
@@ -34,6 +35,7 @@ func newLobby(option *defines.LobbyOption) *lobby {
 	lb.mall = newMallService(lb)
 	lb.ns = newNoticeService(lb)
 	lb.rs = newRankService(lb)
+	lb.cs = newRecordService(lb)
 	return lb
 }
 
@@ -74,6 +76,7 @@ func (lb *lobby) Start() error {
 	lb.ns.start()
 	lb.rs.start()
 	lb.mall.start()
+	lb.cs.start()
 
 	return nil
 }
@@ -194,6 +197,20 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 			return
 		}
 		lb.rs.onUserGetRanks(uid, &req)
+	case proto.CmdUserGetRecordList:
+		var req proto.ClientGetRecordList
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal record list errr", err)
+			return
+		}
+		lb.cs.OnUserGetRecordList(uid, &req)
+	case proto.CmdUserGetRecord:
+		var req proto.ClientGetRecord
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal record list errr", err)
+			return
+		}
+		lb.cs.OnUserGetRecord(uid, &req)
 	default:
 		fmt.Println("lobby handle invalid client cmd ", cmd)
 	}

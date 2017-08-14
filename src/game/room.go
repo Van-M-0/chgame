@@ -277,3 +277,11 @@ func (rm *room) GetUserInfoFromCache(user *defines.PlayerInfo) error {
 	}
 	return nil
 }
+
+func (rm *room) SaveGameRecord(head, data []byte) int {
+	return rm.manager.sm.cc.SaveGameRecord(head, data)
+}
+
+func (rm *room) SaveUserRecord(userid, id int) error {
+	return rm.manager.sm.cc.SaveUserRecord(userid, id)
+}

@@ -45,3 +45,42 @@ func alluseritems(userid uint32) string {
 func allItems() string {
 	return "items.*"
 }
+
+func recordId() string {
+	return "record.id"
+}
+
+func recordHead(id int) string {
+	return "record.rh."+strconv.Itoa(id)
+}
+
+func recordContent(id int) string {
+	return "record.rc."+strconv.Itoa(id)
+}
+
+func userAllRecord(userId int) string {
+	return "record.u."+strconv.Itoa(userId)+".*"
+}
+
+func userRecord(userId, recordId int) string {
+	return "record.u."+strconv.Itoa(userId)+"."+strconv.Itoa(recordId)
+}
+
+
+/*
+func recordHead(userId, id int) string {
+	return "record.ch."+strconv.Itoa(userId)+"."+strconv.Itoa(id)
+}
+
+func recordContent(userId, id int) string {
+	return "record.cc."+strconv.Itoa(userId)+"."+strconv.Itoa(id)
+}
+
+func allUserRecordHead(userId int) string {
+	return "record.ch."+strconv.Itoa(userId) + ".*"
+}
+
+func allRecords(userId int) string {
+	return "record.c*."+strconv.Itoa(userId)+".*"
+}
+*/
