@@ -22,14 +22,6 @@ func InitTables() {
 }
 
 func Test() {
-
-	dc := newDbClient()
-
-	type T_HelloTest struct {
-		A 		int 		`gorm:"comment:aa"`
-	}
-	dc.db.CreateTable(&T_HelloTest{})
-
 /*
 	dc := newDbClient()
 

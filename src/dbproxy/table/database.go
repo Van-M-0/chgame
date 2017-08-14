@@ -138,3 +138,17 @@ type T_Userdata struct {
 	Userid 		uint32 		`gorm:"primary_key"`
 	Data 		[]byte
 }
+
+type T_Quest struct {
+	Id 			int			`gorm:"primary_key"`
+	Title 		string
+	Content 	string
+	MaxCount 	int
+	RewardIds 	string
+}
+
+type T_QuestReward struct {
+	Id 			int 		`gorm:"primary_key"`
+	ItemId 		int
+	Num 		int
+}
