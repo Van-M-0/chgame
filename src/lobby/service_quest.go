@@ -41,3 +41,27 @@ func (qs *QuestService) OnUserProcessQuest(uid uint32, req *proto.ClientProcessQ
 func (qs *QuestService) OnUserCompleteQuest(uid uint32, req *proto.ClientCompleteQuest) {
 
 }
+
+
+type IQuest interface {
+	OnInit()
+	OnProcess(user *userInfo)
+	OnComplete(User *userInfo)
+}
+
+type ShareQuest struct {
+
+}
+
+func (sq *ShareQuest) OnInit() {
+
+}
+
+func (sq *ShareQuest) OnProcess(user *userInfo) {
+
+}
+
+func (sq *ShareQuest) OnComplete(user *userInfo) {
+
+}
+
