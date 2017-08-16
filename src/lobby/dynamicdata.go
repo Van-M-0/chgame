@@ -1,11 +1,16 @@
 package lobby
 
-type userDynamicData struct {
+import (
+	"time"
+	"exportor/proto"
+)
 
+type userQuests struct {
+	LastShare 	time.Time
+	Shared 		bool
+	Process 	[]*proto.QuestData
 }
 
-type questData struct {
-	Id 			int
-	CurCount 	int
-	TolCount 	int
+type userActivities struct {
+
 }

@@ -22,6 +22,8 @@ type lobby struct {
 	rs 				*rankService
 	cs 				*recordService
 	as 				*Activities
+	qs 				*QuestService
+	is 				*IdentifyService
 	dbClient 		*rpcd.RpcdClient
 	msClient 		*rpcd.RpcdClient
 	serverId 		int
@@ -38,6 +40,8 @@ func newLobby(option *defines.LobbyOption) *lobby {
 	lb.rs = newRankService(lb)
 	lb.cs = newRecordService(lb)
 	lb.as = newActivities(lb)
+	lb.qs = newQuestService(lb)
+	lb.is = newIdentifyService(lb)
 	return lb
 }
 
@@ -80,7 +84,8 @@ func (lb *lobby) Start() error {
 	lb.mall.start()
 	lb.cs.start()
 	lb.as.start()
-
+	lb.qs.start()
+	lb.is.start()
 	return nil
 }
 
@@ -222,6 +227,27 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 			return
 		}
 		lb.as.OnUserLoadActivities(uid, &req)
+	case proto.CmdUserLoadQuest:
+		var req proto.ClientLoadQuest
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal quest  errr", err)
+			return
+		}
+		lb.qs.OnUserLoadQuest(uid, &req)
+	case proto.CmdUserProcessQuest:
+		var req proto.ClientProcessQuest
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal quest process error")
+			return
+		}
+		lb.qs.OnUserProcessQuest(uid, &req)
+	case proto.CmdUserIdentify:
+		var req proto.ClientIdentify
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal quest process error")
+			return
+		}
+		lb.is.OnUserCheckUserIdentifier(uid, &req)
 	default:
 		fmt.Println("lobby handle invalid client cmd ", cmd)
 	}

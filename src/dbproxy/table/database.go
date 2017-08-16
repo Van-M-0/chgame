@@ -143,6 +143,7 @@ type T_Quest struct {
 	Id 			int			`gorm:"primary_key"`
 	Title 		string
 	Content 	string
+	Type 		string
 	MaxCount 	int
 	RewardIds 	string
 }

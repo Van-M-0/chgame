@@ -87,6 +87,7 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 				})
 			}
 			service.cc.UpdateUserItems(userInfo.Userid, items)
+			service.db.db.Where("userid = ?", userInfo.Userid).Find(&res.Ud)
 		}
 	} else {
 		res.Err = "notexists"
@@ -248,6 +249,35 @@ func (service *DBService) LoadActivity(req *proto.MsLoadActivitysArg, res *proto
 		res.ActivityRewards = append(res.ActivityRewards, &proto.ActivityRewardItem{
 			Id: r.Id,
 			RewardType: r.RewardType,
+			ItemId: r.ItemId,
+			Num: r.Num,
+		})
+	}
+
+	return nil
+}
+
+func (service *DBService) LoadQuests(req *proto.MsLoadQuestArg, res *proto.MsLoadQuestReply) error {
+	var ql []table.T_Quest
+	var qr []table.T_QuestReward
+	service.db.db.Find(&ql)
+	service.db.db.Find(&qr)
+
+	res.ErrCode = "ok"
+	for _, q := range ql {
+		res.Quests = append(res.Quests, proto.QuestItem{
+			Id: q.Id,
+			Title: q.Title,
+			Content: q.Content,
+			Type: q.Type,
+			MaxCount: q.MaxCount,
+			RewardIds: q.RewardIds,
+		})
+	}
+
+	for _, r := range qr {
+		res.Rewards = append(res.Rewards, proto.QuestRewardItem{
+			Id: r.Id,
 			ItemId: r.ItemId,
 			Num: r.Num,
 		})

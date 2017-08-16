@@ -216,6 +216,24 @@ func (dc *dbClient) InitTable() {
 		})
 	}
 
+	if !dc.db.HasTable(&table.T_Quest{}) {
+		dc.db.CreateTable(&table.T_Quest{})
+		dc.db.Create(&table.T_Quest{
+			Id: 101,
+			Title: "分享有礼"	,
+			Content: "分享，即可获得丰厚礼品",
+			Type: "counter",
+			MaxCount: 1,
+		})
+
+		dc.db.CreateTable(&table.T_QuestReward{})
+		dc.db.Create(&table.T_QuestReward{
+			Id: 1,
+			ItemId: 1,
+			Num: 1,
+		})
+	}
+
 	dc.CreateTableIfNot(&table.T_Accounts{})
 	dc.CreateTableIfNot(&table.T_Games{})
 	dc.CreateTableIfNot(&table.T_GamesArchive{})

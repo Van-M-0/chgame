@@ -7,6 +7,7 @@ import (
 	"cacher"
 	"communicator"
 	"fmt"
+	"msgpacker"
 )
 
 type userInfo struct {
@@ -21,6 +22,8 @@ type userInfo struct {
 	roomcard 	int
 	score 		int
 	itemList 	[]*proto.UserItem //race condition
+	quests 		userQuests
+	activities 	userActivities
 }
 
 type room struct {
@@ -283,6 +286,18 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 						gotUser()
 						u := um.getUser(uid)
 						u.itemList, _ = um.cc.GetUserItems(uint32(cacheUser.Uid))
+
+						var ud proto.UserData
+						if err := msgpacker.UnMarshal(res.Ud, &ud); err != nil {
+							fmt.Println("user data error ", err)
+						} else {
+							if err := msgpacker.UnMarshal(ud.Quest, &u.quests); err != nil {
+								fmt.Println("user quests error ", err)
+							}
+							if err := msgpacker.UnMarshal(ud.Activity, &u.activities); err != nil {
+								fmt.Println("user activities error ", err)
+							}
+						}
 					}
 				} else {
 					replyErr(defines.ErrCommonCache)

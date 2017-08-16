@@ -132,6 +132,22 @@ func test1() {
 
 func main() {
 
+	type AAA struct {
+		M 		map[int]int
+	}
+	a := &AAA{
+		M: make(map[int]int),
+	}
+	a.M[1] = 100
+
+	data, err := msgpacker.Marshal(&a)
+	fmt.Println(data, err)
+
+	var a1 AAA
+	msgpacker.UnMarshal(data, &a1)
+
+	fmt.Println(a1, a1.M[1])
+
 	/*
 	test1()
 
@@ -172,7 +188,7 @@ func main() {
 	//tcpServer()
 
 	//send1(nil)
-	testredis()
+	//testredis()
 	//testps()
 
 	//testCommunicator()
