@@ -91,7 +91,7 @@ func (client *tcpClient) sendLoop() {
 			if raw, err :=client.packer.Pack(m.cmd, m.data); err != nil {
 				fmt.Println("send msg error ", m, err)
 			} else {
-				fmt.Println("send to client", m.cmd, raw)
+				fmt.Println("send to client", client.id, m.cmd)
 				client.conn.Write(raw)
 			}
 		}
@@ -113,7 +113,7 @@ func (client *tcpClient) recvLoop() {
 				fmt.Println("client recv lopp decode msg error", err)
 				return
 			}
-			fmt.Println("callcb ", m)
+			//fmt.Println("callcb ", m)
 			client.opt.MsgCb(client, m)
 		}
 	}()
@@ -138,7 +138,7 @@ func (client *tcpClient) readMessage() (*proto.Message, error) {
 		return nil, err
 	}
 	header.Msg = body
-	fmt.Println("client recv message finish", header)
+	fmt.Println("client recv message finish", header.Cmd, header.Len)
 	return header, nil
 }
 

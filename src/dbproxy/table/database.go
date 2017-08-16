@@ -152,3 +152,13 @@ type T_QuestReward struct {
 	ItemId 		int
 	Num 		int
 }
+
+type T_ActionForbid struct {
+	Userid 		uint32		`gorm:"primary_key;not null"`
+	SpeakForbid	int			`gorm:"default:0"`
+	SfStartime 	time.Time
+	SfFinishtime 	time.Time
+	LoginForbid int			`gorm:"default:0"`
+	LfStarttime time.Time
+	LfFinishtime time.Time
+}

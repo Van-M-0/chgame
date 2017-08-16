@@ -20,7 +20,7 @@ type userInfo struct {
 	gold 		int64
 	roomcard 	int
 	score 		int
-	itemList 	[]proto.UserItem //race condition
+	itemList 	[]*proto.UserItem //race condition
 }
 
 type room struct {
@@ -156,6 +156,44 @@ func (um *userManager) updateUserProp(u *userInfo, prop int, val interface{}) bo
 		fmt.Println("udpate user prop error ", u.userId, prop, val)
 	}
 	return update
+}
+
+func (um *userManager) updateUserItem(user *userInfo, itemId uint32, count int) bool {
+	updateFlag := 0
+	defer func() {
+		p := proto.ItemProp{
+			Flag: updateFlag,
+			ItemId: itemId,
+			Count: count,
+		}
+		if updateFlag != 0 {
+			um.lb.send2player(user.uid, proto.CmdBaseUpsePropUpdate, &proto.SyncUserProps{
+				Items: p,
+			})
+		}
+	}()
+	for index, item := range user.itemList {
+		if item.ItemId == itemId {
+			item.Count += count
+			if item.Count <= 0 {
+				user.itemList = append(user.itemList[:index], user.itemList[index+1:]...)
+				updateFlag = 2
+			} else {
+				updateFlag = 1
+			}
+			return true
+		}
+	}
+	if count > 0 {
+		updateFlag = 3
+		user.itemList = append(user.itemList, &proto.UserItem{
+			ItemId: itemId,
+			Count: count,
+		})
+		return true
+	}
+	fmt.Println("update item err, id not exists ", itemId, count)
+	return false
 }
 
 func (um *userManager) getUserProp(uid uint32, prop int) interface{} {

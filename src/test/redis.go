@@ -93,6 +93,8 @@ func testredis() {
 
 	rid := cc.SaveGameRecord([]byte{12,12}, []byte{34, 34})
 	cc.SaveUserRecord(100, rid)
+	cc.SaveUserRecord(100, rid+1)
+	cc.SaveUserRecord(101, rid)
 
 	m, err := cc.GetGameRecordHead(100)
 	fmt.Println("user record ", m, err)

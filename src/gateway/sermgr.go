@@ -41,7 +41,7 @@ func (mgr *serManager) serDisconnected(client defines.ITcpClient) {
 }
 
 func (mgr *serManager) serMessage(client defines.ITcpClient, m *proto.Message) {
-	fmt.Println("handle lobby message ", m)
+	fmt.Println("handle lobby message ", m.Cmd)
 	if m.Cmd == proto.LobbyRouteClient {
 		header := &proto.LobbyGateHeader{}
 		err := msgpacker.UnMarshal(m.Msg, &header)
@@ -55,8 +55,6 @@ func (mgr *serManager) serMessage(client defines.ITcpClient, m *proto.Message) {
 		if err != nil {
 			fmt.Println("unmarshal lobby to client message error ", err)
 		}
-
-
 		mgr.gateway.gameRoute2client(header.Uids, header.Cmd, header.Msg)
 	} else if m.Cmd == proto.LobbyRouteGate {
 

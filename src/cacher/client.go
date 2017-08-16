@@ -14,6 +14,11 @@ import (
 	"strconv"
 )
 
+const (
+	RecordTimeOut = time.Hour * 24
+	MaxUserRecord = 10
+)
+
 
 type cacheClient struct {
 	group         string
@@ -323,14 +328,14 @@ func(cc *cacheClient) UpdateUserItems(userid uint32, items []proto.UserItem) err
 	return nil
 }
 
-func(cc *cacheClient) GetUserItems(userid uint32) ([]proto.UserItem, error) {
+func(cc *cacheClient) GetUserItems(userid uint32) ([]*proto.UserItem, error) {
 
 	skeys, err := redis.Strings(cc.ccConn.Do("keys", alluseritems(userid)))
 	if err != nil {
 		return nil, err
 	}
 
-	items := []proto.UserItem{}
+	items := []*proto.UserItem{}
 
 	for _, key := range skeys {
 		values, err := redis.Values(cc.command("hgetall", key))
@@ -340,12 +345,12 @@ func(cc *cacheClient) GetUserItems(userid uint32) ([]proto.UserItem, error) {
 		}
 
 		var i proto.CacheUserItem
-		if err := redis.ScanStruct(values, i); err != nil {
+		if err := redis.ScanStruct(values, &i); err != nil {
 			fmt.Println("get user items scan values error", err)
 			continue
 		}
 
-		items = append(items, proto.UserItem{
+		items = append(items, &proto.UserItem{
 			ItemId: uint32(i.Id),
 			Count: i.Count,
 		})
@@ -418,18 +423,18 @@ func (cc *cacheClient) GetAllUserItem() ([]*proto.CacheUserItem, error) {
 func (cc *cacheClient) SaveGameRecord(head, content []byte) int {
 	id, _ := redis.Int(cc.command("incr", recordId()))
 	id += 100000
-	cc.ccConn.Do("set", recordHead(id), head, "ex", int(time.Hour * 24 * 7))
-	cc.ccConn.Do("set", recordContent(id), content, "ex", int(time.Hour * 24 * 7))
+	cc.ccConn.Do("set", recordHead(id), head, "ex", RecordTimeOut)
+	cc.ccConn.Do("set", recordContent(id), content, "ex", RecordTimeOut)
 	return id
 }
 
 func (cc *cacheClient) SaveUserRecord(userId, recordId int) error {
 	keys, _ := redis.Strings(cc.command("keys", userAllRecord(userId)))
-	if len(keys) > 10 {
+	if len(keys) > MaxUserRecord {
 		sort.Strings(keys)
 		cc.command("del", keys[0])
 	}
-	cc.command("set", userRecord(userId, recordId), recordId)
+	cc.command("set", userRecord(userId, recordId), recordId, "ex", RecordTimeOut)
 	return nil
 }
 

@@ -128,6 +128,6 @@ func (ns *noticeService) handleLoadNotices(uid uint32, req *proto.LoadNoticeList
 	var res proto.LoadNoticeListRet
 	res.List = l
 
-	fmt.Println("res.List ", res.List)
+	fmt.Println("notice res.List ", res.List)
 	ns.lb.send2player(uid, proto.CmdUserLoadNotice, &res)
 }

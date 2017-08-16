@@ -36,6 +36,9 @@ type Activities struct {
 	rewardList 		[]*proto.ActivityRewardItem
 	activityList 	[]Activity
 	ch 				chan *ActivityEvent
+
+	clientItemList 	[]*proto.ActivityItem
+	clientRewardList []*proto.ActivityRewardItem
 }
 
 func newActivities(lb *lobby) *Activities {
@@ -45,10 +48,23 @@ func newActivities(lb *lobby) *Activities {
 	return ac
 }
 
-func (ac *Activities) start() {
+func (ac *Activities) getRewardIds(a *proto.ActivityItem) []int {
+	ac.acLock.Lock()
+	defer ac.acLock.Unlock()
 
+	r := make([]int, 0)
+	str := strings.Split(a.Rewardids, ",")
+	for _, s := range str {
+		if i, err := strconv.Atoi(s); err != nil {
+			r = append(r, i)
+		}
+	}
+	return r
+}
+
+func (ac *Activities) start() {
 	var res proto.MsLoadActivitysReply
-	ac.lb.dbClient.Call("DBService.LoadItemConfig", &proto.MsLoadActivitysArg{}, &res)
+	ac.lb.dbClient.Call("DBService.LoadActivity", &proto.MsLoadActivitysArg{}, &res)
 
 	ac.acLock.Lock()
 	ac.itemList = res.Activitys
@@ -61,7 +77,19 @@ func (ac *Activities) start() {
 			activity := ac.create(a)
 			if activity != nil {
 				ac.activityList = append(ac.activityList, activity)
+
+				ac.clientItemList = append(ac.clientItemList, a)
+				ids := ac.getRewardIds(a)
+				for _, id := range ids {
+					for _, r := range ac.rewardList {
+						if r.Id == id {
+							ac.clientRewardList = append(ac.clientRewardList, r)
+						}
+					}
+				}
+
 				activity.OnStart()
+				fmt.Println("activity start ", a)
 			}
 		}
 
@@ -100,10 +128,22 @@ func (ac *Activities) start() {
 	}()
 }
 
+func (ac *Activities) OnUserLoadActivities(uid uint32, req *proto.ClientLoadActitity) {
+	var ret proto.ClientLoadActitityRet
+	ac.acLock.Lock()
+	ret.Activities = ac.clientItemList
+	ret.Rewards = ac.clientRewardList
+	ac.acLock.Unlock()
+	ac.lb.send2player(uid, proto.CmdUserLoadActivityList, &ret)
+}
+
 func (ac *Activities) stop() {
 	for _, a := range ac.activityList {
 		a.OnStop()
 	}
+}
+
+func (ac *Activities) stopActivity(a Activity) {
 }
 
 func (ac *Activities) MasterOpen(acid int) {
@@ -143,7 +183,7 @@ func (ac *Activities) Close(acid int) {
 }
 
 func (ac *Activities) OnEvent(e *ActivityEvent) {
-
+	ac.ch <- e
 }
 
 type ActivityEvent struct {
@@ -174,10 +214,11 @@ func (fc *FirstChargeActivity) OnStart() {
 }
 
 func (fc *FirstChargeActivity) OnStop() {
-
+	fc.mgr.stopActivity(fc)
 }
 
 func (fc *FirstChargeActivity) OnEvent(e *ActivityEvent) {
+	fmt.Println("first charge activity ", e)
 	for _, r := range fc.rewards {
 		if r.RewardType == RewardTypeAddition {
 		} else if r.RewardType == RewardTypeItem {

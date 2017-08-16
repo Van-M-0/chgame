@@ -226,6 +226,7 @@ func (dc *dbClient) InitTable() {
 	dc.CreateTableIfNot(&table.T_Notice{})
 	dc.CreateTableIfNot(&table.T_UserItem{})
 	dc.CreateTableIfNot(&table.T_Userdata{})
+	dc.CreateTableIfNot(&table.T_ActionForbid{})
 }
 
 // t_accounts : account info

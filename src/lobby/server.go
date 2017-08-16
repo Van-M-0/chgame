@@ -21,6 +21,7 @@ type lobby struct {
 	ns 				*noticeService
 	rs 				*rankService
 	cs 				*recordService
+	as 				*Activities
 	dbClient 		*rpcd.RpcdClient
 	msClient 		*rpcd.RpcdClient
 	serverId 		int
@@ -36,6 +37,7 @@ func newLobby(option *defines.LobbyOption) *lobby {
 	lb.ns = newNoticeService(lb)
 	lb.rs = newRankService(lb)
 	lb.cs = newRecordService(lb)
+	lb.as = newActivities(lb)
 	return lb
 }
 
@@ -77,6 +79,7 @@ func (lb *lobby) Start() error {
 	lb.rs.start()
 	lb.mall.start()
 	lb.cs.start()
+	lb.as.start()
 
 	return nil
 }
@@ -95,7 +98,6 @@ func (lb *lobby) Stop() error {
 }
 
 func (lb *lobby) onGwMessage(message *proto.Message) {
-	fmt.Println("lobby on gw message ", message)
 	if message.Cmd == proto.ClientRouteLobby {
 		var header proto.GateLobbyHeader
 		if err := msgpacker.UnMarshal(message.Msg, &header); err != nil {
@@ -114,6 +116,8 @@ func (lb *lobby) onGwMessage(message *proto.Message) {
 		}
 		fmt.Println("lobby on gw message 1", header.Cmd, header)
 		lb.handleGateMessage(header.Uid, header.Cmd, header.Msg)
+	} else {
+		fmt.Println("lobby on gw message router error ", message)
 	}
 }
 
@@ -211,6 +215,13 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 			return
 		}
 		lb.cs.OnUserGetRecord(uid, &req)
+	case proto.CmdUserLoadActivityList:
+		var req proto.ClientLoadActitity
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal record list errr", err)
+			return
+		}
+		lb.as.OnUserLoadActivities(uid, &req)
 	default:
 		fmt.Println("lobby handle invalid client cmd ", cmd)
 	}
@@ -226,7 +237,7 @@ func (lb *lobby) send2player(uid uint32, cmd uint32, data interface{}) {
 		Cmd: cmd,
 		Msg: body,
 	}
-	fmt.Println("lobby send 2 player ", header)
+	fmt.Println("lobby send 2 player ", header.Cmd, header.Uids)
 	lb.gwClient.Send(proto.LobbyRouteClient, &header)
 }
 
@@ -241,7 +252,7 @@ func (lb *lobby) broadcastMessage(cmd uint32, data interface{}) {
 		Cmd: cmd,
 		Msg: body,
 	}
-	fmt.Println("lobby send 2 player ", header)
+	fmt.Println("lobby bc 2 player ", header.Cmd, header.Uids)
 	lb.gwClient.Send(proto.LobbyRouteClient, &header)
 }
 
