@@ -9,6 +9,8 @@ import (
 	"msgpacker"
 	"time"
 	"os"
+	"strings"
+	"strconv"
 )
 /*
 func testpb() {
@@ -148,6 +150,18 @@ func main() {
 
 	fmt.Println(a1, a1.M[1])
 
+	str := strings.Split("1", ",")
+	fmt.Println(str)
+	r := make([]int, 0)
+	for _, s := range str {
+		if i, err := strconv.Atoi(s); err != nil {
+			r = append(r, i)
+		} else {
+			fmt.Println(err)
+		}
+	}
+	fmt.Println(r)
+
 	/*
 	test1()
 
@@ -188,7 +202,7 @@ func main() {
 	//tcpServer()
 
 	//send1(nil)
-	//testredis()
+	testredis()
 	//testps()
 
 	//testCommunicator()

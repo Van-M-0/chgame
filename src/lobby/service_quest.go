@@ -5,6 +5,14 @@ import (
 	"exportor/defines"
 	"time"
 	"fmt"
+	"strings"
+	"strconv"
+)
+
+const (
+	QuestStatusProcess    = 1
+	QuestStatusFinish     = 2
+	QuestStatusCompletion = 3
 )
 
 const (
@@ -74,40 +82,49 @@ func (qs *QuestService) addQuest(user *userInfo, id int) {
 	for _, q := range qs.questItems {
 		if q.Id == id {
 			user.quests.Process = append(user.quests.Process, &proto.QuestData{
-				Id: id,
+				Id:       id,
 				TolCount: q.MaxCount,
+				Status:   QuestStatusProcess,
 			})
 			return
 		}
 	}
 }
 
+func (qs *QuestService) getQuestConfig(id int) *proto.QuestItem {
+	for _, q := range qs.questItems {
+		if q.Id == id {
+			return &q
+		}
+	}
+	return nil
+}
+
+func (qs *QuestService) checkPassDay(ot, nt time.Time) bool {
+	if ot.Day() < nt.Day() {
+		return true
+	}
+	return false
+}
+
 func (qs *QuestService) checkAddQuest(user *userInfo) {
 	if q := qs.haveQuest(user, ShareQuestId); q != nil {
-		if user.quests.Shared {
-			if user.quests.LastShare.Add(ShareQuestDuration).Unix() < time.Now().Unix() {
-				user.quests.Shared = false
+		if q.Status == QuestStatusCompletion {
+			if qs.checkPassDay(user.quests.LastShare, time.Now()) {
+				q.Status = QuestStatusProcess
+				q.CurCount = 0
 			}
 		}
 	} else {
 		qs.addQuest(user, ShareQuestId)
-		user.quests.Shared = false
 	}
 }
 
 func (qs *QuestService) OnUserProcessQuest(uid uint32, req *proto.ClientProcessQuest) {
 
 	replyErr := func(err int) {
-		qs.lb.send2player(uid, proto.CmdUserProcessQuest, &proto.ClientProcessQuest{
+		qs.lb.send2player(uid, proto.CmdUserProcessQuest, &proto.ClientProcessQuestRet{
 			ErrCode: err,
-		})
-	}
-
-	replySuc := func(q *proto.QuestData) {
-		qs.lb.send2player(uid, proto.CmdUserProcessQuest, &proto.ClientProcessQuest{
-			ErrCode: defines.ErrCommonSuccess,
-			Id: req.Id,
-			CurCount: q.CurCount,
 		})
 	}
 
@@ -128,12 +145,84 @@ func (qs *QuestService) OnUserProcessQuest(uid uint32, req *proto.ClientProcessQ
 			replyErr(defines.ErrQuestProcessFinished)
 			return
 		}
+
+		if q.Status == QuestStatusFinish {
+			replyErr(defines.ErrQuestProcessFinished)
+			return
+		}
+
 		user.quests.Shared = true
 		user.quests.LastShare = time.Now()
 		q.CurCount++
-		replySuc(q)
+
+		config := qs.getQuestConfig(ShareQuestId)
+		if q.CurCount == config.MaxCount {
+			q.Status = QuestStatusFinish
+		}
+
+		qs.lb.send2player(uid, proto.CmdUserProcessQuest, &proto.ClientProcessQuestRet{
+			ErrCode: defines.ErrCommonSuccess,
+			Id: req.Id,
+			CurCount: q.CurCount,
+			Status: q.Status,
+		})
+
 	} else {
 		replyErr(defines.ErrQuestProcessMustWait)
 	}
+}
+
+func (qs *QuestService) OnUserCompletionQuest(uid uint32, req *proto.ClientCompleteQuest) {
+
+	replyErr := func(err int) {
+		qs.lb.send2player(uid, proto.CmdUserCompleteQuest, &proto.ClientCompleteQuestRet{
+			ErrCode: err,
+		})
+	}
+
+	user := qs.lb.userMgr.getUser(uid)
+	if user == nil {
+		replyErr(defines.ErrComononUserNotIn)
+		return
+	}
+
+	q := qs.haveQuest(user, req.Id)
+	if q == nil {
+		replyErr(defines.ErrQuestProcessNotHave)
+		return
+	}
+
+	if q.Status == QuestStatusCompletion {
+		replyErr(defines.ErrQuestProcessCompletioned)
+		return
+	}
+
+	if q.Status != QuestStatusFinish {
+		replyErr(defines.ErrQuestPorcessNotFinish)
+		return
+	}
+
+	q.Status = QuestStatusCompletion
+	config := qs.getQuestConfig(req.Id)
+
+	str := strings.Split(config.RewardIds, ",")
+	r := make([]int, 0)
+	for _, s := range str {
+		if i, err := strconv.Atoi(s); err == nil {
+			r = append(r, i)
+		}
+	}
+	itemConfig := qs.lb.mall.GetItemConfig(r)
+	fmt.Println("quest completion items ", itemConfig)
+
+	for _, item := range itemConfig {
+		qs.lb.userMgr.updateUserItem(user, item.Itemid, item.Nums)
+	}
+
+	qs.lb.send2player(uid, proto.CmdUserCompleteQuest, &proto.ClientCompleteQuestRet{
+		ErrCode: defines.ErrCommonSuccess,
+		Id: req.Id,
+		RewardId: config.RewardIds,
+	})
 }
 

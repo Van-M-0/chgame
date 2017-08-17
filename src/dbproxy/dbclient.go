@@ -224,6 +224,7 @@ func (dc *dbClient) InitTable() {
 			Content: "分享，即可获得丰厚礼品",
 			Type: "counter",
 			MaxCount: 1,
+			RewardIds: "1",
 		})
 
 		dc.db.CreateTable(&table.T_QuestReward{})

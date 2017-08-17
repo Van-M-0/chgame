@@ -7,7 +7,6 @@ import (
 	"sync"
 	"fmt"
 	"gopkg.in/vmihailenco/msgpack.v2"
-	"cacher"
 )
 
 type Conf struct {
@@ -64,6 +63,8 @@ func testredis() {
 	}
 	defer conn.Close()
 
+	conn.Do("set", "a13213", 123123, "ex", 60)
+
 	/*
 	type HelloWorld struct {
 		A 		int
@@ -88,6 +89,7 @@ func testredis() {
 	fmt.Println("keys ..... ", keys)
 	*/
 
+	/*
 	cc := cacher.NewCacheClient("a")
 	cc.Start()
 
@@ -100,7 +102,7 @@ func testredis() {
 	fmt.Println("user record ", m, err)
 	c, err := cc.GetGameRecordContent(rid)
 	fmt.Println("content ", c, err)
-
+	*/
 
 	/*
 	servers := map[string]*proto.CacheServer {

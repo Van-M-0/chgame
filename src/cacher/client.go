@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	RecordTimeOut = time.Hour * 24
-	MaxUserRecord = 10
+	RecordTimeOut = 60 * 60 * 24
+	MaxUserRecord = 500
 )
 
 
@@ -139,6 +139,7 @@ func (cc *cacheClient) SetUserInfo(d interface{}, dbRet bool) error {
 		Uid: int(userInfo.Userid),
 		Sex: userInfo.Sex,
 		Name: userInfo.Name,
+		HeadImg: userInfo.Headimg,
 		Diamond: int(userInfo.Diamond),
 		RoomCard: int(userInfo.RoomCard),
 		Gold: int64(userInfo.Gold),
@@ -229,7 +230,7 @@ func (cc *cacheClient) SetServer(server *proto.CacheServer) error {
 func (cc *cacheClient) GetServers() ([]*proto.CacheServer, error) {
 	var servers []*proto.CacheServer
 
-	skeys, err := redis.Strings(cc.ccConn.Do("keys", serversPattern()))
+	skeys, err := redis.Strings(cc.command("keys", serversPattern()))
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +289,7 @@ func (cc *cacheClient) NoticeOperation(notice *[]*proto.CacheNotice, op string) 
 			fmt.Println("set notices error", err)
 		}
 	} else if op == "getall" {
-		nids, err := redis.Strings(cc.ccConn.Do("keys", noticesPattern()))
+		nids, err := redis.Strings(cc.command("keys", noticesPattern()))
 		if err != nil {
 			return nil
 		}
@@ -330,7 +331,7 @@ func(cc *cacheClient) UpdateUserItems(userid uint32, items []proto.UserItem) err
 
 func(cc *cacheClient) GetUserItems(userid uint32) ([]*proto.UserItem, error) {
 
-	skeys, err := redis.Strings(cc.ccConn.Do("keys", alluseritems(userid)))
+	skeys, err := redis.Strings(cc.command("keys", alluseritems(userid)))
 	if err != nil {
 		return nil, err
 	}
@@ -365,7 +366,7 @@ func (cc *cacheClient) GetAllUsers() ([]*proto.CacheUser, error) {
 		return nil, nil
 	}
 
-	keys, err := redis.Strings(cc.ccConn.Do("keys", allUsers()))
+	keys, err := redis.Strings(cc.command("keys", allUsers()))
 	if err != nil {
 		return nil, err
 	}
@@ -423,8 +424,12 @@ func (cc *cacheClient) GetAllUserItem() ([]*proto.CacheUserItem, error) {
 func (cc *cacheClient) SaveGameRecord(head, content []byte) int {
 	id, _ := redis.Int(cc.command("incr", recordId()))
 	id += 100000
-	cc.ccConn.Do("set", recordHead(id), head, "ex", RecordTimeOut)
-	cc.ccConn.Do("set", recordContent(id), content, "ex", RecordTimeOut)
+	if _, err := cc.command("set", recordHead(id), head, "ex", RecordTimeOut); err != nil {
+		fmt.Println("save record head error ", err)
+	}
+	if _, err := cc.command("set", recordContent(id), content, "ex", RecordTimeOut); err != nil {
+		fmt.Println("save record content error ", err)
+	}
 	return id
 }
 
@@ -434,7 +439,9 @@ func (cc *cacheClient) SaveUserRecord(userId, recordId int) error {
 		sort.Strings(keys)
 		cc.command("del", keys[0])
 	}
-	cc.command("set", userRecord(userId, recordId), recordId, "ex", RecordTimeOut)
+	if _, err := cc.command("set", userRecord(userId, recordId), recordId, "ex", RecordTimeOut); err != nil {
+		fmt.Println("save user record error", err)
+	}
 	return nil
 }
 
@@ -471,4 +478,8 @@ func(cc *cacheClient) GetGameRecordHead(userId int) (map[int][]byte, error) {
 }
 func(cc *cacheClient) GetGameRecordContent(id int) ([]byte, error) {
 	return redis.Bytes(cc.command("get", recordContent(id)))
+}
+
+func (cc *cacheClient) Scripts(args ...interface{}) {
+	cc.ccConn.Do("eval", args...)
 }

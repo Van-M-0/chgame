@@ -4,6 +4,7 @@ import (
 	"exportor/proto"
 	"exportor/defines"
 	"cacher"
+	"fmt"
 )
 
 type recordService struct {
@@ -37,6 +38,7 @@ func (rs *recordService) OnUserGetRecordList(uid uint32, req *proto.ClientGetRec
 
 	m, err := rs.cc.GetGameRecordHead(int(user.userId))
 	if err != nil {
+		fmt.Println("on user get record list err", err)
 		rs.lb.send2player(uid, proto.CmdUserGetRecordList, &proto.ClientGetRecordListRet{
 			ErrCode: defines.ErrCommonCache,
 		})
@@ -58,6 +60,7 @@ func (rs *recordService) OnUserGetRecordList(uid uint32, req *proto.ClientGetRec
 func (rs *recordService) OnUserGetRecord(uid uint32, req *proto.ClientGetRecord) {
 	data, err := rs.cc.GetGameRecordContent(req.RecordId)
 	if err != nil {
+		fmt.Println("on user get record error ", err)
 		rs.lb.send2player(uid, proto.CmdUserGetRecord, &proto.ClientGetRecordRet{
 			ErrCode: defines.ErrCommonCache,
 		})

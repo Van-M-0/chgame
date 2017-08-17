@@ -64,7 +64,25 @@ func (ds *dbProxyServer) Stop() error {
 }
 
 func (ds *dbProxyServer) load2Cache() {
-	ds.cacheClient.FlushAll()
+
+	delScript := `
+			local keys = redis.call('keys', ARGV[1])
+
+			local removeKeys = {}
+			for i = 1, #keys do
+				local s, e = string.find(keys[i], ARGV[2])
+				if not s or not e then
+					table.insert(removeKeys, keys[i])
+				end
+			end
+
+			for i=1,#removeKeys,5000 do
+				redis.call('del', unpack(removeKeys, i, math.min(i+4999, #removeKeys)))
+			end
+
+			return #removeKeys
+	`
+	ds.cacheClient.Scripts(delScript, 0, "*", "record..*")
 
 	/*
 	ft, err := time.Parse("2006-01-02 15:04:05", "2017-08-08 09:04:01")

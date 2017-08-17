@@ -241,6 +241,13 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 			return
 		}
 		lb.qs.OnUserProcessQuest(uid, &req)
+	case proto.CmdUserCompleteQuest:
+		var req proto.ClientCompleteQuest
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal quest complete error")
+			return
+		}
+		lb.qs.OnUserCompletionQuest(uid, &req)
 	case proto.CmdUserIdentify:
 		var req proto.ClientIdentify
 		if err := msgpacker.UnMarshal(data, &req); err != nil {

@@ -85,3 +85,20 @@ func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 
 	fmt.Println(v)
 }
+
+func (ms *mallService) GetItemConfig(itemid []int) []proto.ItemConfig {
+	ms.itemsLock.Lock()
+	defer func() {
+		ms.itemsLock.Unlock()
+	}()
+	fmt.Println("get item config ", ms.ItemConfigList)
+	items := []proto.ItemConfig{}
+	for _, id := range itemid {
+		for _, item := range ms.ItemConfigList {
+			if item.Itemid == uint32(id) {
+				items = append(items, item)
+			}
+		}
+	}
+	return items
+}

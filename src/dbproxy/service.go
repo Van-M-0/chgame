@@ -88,6 +88,10 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 			}
 			service.cc.UpdateUserItems(userInfo.Userid, items)
 			service.db.db.Where("userid = ?", userInfo.Userid).Find(&res.Ud)
+
+			var ud table.T_Userdata
+			service.db.db.Where("userid = ?", userInfo.Userid).Find(&ud)
+			res.Ud = ud.Data
 		}
 	} else {
 		res.Err = "notexists"

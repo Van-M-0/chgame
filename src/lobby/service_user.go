@@ -13,14 +13,15 @@ import (
 type userInfo struct {
 	uid 		uint32
 	userId 		uint32
-	openid 		string
 	account 	string
+	sex 		uint8
 	name 		string
 	headimg 	string
 	diamond 	int
 	gold 		int64
 	roomcard 	int
 	score 		int
+	roomId 		int
 	itemList 	[]*proto.UserItem //race condition
 	quests 		userQuests
 	activities 	userActivities
@@ -107,7 +108,7 @@ func (um *userManager) addUser(uid uint32, cu *proto.CacheUser) *userInfo {
 		roomcard: cu.RoomCard,
 		score: cu.Score,
 		headimg: cu.HeadImg,
-		openid: cu.Openid,
+		roomId: cu.RoomId,
 	}
 	um.userLock.Lock()
 	um.users[uid]=user
@@ -234,13 +235,22 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 		um.lb.send2player(uid, proto.CmdClientLogin, &proto.ClientLoginRet{
 			ErrCode: defines.ErrCommonSuccess,
 			Uid: uid,
-			Account: user.account,
-			Name: user.name,
 			UserId: user.userId,
+			Account: user.account,
+			Sex: user.sex,
+			Name: user.name,
+			HeadImg: user.headimg,
 			Diamond: user.diamond,
 			Gold: user.gold,
-			RoomCard: user.roomcard,
 			Score: user.score,
+			RoomId: user.roomId,
+		})
+	}
+
+	replyItems := func(user *userInfo) {
+		fmt.Println("reply item list")
+		um.lb.send2player(uid, proto.CmdBaseSynceLoginItems, &proto.SystemSyncItems{
+			Items: user.itemList,
 		})
 	}
 
@@ -284,8 +294,10 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 						replyErr(defines.ErrCommonCache)
 					} else {
 						gotUser()
+
 						u := um.getUser(uid)
 						u.itemList, _ = um.cc.GetUserItems(uint32(cacheUser.Uid))
+						replyItems(u)
 
 						var ud proto.UserData
 						if err := msgpacker.UnMarshal(res.Ud, &ud); err != nil {
@@ -298,6 +310,7 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 								fmt.Println("user activities error ", err)
 							}
 						}
+
 					}
 				} else {
 					replyErr(defines.ErrCommonCache)

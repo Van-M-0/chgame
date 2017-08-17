@@ -55,7 +55,7 @@ func (ac *Activities) getRewardIds(a *proto.ActivityItem) []int {
 	r := make([]int, 0)
 	str := strings.Split(a.Rewardids, ",")
 	for _, s := range str {
-		if i, err := strconv.Atoi(s); err != nil {
+		if i, err := strconv.Atoi(s); err == nil {
 			r = append(r, i)
 		}
 	}
