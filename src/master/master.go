@@ -9,6 +9,7 @@ import (
 type Master struct {
 	hp 		*http2Proxy
 	sdk 	*SdkService
+	wdClient *rpcd.RpcdClient
 }
 
 func NewMasterServer (cfg *defines.StartConfigFile) defines.IServer {
@@ -41,6 +42,7 @@ func (ms *Master) StartRpc() {
 		rpc.Register(ms.sdk)
 		rpcd.StartServer(defines.MSServicePort)
 	}
+	//ms.wdClient = rpcd.StartClient(defines.WDServicePort)
 	go start()
 }
 

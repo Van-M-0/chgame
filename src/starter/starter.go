@@ -50,6 +50,8 @@ func init() {
 		panic(fmt.Errorf("config file invalid err %v", err).Error())
 	}
 
+	defines.WDServicePort = cfg.WorldHost
+
 	fmt.Println(cfg)
 }
 

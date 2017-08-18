@@ -163,7 +163,7 @@ func (hp *http2Proxy) getGameModules(w http.ResponseWriter, r *http.Request) {
 
 	type clientModReply struct {
 		ErrCode 	string
-		List 		[]ClientList
+		List 		[]proto.ModuleInfo
 	}
 
 	rep := clientModReply{ErrCode:"ok"}
@@ -172,6 +172,19 @@ func (hp *http2Proxy) getGameModules(w http.ResponseWriter, r *http.Request) {
 		l := GameModService.getModuleList(v[0])
 		rep.List = l
 	}
+
+	/*
+	mm := map[string]string {
+		"四川省":"Sichuan",
+		"成都市":"ChengDu",
+	}
+
+	for _, l := range rep.List {
+		l.City = mm[l.City]
+		l.Province = mm[l.Province]
+	}
+	*/
+
 
 	fmt.Println("rep >", rep, GameModService != nil)
 

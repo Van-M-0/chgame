@@ -55,9 +55,26 @@ func (ms *mallService) onUserLoadMalls(uid uint32, req *proto.ClientLoadMallList
 
 func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 	var item proto.ItemConfig
+	user := ms.lb.userMgr.getUser(uid)
+	fmt.Println("user buy", user)
+
+	if user == nil {
+		ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
+			ErrCode: defines.ErrComononUserNotIn,
+		})
+		return
+	}
+
+	if req.Item	< 0 {
+		ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
+			ErrCode: defines.ErrClientBuyInvalid,
+		})
+		return
+	}
+
 	ms.itemsLock.Lock()
 	for _, i := range ms.ItemConfigList {
-		if int(i.Itemid) == req.ItemId {
+		if int(i.Itemid) == req.Item {
 			item = i
 			break
 		}
@@ -71,19 +88,19 @@ func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 		return
 	}
 
-	user := ms.lb.userMgr.getUser(uid)
-	fmt.Println("user buy", user)
+	if item.Category == defines.MallItemCategoryGold {
 
-	var v interface{}
-	if item.Category == defines.MallItemCategoryDiamond {
-		//v = ms.lb.userMgr.getUserProp(uid, defines.PpDiamond).(int)
-	} else if item.Category == defines.MallItemCategoryGold {
-		//v = ms.lb.userMgr.getUserProp(uid, defines.PpGold).(int64)
-	} else if item.Category == defines.MallItemCategoryRoomCard {
-		//v = ms.lb.userMgr.getUserProp(uid, defines.PpRoomCard).(int)
+	} else if item.Category == defines.MallItemCategoryDiamond {
+
+	} else if item.Category == defines.MallItemCategoryItem {
+
 	}
 
-	fmt.Println(v)
+	fmt.Println("client buy item success ", item)
+
+	ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
+		ErrCode: defines.ErrCommonSuccess,
+	})
 }
 
 func (ms *mallService) GetItemConfig(itemid []int) []proto.ItemConfig {
