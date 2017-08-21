@@ -90,10 +90,12 @@ func (ds *dataSaver) stop() {
 
 func (ds *dataSaver) collect() {
 	getUsers := func() {
-		users, _:= ds.cc.GetAllUsers()
+		users, err := ds.cc.GetAllUsers()
+		fmt.Println("collect users", err, users)
 		if users != nil {
 			l := []*table.T_Users{}
 			for _, user := range users {
+				fmt.Println("collect users", *user)
 				l = append(l, &table.T_Users{
 					Userid: uint32(user.Uid),
 					Account: user.Account,
@@ -140,11 +142,27 @@ func (ds *dataSaver) save() {
 				for _, u := range data {
 					if ou, ok := ds.lsUsers[u.Userid]; ok {
 						if *ou != *u {
-							ds.dc.db.Save(u)
+							ds.dc.db.Table("t_users").Where("userid = ?", u.Userid).Updates(map[string]interface{}{
+								"headimg": 	u.Headimg,
+								"level": 	u.Level,
+								"exp":		u.Exp,
+								"diamond":	u.Diamond,
+								"gold":		u.Gold,
+								"score":	u.Score,
+								"roomid":	u.Roomid,
+							})
 							ds.lsUsers[u.Userid] = u
 						}
 					} else {
-						ds.dc.db.Save(u)
+						ds.dc.db.Table("t_users").Where("userid = ?", u.Userid).Updates(map[string]interface{}{
+							"headimg": 	u.Headimg,
+							"level": 	u.Level,
+							"exp":		u.Exp,
+							"diamond":	u.Diamond,
+							"gold":		u.Gold,
+							"score":	u.Score,
+							"roomid":	u.Roomid,
+						})
 						ds.lsUsers[u.Userid] = u
 					}
 				}

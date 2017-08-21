@@ -57,6 +57,8 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 					Diamond:  10,
 					RoomCard: 1,
 					Score:    0,
+					Regtime:  time.Now(),
+					Ip: 	  "",
 				}
 				r = service.db.AddUserInfo(userSuccess)
 			}
@@ -66,6 +68,37 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 		service.lock.Unlock()
 
 		userInfo.Headimg = req.Headimg
+	} else {
+		if !ret {
+			name := "name_" + req.Acc
+			pwd := "11111"
+			r := service.db.AddAccountInfo(&table.T_Accounts{
+				Account: req.Acc,
+				Password: pwd,
+			})
+			var userSuccess *table.T_Users
+			if r {
+				userSuccess = &table.T_Users{
+					Account:  req.Acc,
+					Name:     name,
+					Headimg:  req.Headimg,
+					Sex: 	  uint8(req.Sex),
+					OpenId:   "",
+					Level:    1,
+					Exp:      0,
+					Gold:     100,
+					Diamond:  10,
+					RoomCard: 1,
+					Score:    0,
+					Regtime:  time.Now(),
+					Ip: 	  "",
+				}
+				r = service.db.AddUserInfo(userSuccess)
+			}
+		}
+		service.lock.Lock()
+		ret = service.db.GetUserInfo(req.Acc, &userInfo)
+		service.lock.Unlock()
 	}
 
 	fmt.Println("user login ", req)
@@ -87,7 +120,6 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 				})
 			}
 			service.cc.UpdateUserItems(userInfo.Userid, items)
-			service.db.db.Where("userid = ?", userInfo.Userid).Find(&res.Ud)
 
 			var ud table.T_Userdata
 			service.db.db.Where("userid = ?", userInfo.Userid).Find(&ud)
@@ -289,3 +321,13 @@ func (service *DBService) LoadQuests(req *proto.MsLoadQuestArg, res *proto.MsLoa
 
 	return nil
 }
+
+func (service *DBService) SaveUserData(req *proto.MsSaveUserDataArg, rep *proto.MsSaveUserDataReply) error {
+	service.db.db.Where("userid = ?", req.UserId).Save(&table.T_Userdata{
+		Userid: req.UserId,
+		Data: req.UserData,
+	})
+	rep.ErrCode = "ok"
+	return nil
+}
+

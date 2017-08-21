@@ -22,6 +22,35 @@ func InitTables() {
 }
 
 func Test() {
+
+	/*
+	dc := newDbClient()
+
+	type TestAAA struct {
+		UserId 		int			`gorm:"primary_key;"`
+		Conf 		[]byte		`gorm:"size:4096"`
+	}
+
+	dc.CreateTableIfNot(&TestAAA{})
+
+
+	str := "1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890" +
+		"1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890" +
+		"12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901222222"
+	d := []byte(str)
+
+	dc.db.Save(&TestAAA{
+		UserId: 1001,
+		Conf: d,
+	})
+
+
+	var a TestAAA
+	dc.db.Where("user_id = ? ", 1001).Find(&a)
+
+	fmt.Println(a, len(a.Conf) , string(a.Conf))
+	*/
+
 /*
 	dc := newDbClient()
 

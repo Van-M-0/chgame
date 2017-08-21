@@ -142,9 +142,11 @@ func (t *tclient) createRoom() {
 	})
 }
 
-func (t *tclient) enterRoom(id uint32) {
+var lastRoomId uint32
+func (t *tclient) enterRoom(id , serverId uint32) {
 	t.Send(proto.CmdGameEnterRoom, &proto.PlayerEnterRoom {
 		RoomId: id,
+		ServerId: serverId,
 	})
 }
 
@@ -208,7 +210,8 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 		fmt.Println("create room ret message ", ret, err)
 
 		if ret.ErrCode == defines.ErrCommonSuccess {
-			t.enterRoom(ret.RoomId)
+			t.enterRoom(ret.RoomId, 0)
+			lastRoomId = ret.RoomId
 		}
 	} else if message.Cmd == proto.CmdGameEnterRoom {
 		var ret proto.PlayerEnterRoomRet
@@ -217,9 +220,12 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 		fmt.Println("origin ", origin)
 		msgpacker.UnMarshal(origin, &ret)
 		fmt.Println("enter room ret message ", ret, err)
+
 		if ret.ErrCode == defines.ErrCommonSuccess {
 			fmt.Println("send user ready message")
 			t.sendReady()
+		} else if ret.ErrCode == defines.ErrEnterRoomQueryConf {
+			t.enterRoom(lastRoomId, uint32(ret.ServerId))
 		}
 	}
 }
@@ -229,7 +235,7 @@ func startClient() {
 	var t tclient
 
 	c := network.NewTcpClient(&defines.NetClientOption{
-		Host: ":9890",
+		Host: "192.168.1.121:9890",
 		ConnectCb: func(client defines.ITcpClient) error {
 			return nil
 		},

@@ -90,12 +90,12 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 
 func (rm *roomManager) enterRoom(info *defines.PlayerInfo, roomId uint32) {
 	room := rm.getRoom(roomId)
-	info.RoomId = roomId
 	if room == nil {
 		rm.sm.SendMessage(info.Uid, proto.CmdGameCreateRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomNotExists})
 		return
 	}
 
+	info.RoomId = roomId
 	room.notify <- &roomNotify{
 		cmd: proto.CmdEnterRoom,
 		user: *info,
@@ -131,6 +131,63 @@ func (rm *roomManager) gameMessage(info *defines.PlayerInfo, cmd uint32, msg []b
 		fmt.Println("room error ", info.RoomId)
 		return
 	}
+	room.notify <- &roomNotify{
+		cmd: cmd,
+		user: *info,
+		data: msg,
+	}
+}
+
+func (rm *roomManager) chatMessage(info *defines.PlayerInfo, cmd uint32, msg []byte) {
+	if info.RoomId == 0 {
+		rm.sm.SendMessage(info.Uid, cmd, &proto.PlayerRoomChatRet{ErrCode: defines.ErrCommonInvalidReq})
+		return
+	}
+
+	room := rm.getRoom(info.RoomId)
+	if room == nil {
+		rm.sm.SendMessage(info.Uid, cmd, &proto.PlayerRoomChatRet{ErrCode: defines.ErrCommonInvalidReq})
+		return
+	}
+
+	room.notify <- &roomNotify{
+		cmd: cmd,
+		user: *info,
+		data: msg,
+	}
+}
+
+func (rm *roomManager) playerReleaseRoom(info *defines.PlayerInfo, cmd uint32, msg []byte) {
+	if info.RoomId == 0 {
+		rm.sm.SendMessage(info.Uid, cmd, &proto.PlayerGameReleaseRoomRet{ErrCode: defines.ErrCommonInvalidReq})
+		return
+	}
+
+	room := rm.getRoom(info.RoomId)
+	if room == nil {
+		rm.sm.SendMessage(info.Uid, cmd, &proto.PlayerGameReleaseRoomRet{ErrCode: defines.ErrCommonInvalidReq})
+		return
+	}
+
+	room.notify <- &roomNotify{
+		cmd: cmd,
+		user: *info,
+		data: msg,
+	}
+}
+
+func (rm *roomManager) playerReleaseRoomResponse(info *defines.PlayerInfo, cmd uint32, msg []byte) {
+	if info.RoomId == 0 {
+		rm.sm.SendMessage(info.Uid, cmd, &proto.PlayerGameReleaseRoomResponseRet{ErrCode: defines.ErrCommonInvalidReq})
+		return
+	}
+
+	room := rm.getRoom(info.RoomId)
+	if room == nil {
+		rm.sm.SendMessage(info.Uid, cmd, &proto.PlayerGameReleaseRoomResponseRet{ErrCode: defines.ErrCommonInvalidReq})
+		return
+	}
+
 	room.notify <- &roomNotify{
 		cmd: cmd,
 		user: *info,

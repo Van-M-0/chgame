@@ -23,10 +23,11 @@ func newRoomService() *RoomService {
 	return rs
 }
 
+var lastRoomId uint32
 func (rs *RoomService) CreateRoomId(req *proto.MsCreateoomIdArg, res *proto.MsCreateRoomIdReply) error {
 	rs.rmLock.Lock()
 	res.RoomId = 0
-	rand.Seed(time.Now().UnixNano())
+	rand.Seed(time.Now().UnixNano() + int64(lastRoomId))
 	for i := 0; i < 50; i++ {
 		id := uint32(rand.Intn(899999) + 100000)
 		if _, ok := rs.rooms[id]; !ok {
@@ -34,6 +35,7 @@ func (rs *RoomService) CreateRoomId(req *proto.MsCreateoomIdArg, res *proto.MsCr
 			break
 		}
 	}
+	lastRoomId = res.RoomId
 	rs.rooms[res.RoomId] = &room{ServerId: req.ServerId, Conf: req.Conf}
 	rs.rmLock.Unlock()
 	return nil

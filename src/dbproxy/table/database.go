@@ -67,9 +67,9 @@ type T_Users struct {
 	Score 		uint32		`gorm:"default:0"`
 	Roomid 		uint32 		`gorm:"default:0"`
 	History 	string 		`gorm:"size:4096;not null;default:''"`
-	Agentid		int
-	Regtime 	time.Time	`gorm:"not null"`
-	Ip 			string 		`gorm:"not null"`
+	Agentid		int			`gorm:"default:0"`
+	Regtime 	time.Time
+	Ip 			string 		`gorm:"default:''"`
 }
 
 type T_UserItem struct {
@@ -136,7 +136,7 @@ type T_ActivityReward struct {
 
 type T_Userdata struct {
 	Userid 		uint32 		`gorm:"primary_key"`
-	Data 		[]byte
+	Data 		[]byte		`gorm:"size:10240"`
 }
 
 type T_Quest struct {

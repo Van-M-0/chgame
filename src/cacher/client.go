@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"strconv"
+	"reflect"
 )
 
 const (
@@ -171,12 +172,39 @@ func (cc *cacheClient) GetUserCidUserId(uid uint32) int {
 	}
 }
 
+func (cc *cacheClient) DelUserCidUserId(uid uint32) {
+	if _, err := cc.command("del", ciduserid(uid)); err != nil {
+		fmt.Println("del user cid user error", err)
+	}
+}
+
 func (cc *cacheClient) UpdateUserInfo(uid uint32, prop int, value interface{}) bool {
 
+	getName := func() string {
+		if prop == defines.PpDiamond {
+			return "diamond"
+		} else if prop == defines.PpGold {
+			return "gold"
+		} else if prop == defines.PpScore {
+			return "score"
+		} else if prop == defines.PpRoomId {
+			return "roomid"
+		}
+		return "error"
+	}
+
+	keyName := getName()
+	if keyName == "error" {
+		return false
+	}
+
 	updateIntProp := func(key int, val interface{}) bool {
+		if reflect.TypeOf(val).Kind() == reflect.Uint32 {
+			val = int(val.(uint32))
+		}
 		if v, ok := val.(int); ok {
 			if v > 0 {
-				reply, err := cc.command("hset", users(int(uid)), key, v)
+				reply, err := cc.command("hset", users(int(uid)), keyName, v)
 				if err != nil {
 					fmt.Println("UpdateUserInfo set cache error ", uid, key, val, reply, err)
 				} else {
@@ -194,7 +222,7 @@ func (cc *cacheClient) UpdateUserInfo(uid uint32, prop int, value interface{}) b
 	updateInt64Prop := func(key int, val interface{}) bool {
 		if v, ok := val.(int64); ok {
 			if v > 0 {
-				reply, err := cc.command("hset", users(int(uid)), key, v)
+				reply, err := cc.command("hset", users(int(uid)), keyName, v)
 				if err != nil {
 					fmt.Println("UpdateUserInfo set cache error ", uid, key, val, reply, err)
 				} else {

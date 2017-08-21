@@ -7,7 +7,14 @@ import (
 	"msgpacker"
 	"runtime/debug"
 	"sync/atomic"
+	"time"
 )
+
+
+type voter struct {
+	user 	*defines.PlayerInfo
+	agreed 	int	//0, 1 a 2 disa
+}
 
 type roomNotify struct {
 	cmd 		uint32
@@ -25,6 +32,9 @@ type room struct {
 	quit 			chan bool
 	users 			map[uint32]*defines.PlayerInfo
 	closed 			int32
+
+	releaseVoter 	map[uint32]*voter
+	timeoutCheck 	*time.Timer
 }
 
 func newRoom(manager *roomManager) *room {
@@ -33,6 +43,7 @@ func newRoom(manager *roomManager) *room {
 		notify: make(chan *roomNotify, 1024),
 		quit: make(chan bool),
 		users: make(map[uint32]*defines.PlayerInfo),
+		releaseVoter: make(map[uint32]*voter),
 	}
 }
 
@@ -58,10 +69,18 @@ func (rm *room) safeCall() {
 			rm.onUserLeave(n)
 		} else if n.cmd == proto.CmdGamePlayerMessage {
 			rm.onUserMessage(n)
+		} else if n.cmd == proto.CmdGamePlayerRoomChat {
+			rm.onUserChatMessage(n)
+		} else if n.cmd == proto.CmdGamePlayerReleaseRoom {
+			rm.onUserReleaseRoom(n)
+		} else if n.cmd == proto.CmdGamePlayerReleaseRoomResponse {
+			rm.onUserReleaseRoomResponse(n)
 		}
 	case <- rm.quit:
 		fmt.Println("room destroy", rm.id)
 		return
+	case <- rm.timeoutCheck.C:
+		rm.releaseTimeoutCheck()
 	}
 }
 
@@ -168,11 +187,132 @@ func (rm *room) onUserMessage(notify *roomNotify) {
 	}
 }
 
+func (rm *room) onUserChatMessage(notify *roomNotify) {
+	var message proto.PlayerRoomChat
+	if err := msgpacker.UnMarshal(notify.data.([]byte), &message); err != nil {
+		return
+	}
+
+	users := []*defines.PlayerInfo{}
+	for _, user := range rm.users {
+		users = append(users, user)
+	}
+
+	rm.manager.broadcastMessage(users, proto.CmdGamePlayerRoomChat, &proto.PlayerRoomChatRet{
+		ErrCode: defines.ErrCommonSuccess,
+		User: notify.user.Name,
+		Content: message.Content,
+	})
+}
+
+func (rm *room) onUserReleaseRoom(notify *roomNotify) {
+
+	if rm.timeoutCheck != nil {
+		rm.SendUserMessage(&notify.user, proto.CmdGamePlayerReleaseRoom, &proto.PlayerGameReleaseRoomRet{
+			ErrCode: defines.ErrCommonInvalidReq,
+		})
+		return
+	}
+
+	rm.releaseVoter[notify.user.UserId] = &voter{
+		user: &notify.user,
+		agreed: 1,
+	}
+
+	users := []*defines.PlayerInfo{}
+	for _, user := range rm.users {
+		users = append(users, user)
+	}
+
+	rm.manager.broadcastMessage(users, proto.CmdGamePlayerReleaseRoom, &proto.PlayerGameReleaseRoomRet{
+		ErrCode: defines.ErrCommonSuccess,
+		Sponser: notify.user.Name,
+	})
+
+	rm.timeoutCheck = time.NewTimer(time.Duration(60 * time.Second))
+}
+
+func (rm *room) onUserReleaseRoomResponse(notify *roomNotify) {
+	if rm.timeoutCheck == nil {
+		rm.SendUserMessage(&notify.user, proto.CmdGamePlayerReleaseRoomResponse, &proto.PlayerGameReleaseRoomResponseRet{
+			ErrCode: defines.ErrCommonInvalidReq,
+		})
+		return
+	}
+
+	var message proto.PlayerGameReleaseRoomResponse
+	if err := msgpacker.UnMarshal(notify.data.([]byte), &message); err != nil {
+		rm.SendUserMessage(&notify.user, proto.CmdGamePlayerReleaseRoomResponse, &proto.PlayerGameReleaseRoomResponseRet{
+			ErrCode: defines.ErrCoomonSystem,
+		})
+		return
+	}
+
+	if _, ok := rm.releaseVoter[notify.user.UserId]; ok {
+		return
+	} else {
+		a := 1
+		if !message.Agree {
+			a = 2
+		}
+		rm.releaseVoter[notify.user.UserId] = &voter{
+			user: &notify.user,
+			agreed: a,
+		}
+	}
+
+	users := []*defines.PlayerInfo{}
+	for _, user := range rm.users {
+		users = append(users, user)
+	}
+
+	released := rm.checkReleaseRoomCondition()
+
+	rm.manager.broadcastMessage(users, proto.CmdGamePlayerReleaseRoom, &proto.PlayerGameReleaseRoomResponseRet{
+		ErrCode: defines.ErrCommonSuccess,
+		Released: released,
+		Agree: message.Agree,
+		Voter: notify.user.Name,
+	})
+
+	if released {
+		rm.ReleaseRoom()
+	}
+}
+
+func (rm *room) releaseTimeoutCheck() {
+	for _, u := range rm.releaseVoter {
+		if u.agreed == 0 {
+			u.agreed = 1
+		}
+	}
+	released := rm.checkReleaseRoomCondition()
+	if released {
+		rm.ReleaseRoom()
+	}
+}
+
+func (rm *room) checkReleaseRoomCondition() bool {
+	agreeCount := 0
+	for _, u := range rm.releaseVoter {
+		if u.agreed == 1 {
+			agreeCount++
+		}
+	}
+	if agreeCount == rm.module.PlayerCount {
+		return true
+	}
+	return false
+}
+
 func (rm *room) GetRoomId() uint32 {
 	return rm.id
 }
 
 func (rm *room) ReleaseRoom() {
+	if rm.closed == 1 {
+		return
+	}
 	atomic.AddInt32(&rm.closed, 1)
 	rm.manager.sm.sceneNotify <- &request{kind: requestRoom, cmd :"closeroom", data: rm.id}
 }

@@ -171,7 +171,8 @@ func (sm *sceneManager) onGwServerMessage(uid, cmd uint32, data []byte) {
 func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
 	fmt.Println("recv client command ", uid, cmd, data)
 
-	replyUserErr := func() {
+	replyUserErr := func(err int) {
+		sm.SendMessage(uid, cmd, &proto.PlayerGameCommonError{ErrCode: err})
 	}
 
 	var player *defines.PlayerInfo
@@ -179,14 +180,14 @@ func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
 		userId := sm.cc.GetUserCidUserId(uid)
 		if userId == -1 {
 			fmt.Println("........... update player error ............ 1")
-			replyUserErr()
+			replyUserErr(defines.ErrCommonCache)
 			return
 		} else {
 			ok, p := sm.updateUserInfo(uid, uint32(userId))
 			fmt.Println("update player info", ok, p)
 			if ok != "ok" {
 				fmt.Println("........... update player error x ............ 2", ok, p)
-				replyUserErr()
+				replyUserErr(defines.ErrCommonWait)
 				return
 			}
 			player = p
@@ -195,6 +196,7 @@ func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
 		player = sm.playerMgr.getPlayerByUid(uid)
 		if player == nil {
 			fmt.Println("must login")
+			replyUserErr(defines.ErrComononUserNotIn)
 			return
 		}
 	}
@@ -208,6 +210,12 @@ func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
 		sm.onGwPlayerLeaveRoom(player, data)
 	case proto.CmdGamePlayerMessage:
 		sm.onGwPlayerGameMessage(player, data)
+	case proto.CmdGamePlayerRoomChat:
+		sm.onPlayerChatRoom(player, data)
+	case proto.CmdGamePlayerReleaseRoom:
+		sm.onPlayerReleaseRoom(player, data)
+	case proto.CmdGamePlayerReleaseRoomResponse:
+		sm.onPlayerReleaseRoomResponse(player, data)
 	default:
 		fmt.Println("gate way player message error ", cmd)
 	}
@@ -333,4 +341,16 @@ func (sm *sceneManager) updateUserInfo(uid, userId uint32) (string, *defines.Pla
 	player.Items, _ = sm.cc.GetUserItems(player.UserId)
 
 	return "ok", player
+}
+
+func (sm *sceneManager) onPlayerChatRoom(player *defines.PlayerInfo, data []byte) {
+	sm.roomMgr.chatMessage(player, proto.CmdGamePlayerRoomChat, data)
+}
+
+func (sm *sceneManager) onPlayerReleaseRoom(player *defines.PlayerInfo, data []byte) {
+	sm.roomMgr.playerReleaseRoom(player, proto.CmdGamePlayerReleaseRoom, data)
+}
+
+func (sm *sceneManager) onPlayerReleaseRoomResponse(player *defines.PlayerInfo, data []byte) {
+	sm.roomMgr.playerReleaseRoomResponse(player, proto.CmdGamePlayerReleaseRoomResponse, data)
 }

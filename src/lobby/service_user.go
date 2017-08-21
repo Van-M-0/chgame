@@ -266,11 +266,13 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 		replaySuc(user)
 	}
 
+	/*
 	if err := um.cc.GetUserInfo(login.Account, &cacheUser); err == nil {
 		fmt.Println("get cache user info")
 		gotUser()
 		return
 	}
+	*/
 
 	if p != nil {
 		userIn()
@@ -301,7 +303,6 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 
 						var ud proto.UserData
 						if err := msgpacker.UnMarshal(res.Ud, &ud); err != nil {
-							fmt.Println("user data error ", err)
 						} else {
 							if err := msgpacker.UnMarshal(ud.Quest, &u.quests); err != nil {
 								fmt.Println("user quests error ", err)
@@ -311,6 +312,7 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 							}
 						}
 
+						fmt.Println("load user quests", u.activities, u.quests, *u.quests.Process[0])
 					}
 				} else {
 					replyErr(defines.ErrCommonCache)
@@ -326,6 +328,43 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 
 func (um *userManager) handleClientDisconnect(uid uint32) {
 	fmt.Println("user discconnectd ", um.users[uid])
+
+	user := um.getUser(uid)
+	if user == nil {
+		fmt.Println("user not in ?")
+		return
+	}
+
+	go func(user *userInfo) {
+		ad, err := msgpacker.Marshal(user.activities)
+		if err != nil {
+			fmt.Println("fmt user activities error ", err)
+			return
+		}
+		qd, err := msgpacker.Marshal(user.quests)
+		if err != nil {
+			fmt.Println("fmt user quest error ", err)
+			return
+		}
+		ud, err := msgpacker.Marshal(&proto.UserData{
+			Activity: ad,
+			Quest: qd,
+		})
+		if err != nil {
+			fmt.Println("fmt user data error", err)
+			return
+		}
+		var rep proto.MsSaveUserDataReply
+		err = um.lb.dbClient.Call("DBService.SaveUserData", &proto.MsSaveUserDataArg{
+			UserId: user.userId,
+			UserData: ud,
+		}, &rep)
+		if rep.ErrCode != "ok" || err != nil {
+			fmt.Println("save user data error", rep.ErrCode, err)
+		}
+	}(user)
+
+	um.cc.DelUserCidUserId(uid)
 	um.delUser(uid)
 }
 
