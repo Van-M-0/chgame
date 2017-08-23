@@ -35,6 +35,7 @@ type Activities struct {
 	itemList		[]*proto.ActivityItem
 	rewardList 		[]*proto.ActivityRewardItem
 	activityList 	[]Activity
+	openIds 		[]int
 	ch 				chan *ActivityEvent
 
 	clientItemList 	[]*proto.ActivityItem
@@ -77,6 +78,7 @@ func (ac *Activities) start() {
 			activity := ac.create(a)
 			if activity != nil {
 				ac.activityList = append(ac.activityList, activity)
+				ac.openIds = append(ac.openIds, a.Id)
 
 				ac.clientItemList = append(ac.clientItemList, a)
 				ids := ac.getRewardIds(a)
@@ -133,6 +135,7 @@ func (ac *Activities) OnUserLoadActivities(uid uint32, req *proto.ClientLoadActi
 	ac.acLock.Lock()
 	ret.Activities = ac.clientItemList
 	ret.Rewards = ac.clientRewardList
+	ret.OpenIds = ac.openIds
 	ac.acLock.Unlock()
 	ac.lb.send2player(uid, proto.CmdUserLoadActivityList, &ret)
 }

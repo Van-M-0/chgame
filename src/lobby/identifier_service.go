@@ -180,13 +180,35 @@ func (is *IdentifyService) OnUserCheckUserIdentifier(uid uint32, req *proto.Clie
 	} else if l == 18 {
 		ret, _ = verify_id(check_id(idStr[:17]), byte2int(idStr[17:]))
 	}
-	if ret {
-		is.lb.send2player(uid, proto.CmdUserIdentify, &proto.ClientIdentifyRet{
-			ErrCode: defines.ErrCommonSuccess,
-		})
-	} else {
+
+	user := is.lb.userMgr.getUser(uid)
+	if user == nil {
+		return
+	}
+
+	if ret == false {
 		is.lb.send2player(uid, proto.CmdUserIdentify, &proto.ClientIdentifyRet{
 			ErrCode: defines.ErrCoomonSystem,
 		})
+		return
 	}
+
+	var rep proto.MsSaveIdentifyInfoReply
+	is.lb.dbClient.Call("DBService.SaveIdentifyInfo", &proto.MsSaveIdentifyInfoArg {
+		Userid: user.userId,
+		Name: req.Name,
+		Idcard: req.Id,
+		Phone: req.Phone,
+	}, &rep)
+
+	if rep.ErrCode != "ok" {
+		is.lb.send2player(uid, proto.CmdUserIdentify, &proto.ClientIdentifyRet{
+			ErrCode: defines.ErrCommonInvalidReq,
+		})
+		return
+	}
+
+	is.lb.send2player(uid, proto.CmdUserIdentify, &proto.ClientIdentifyRet{
+		ErrCode: defines.ErrCommonSuccess,
+	})
 }

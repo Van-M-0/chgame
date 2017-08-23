@@ -133,13 +133,25 @@ func (um *userManager) updateUserProp(u *userInfo, prop int, val interface{}) bo
 		user, ok := um.users[u.uid]
 		if ok && user != nil {
 			if prop == defines.PpDiamond {
-				user.diamond = val.(int)
+				user.diamond += val.(int)
+				if user.diamond < 0 {
+					user.diamond = 0
+				}
+				val = user.diamond
 			} else if prop == defines.PpRoomCard {
-				user.roomcard = val.(int)
+				user.roomcard += val.(int)
 			} else if prop == defines.PpGold {
-				user.gold = val.(int64)
+				user.gold += val.(int64)
+				if user.gold < 0 {
+					user.gold = 0
+				}
+				val = user.gold
 			} else if prop == defines.PpScore {
-				user.score = val.(int)
+				user.score += val.(int)
+				if user.score < 0 {
+					user.score = 0
+				}
+				val = user.score
 			} else {
 				return false
 			}
@@ -185,6 +197,7 @@ func (um *userManager) updateUserItem(user *userInfo, itemId uint32, count int) 
 			} else {
 				updateFlag = 1
 			}
+			um.cc.UpdateSingleItem(user.userId, updateFlag, item.ItemId, item.Count)
 			return true
 		}
 	}
@@ -194,6 +207,7 @@ func (um *userManager) updateUserItem(user *userInfo, itemId uint32, count int) 
 			ItemId: itemId,
 			Count: count,
 		})
+		um.cc.UpdateSingleItem(user.userId, updateFlag, itemId, count)
 		return true
 	}
 	fmt.Println("update item err, id not exists ", itemId, count)
@@ -232,7 +246,7 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 
 	replaySuc := func(user *userInfo) {
 		fmt.Println("handle palyer login reply success")
-		um.lb.send2player(uid, proto.CmdClientLogin, &proto.ClientLoginRet{
+		ret := &proto.ClientLoginRet{
 			ErrCode: defines.ErrCommonSuccess,
 			Uid: uid,
 			UserId: user.userId,
@@ -244,7 +258,11 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 			Gold: user.gold,
 			Score: user.score,
 			RoomId: user.roomId,
-		})
+		}
+		if p != nil {
+			ret.ErrCode = defines.ErrClientLoginRelogin
+		}
+		um.lb.send2player(uid, proto.CmdClientLogin, ret)
 	}
 
 	replyItems := func(user *userInfo) {
@@ -260,12 +278,6 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 		replaySuc(user)
 	}
 
-	userIn := func() {
-		fmt.Println("handle palyer login userin")
-		user := um.getUser(uid)
-		replaySuc(user)
-	}
-
 	/*
 	if err := um.cc.GetUserInfo(login.Account, &cacheUser); err == nil {
 		fmt.Println("get cache user info")
@@ -275,16 +287,18 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 	*/
 
 	if p != nil {
-		userIn()
+		fmt.Println("handle palyer login userin")
+		um.cc.SetUserCidUserId(uid, int(p.userId))
+		replaySuc(p)
 	} else {
 		var res proto.DbUserLoginReply
 		um.lb.dbClient.Call("DBService.UserLogin", &proto.DbUserLoginArg{
 			LoginType: login.LoginType,
-		Name: login.Name,
+			Name: login.Name,
 			Acc: login.Account,
 			Headimg: login.Headimg,
 			Sex: login.Sex,
-	},&res)
+		},&res)
 		if res.Err == "ok" {
 			if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
 				fmt.Println("get cache error ", err)
@@ -312,7 +326,13 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 							}
 						}
 
-						fmt.Println("load user quests", u.activities, u.quests, *u.quests.Process[0])
+						fmt.Println("load user quests", u.activities, u.quests)
+
+						if res.Identify.Card != "" {
+							um.lb.send2player(uid, proto.CmdBaseSynceIdentifyInfo, &res.Identify)
+						}
+						fmt.Println("user auth info ", res.Identify)
+
 					}
 				} else {
 					replyErr(defines.ErrCommonCache)

@@ -343,6 +343,23 @@ func (cc *cacheClient) NoticeOperation(notice *[]*proto.CacheNotice, op string) 
 	return nil
 }
 
+func (cc *cacheClient) UpdateSingleItem(userid uint32, flag int, id uint32, count int) error {
+	if flag == 2 {
+		cc.command("del", useritems(userid, id))
+	} else if flag == 3 || flag == 1 {
+		citem := proto.CacheUserItem{
+			UserId: int(userid),
+			Id: int(id),
+			Count: count,
+		}
+		if _, err := cc.command("hmset", redis.Args{useritems(userid, id)}.AddFlat(&citem)...); err != nil {
+			fmt.Println("set notices error", err)
+			return err
+		}
+	}
+	return nil
+}
+
 func(cc *cacheClient) UpdateUserItems(userid uint32, items []proto.UserItem) error {
 	for _, item := range items {
 		citem := proto.CacheUserItem{

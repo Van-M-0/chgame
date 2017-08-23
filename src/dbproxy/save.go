@@ -149,7 +149,6 @@ func (ds *dataSaver) save() {
 								"diamond":	u.Diamond,
 								"gold":		u.Gold,
 								"score":	u.Score,
-								"roomid":	u.Roomid,
 							})
 							ds.lsUsers[u.Userid] = u
 						}

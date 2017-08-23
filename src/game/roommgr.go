@@ -8,6 +8,11 @@ import (
 	"fmt"
 )
 
+const (
+	InnerCmdUserOffline = 512
+	InnerCmdUserReEnter = 513
+)
+
 type roomManager struct {
 	sm 			*sceneManager
 	rooms 		map[uint32]*room
@@ -110,6 +115,8 @@ func (rm *roomManager) destroyRoom(roomid uint32) {
 	}
 	delete(rm.rooms, roomid)
 
+	fmt.Println("destroy room")
+
 	for _, user := range room.users {
 		rm.sm.playerMgr.delPlayer(user)
 	}
@@ -119,10 +126,28 @@ func (rm *roomManager) destroyRoom(roomid uint32) {
 
 func (rm *roomManager) offline(info *defines.PlayerInfo) {
 	fmt.Println("player off line", info)
+	room := rm.getRoom(info.RoomId)
+	if room == nil {
+		fmt.Println("offline ", info.RoomId)
+		return
+	}
+	room.notify <- &roomNotify{
+		cmd: InnerCmdUserOffline,
+		user: *info,
+	}
 }
 
 func (rm *roomManager) reEnter(info *defines.PlayerInfo) {
-
+	fmt.Println("player reenter", info)
+	room := rm.getRoom(info.RoomId)
+	if room == nil {
+		fmt.Println("reenter ", info.RoomId)
+		return
+	}
+	room.notify <- &roomNotify{
+		cmd: InnerCmdUserReEnter,
+		user: *info,
+	}
 }
 
 func (rm *roomManager) gameMessage(info *defines.PlayerInfo, cmd uint32, msg []byte) {

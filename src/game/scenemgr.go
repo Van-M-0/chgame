@@ -195,7 +195,7 @@ func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
 	} else {
 		player = sm.playerMgr.getPlayerByUid(uid)
 		if player == nil {
-			fmt.Println("must login")
+			fmt.Println("must login ", uid, sm.playerMgr.uidPlayer, sm.playerMgr.idPlayer)
 			replyUserErr(defines.ErrComononUserNotIn)
 			return
 		}
@@ -311,6 +311,8 @@ func (sm *sceneManager) updateUserInfo(uid, userId uint32) (string, *defines.Pla
 		fmt.Println("get cache user info err", uid, userId)
 		return "uiderr", nil
 	}
+
+	fmt.Println("update user info cache : ", user)
 
 	if user.Uid == 0 {
 		return "uiderr", nil

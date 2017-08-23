@@ -34,7 +34,8 @@ type room struct {
 	closed 			int32
 
 	releaseVoter 	map[uint32]*voter
-	timeoutCheck 	*time.Timer
+	timeoutCheck 	time.Timer
+	isReleased 		bool
 }
 
 func newRoom(manager *roomManager) *room {
@@ -50,7 +51,7 @@ func newRoom(manager *roomManager) *room {
 func (rm *room) safeCall() {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("room call error")
+			fmt.Println("room call error", r)
 			debug.PrintStack()
 		}
 	}()
@@ -75,10 +76,13 @@ func (rm *room) safeCall() {
 			rm.onUserReleaseRoom(n)
 		} else if n.cmd == proto.CmdGamePlayerReleaseRoomResponse {
 			rm.onUserReleaseRoomResponse(n)
+		} else if n.cmd == InnerCmdUserReEnter {
+			rm.onUserReenter(n)
+		} else if n.cmd == InnerCmdUserOffline {
+			rm.onUserOffline(n)
 		}
 	case <- rm.quit:
 		fmt.Println("room destroy", rm.id)
-		return
 	case <- rm.timeoutCheck.C:
 		rm.releaseTimeoutCheck()
 	}
@@ -173,6 +177,14 @@ func (rm *room) onUserLeave(notify *roomNotify) {
 	delete(rm.users, notify.user.UserId)
 }
 
+func (rm *room) onUserReenter(notify *roomNotify) {
+	rm.game.OnUserReEnter(&notify.user)
+}
+
+func (rm *room) onUserOffline(notify *roomNotify) {
+	rm.game.OnUserOffline(&notify.user)
+}
+
 func (rm *room) onUserMessage(notify *roomNotify) {
 	var message proto.PlayerGameMessage
 	if err := msgpacker.UnMarshal(notify.data.([]byte), &message); err != nil {
@@ -200,14 +212,14 @@ func (rm *room) onUserChatMessage(notify *roomNotify) {
 
 	rm.manager.broadcastMessage(users, proto.CmdGamePlayerRoomChat, &proto.PlayerRoomChatRet{
 		ErrCode: defines.ErrCommonSuccess,
-		User: notify.user.Name,
+		Userid: notify.user.UserId,
 		Content: message.Content,
 	})
 }
 
 func (rm *room) onUserReleaseRoom(notify *roomNotify) {
 
-	if rm.timeoutCheck != nil {
+	if rm.isReleased {
 		rm.SendUserMessage(&notify.user, proto.CmdGamePlayerReleaseRoom, &proto.PlayerGameReleaseRoomRet{
 			ErrCode: defines.ErrCommonInvalidReq,
 		})
@@ -229,11 +241,12 @@ func (rm *room) onUserReleaseRoom(notify *roomNotify) {
 		Sponser: notify.user.Name,
 	})
 
-	rm.timeoutCheck = time.NewTimer(time.Duration(60 * time.Second))
+	rm.isReleased = true
+	rm.timeoutCheck = *time.NewTimer(time.Duration(60 * time.Second))
 }
 
 func (rm *room) onUserReleaseRoomResponse(notify *roomNotify) {
-	if rm.timeoutCheck == nil {
+	if rm.isReleased == false {
 		rm.SendUserMessage(&notify.user, proto.CmdGamePlayerReleaseRoomResponse, &proto.PlayerGameReleaseRoomResponseRet{
 			ErrCode: defines.ErrCommonInvalidReq,
 		})
@@ -289,6 +302,8 @@ func (rm *room) releaseTimeoutCheck() {
 	released := rm.checkReleaseRoomCondition()
 	if released {
 		rm.ReleaseRoom()
+	} else {
+		rm.isReleased = false
 	}
 }
 
@@ -332,6 +347,7 @@ func (rm *room) OnStop() {
 	}
 
 	for _, user := range rm.users {
+		fmt.Println("player return to lobby", user)
 		rm.SendUserMessage(user, proto.CmdGamePlayerReturn2lobby, &proto.PlayerReturn2Lobby{})
 	}
 }

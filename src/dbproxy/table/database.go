@@ -53,7 +53,7 @@ type T_RoomUser struct {
 }
 
 type T_Users struct {
-	Userid 		uint32		`gorm:"primary_key;AUTO_INCREMENT;not null"`
+	Userid 		uint32		`gorm:"primary_key;AUTO_INCREMENT:10000;not null"`
 	Account 	string 		`gorm:"size:32;not null;default:'';index:acc_index"`
 	OpenId 		string		`gorm:"index:openid_index"`
 	Name 		string 		`gorm:"size:32;default:null"`
@@ -162,4 +162,11 @@ type T_ActionForbid struct {
 	LoginForbid int			`gorm:"default:0"`
 	LfStarttime time.Time
 	LfFinishtime time.Time
+}
+
+type T_AuthInfo struct {
+	Userid 		uint32		`gorm:"primary_key"`
+	Phone 		string
+	Idcard 		string
+	Name 		string
 }

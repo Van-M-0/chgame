@@ -76,6 +76,17 @@ func startLobby() {
 func startGame(moduels []defines.GameModule) {
 	fmt.Println("start game server")
 
+	for _, m := range moduels {
+		if m.Creator == nil || m.Releaser == nil {
+			fmt.Println("game ctor/dtor is nil", m.Type)
+			return
+		}
+		if m.PlayerCount == 0 {
+			fmt.Println("game moudle player count == 0 ", m.Type)
+			return
+		}
+	}
+
 	checkMap := map[int]bool {}
 	for _, k := range cfg.GameModules {
 		checkMap[k] = true
@@ -212,6 +223,8 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 		if ret.ErrCode == defines.ErrCommonSuccess {
 			t.enterRoom(ret.RoomId, 0)
 			lastRoomId = ret.RoomId
+		} else if ret.ErrCode == defines.ErrCreateRoomHaveRoom {
+			t.enterRoom(623067, 0)
 		}
 	} else if message.Cmd == proto.CmdGameEnterRoom {
 		var ret proto.PlayerEnterRoomRet

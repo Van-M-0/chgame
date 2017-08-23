@@ -89,11 +89,11 @@ func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 	}
 
 	if item.Category == defines.MallItemCategoryGold {
-
+		ms.lb.userMgr.updateUserProp(user, defines.PpGold, item.Nums)
 	} else if item.Category == defines.MallItemCategoryDiamond {
-
+		ms.lb.userMgr.updateUserProp(user, defines.PpDiamond, item.Nums)
 	} else if item.Category == defines.MallItemCategoryItem {
-
+		ms.lb.userMgr.updateUserItem(user, item.Itemid, item.Nums)
 	}
 
 	fmt.Println("client buy item success ", item)

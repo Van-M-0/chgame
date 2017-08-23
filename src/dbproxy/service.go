@@ -103,6 +103,14 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 
 	fmt.Println("user login ", req)
 	if ret == true {
+
+		// restore cache data
+		var cacheUser proto.CacheUser
+		if err := service.cc.GetUserInfoById(userInfo.Userid, &cacheUser); err == nil {
+			userInfo.Roomid = uint32(cacheUser.RoomId)
+			fmt.Println("restore roomid is ", userInfo.Roomid)
+		}
+
 		err := service.cc.SetUserInfo(&userInfo, ret)
 		if err != nil {
 			fmt.Println("set cache user error ", err)
@@ -124,6 +132,16 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 			var ud table.T_Userdata
 			service.db.db.Where("userid = ?", userInfo.Userid).Find(&ud)
 			res.Ud = ud.Data
+
+			var ii table.T_AuthInfo
+			service.db.db.Where("userid = ?", userInfo.Userid).Find(&ii)
+			if ii.Userid != 0 {
+				res.Identify = proto.SynceIdentifyInfo{
+					Name: ii.Name,
+					Phone: ii.Phone,
+					Card: ii.Idcard,
+				}
+			}
 		}
 	} else {
 		res.Err = "notexists"
@@ -331,3 +349,13 @@ func (service *DBService) SaveUserData(req *proto.MsSaveUserDataArg, rep *proto.
 	return nil
 }
 
+func (service *DBService) SaveIdentifyInfo(req *proto.MsSaveIdentifyInfoArg, rep *proto.MsSaveIdentifyInfoReply) error {
+	service.db.db.Where("userid = ?", req.Userid).Save(&table.T_AuthInfo{
+		Userid: req.Userid,
+		Phone: req.Phone,
+		Name: req.Name,
+		Idcard: req.Idcard,
+	})
+	rep.ErrCode = "ok"
+	return nil
+}

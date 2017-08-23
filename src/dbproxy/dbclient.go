@@ -22,7 +22,6 @@ func InitTables() {
 }
 
 func Test() {
-
 	/*
 	dc := newDbClient()
 
@@ -162,6 +161,12 @@ func (dc *dbClient) CreateTableIfNot(v ...interface{}) {
 	}
 }
 
+func (dc *dbClient) CreateTableIfNotWithOption(v interface{}, options string) {
+	if dc.db.HasTable(v) == false {
+		dc.db.Set("gorm:table_options", options).CreateTable(v)
+	}
+}
+
 func (dc *dbClient) CreateTableForce(v...interface{}) {
 	dc.db.DropTableIfExists(v...)
 	dc.db.CreateTable(v...)
@@ -206,6 +211,15 @@ func (dc *dbClient) InitTable() {
 			Buyvalue: 10,
 			GameKind: 1,
 			Description: "钻石-1",
+		}).Create(&table.T_ItemConfig{
+			Itemid: 3,
+			Itemname: "房卡-物品",
+			Category: 3,
+			Nums: 10,
+			Sell: 1,
+			Buyvalue: 10,
+			GameKind: 1,
+			Description: "道具",
 		})
 	}
 
@@ -264,17 +278,31 @@ func (dc *dbClient) InitTable() {
 		})
 	}
 
+	if !dc.db.HasTable(&table.T_Notice{}) {
+		dc.db.CreateTable(&table.T_Notice{})
+		dc.db.Create(&table.T_Notice{
+			Index: 20,
+			Starttime: time.Now(),
+			Finishtime: time.Now().Add(time.Hour * 240),
+			Kind: "notice",
+			Content:"每日一播",
+			Playtime: 3600,
+			Playcount: 1,
+		})
+	}
+
 	dc.CreateTableIfNot(&table.T_Accounts{})
 	dc.CreateTableIfNot(&table.T_Games{})
 	dc.CreateTableIfNot(&table.T_GamesArchive{})
 	dc.CreateTableIfNot(&table.T_Guests{})
 	dc.CreateTableIfNot(&table.T_Rooms{})
 	dc.CreateTableIfNot(&table.T_RoomUser{})
-	dc.CreateTableIfNot(&table.T_Users{})
+	dc.CreateTableIfNotWithOption(&table.T_Users{}, "ENGINE=InnoDB CHARSET=utf8 AUTO_INCREMENT=100000")
 	dc.CreateTableIfNot(&table.T_Notice{})
 	dc.CreateTableIfNot(&table.T_UserItem{})
 	dc.CreateTableIfNot(&table.T_Userdata{})
 	dc.CreateTableIfNot(&table.T_ActionForbid{})
+	dc.CreateTableIfNot(&table.T_AuthInfo{})
 }
 
 // t_accounts : account info

@@ -134,6 +134,14 @@ func test1() {
 
 func main() {
 
+	tptr := time.NewTimer(time.Duration(3 * time.Second))
+	t := *tptr
+
+	select {
+	case  <- t.C:
+		fmt.Println("hello timer")
+	}
+
 	type AAA struct {
 		M 		map[int]int
 	}
