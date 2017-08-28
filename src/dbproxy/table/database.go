@@ -58,7 +58,7 @@ type T_Users struct {
 	OpenId 		string		`gorm:"index:openid_index"`
 	Name 		string 		`gorm:"size:32;default:null"`
 	Sex 		uint8		`gorm:"not null"`
-	Headimg 	string		`gorm:"size:64;default:''"`
+	Headimg 	string		`gorm:"size:256;default:''"`
 	Level 		uint8 		`gorm:"default:1"`
 	Exp 		uint32		`gorm:"default:0"`
 	Diamond 	uint32 		`gorm:"default:0"`

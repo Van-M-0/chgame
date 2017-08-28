@@ -25,6 +25,7 @@ type userInfo struct {
 	itemList 	[]*proto.UserItem //race condition
 	quests 		userQuests
 	activities 	userActivities
+	IdCard 		proto.SynceIdentifyInfo
 }
 
 type room struct {
@@ -117,6 +118,15 @@ func (um *userManager) addUser(uid uint32, cu *proto.CacheUser) *userInfo {
 	return user
 }
 
+func (um *userManager) reAddUser(uid uint32, user *userInfo) {
+	um.userLock.Lock()
+	fmt.Println("re add user ", uid, user.uid, user)
+	delete(um.users, user.uid)
+	um.users[uid] = user
+	user.uid = uid
+	um.userLock.Unlock()
+}
+
 func (um *userManager) delUser(uid uint32) {
 	um.userLock.Lock()
 	if user, ok := um.users[uid]; ok {
@@ -162,7 +172,7 @@ func (um *userManager) updateUserProp(u *userInfo, prop int, val interface{}) bo
 	update := updateProp()
 	if update {
 		um.lb.send2player(u.uid, proto.CmdBaseUpsePropUpdate, &proto.SyncUserProps{
-			Props: proto.UserProp{
+			Props: &proto.UserProp{
 				Ppkey: prop,
 				PpVal: val,
 			},
@@ -184,7 +194,7 @@ func (um *userManager) updateUserItem(user *userInfo, itemId uint32, count int) 
 		}
 		if updateFlag != 0 {
 			um.lb.send2player(user.uid, proto.CmdBaseUpsePropUpdate, &proto.SyncUserProps{
-				Items: p,
+				Items: &p,
 			})
 		}
 	}()
@@ -289,16 +299,22 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 	if p != nil {
 		fmt.Println("handle palyer login userin")
 		um.cc.SetUserCidUserId(uid, int(p.userId))
+		um.reAddUser(uid, p)
 		replaySuc(p)
+		replyItems(p)
+		if p.IdCard.Card != "" {
+			um.lb.send2player(uid, proto.CmdBaseSynceIdentifyInfo, &p.IdCard)
+		}
 	} else {
 		var res proto.DbUserLoginReply
-		um.lb.dbClient.Call("DBService.UserLogin", &proto.DbUserLoginArg{
+		callerr := um.lb.dbClient.Call("DBService.UserLogin", &proto.DbUserLoginArg{
 			LoginType: login.LoginType,
 			Name: login.Name,
 			Acc: login.Account,
 			Headimg: login.Headimg,
 			Sex: login.Sex,
 		},&res)
+		fmt.Println("call error", callerr)
 		if res.Err == "ok" {
 			if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
 				fmt.Println("get cache error ", err)
@@ -329,6 +345,7 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 						fmt.Println("load user quests", u.activities, u.quests)
 
 						if res.Identify.Card != "" {
+							u.IdCard = res.Identify
 							um.lb.send2player(uid, proto.CmdBaseSynceIdentifyInfo, &res.Identify)
 						}
 						fmt.Println("user auth info ", res.Identify)
@@ -349,9 +366,11 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 func (um *userManager) handleClientDisconnect(uid uint32) {
 	fmt.Println("user discconnectd ", um.users[uid])
 
+	um.cc.DelUserCidUserId(uid)
+	um.delUser(uid)
+
 	user := um.getUser(uid)
 	if user == nil {
-		fmt.Println("user not in ?")
 		return
 	}
 
@@ -383,9 +402,6 @@ func (um *userManager) handleClientDisconnect(uid uint32) {
 			fmt.Println("save user data error", rep.ErrCode, err)
 		}
 	}(user)
-
-	um.cc.DelUserCidUserId(uid)
-	um.delUser(uid)
 }
 
 func (um *userManager) handleCreateAccount(uid uint32, account *proto.CreateAccount) {

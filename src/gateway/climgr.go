@@ -27,6 +27,9 @@ func (mgr *cliManager) cliConnect(cli defines.ITcpClient) error {
 	defer mgr.Unlock()
 
 	mgr.idGen++
+	if mgr.idGen == 0 {
+		mgr.idGen = 1
+	}
 	mgr.clis[mgr.idGen] = cli
 	cli.Id(mgr.idGen)
 
@@ -75,6 +78,20 @@ func (mgr *cliManager) route2client(uids []uint32, cmd uint32, data []byte) {
 				if client, ok := mgr.clis[uid]; ok {
 					fmt.Println("gw client set client game id ", uid, uint32(enterRes.ServerId))
 					client.Set("gameid", uint32(enterRes.ServerId))
+				}
+			}
+			return
+		}
+	} else if cmd == proto.CmdGamePlayerReturn2lobby {
+		var res proto.PlayerReturn2Lobby
+		if err := msgpacker.UnMarshal(data, &res); err != nil {
+			fmt.Println("gw crete room re**********", err)
+			return
+		}
+		if res.ErrCode == defines.ErrCommonSuccess {
+			for _, uid := range uids {
+				if client, ok := mgr.clis[uid]; ok {
+					client.Set("gameid", nil)
 				}
 			}
 			return

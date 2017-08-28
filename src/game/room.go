@@ -66,7 +66,7 @@ func (rm *room) safeCall() {
 
 		if n.cmd == proto.CmdEnterRoom {
 			rm.onUserEnter(n)
-		} else if n.cmd == proto.CmdLeaveRoom {
+		} else if n.cmd == proto.CmdGamePlayerLeaveRoom {
 			rm.onUserLeave(n)
 		} else if n.cmd == proto.CmdGamePlayerMessage {
 			rm.onUserMessage(n)
@@ -173,8 +173,15 @@ func (rm *room) onUserEnter(notify *roomNotify) {
 
 func (rm *room) onUserLeave(notify *roomNotify) {
 	rm.game.OnUserLeave(&notify.user)
-	rm.UpdateProp(notify.user.UserId, defines.PpRoomId, 0)
+	rm.UpdateProp(notify.user.UserId, defines.PpRoomId, uint32(0))
 	delete(rm.users, notify.user.UserId)
+
+	rm.SendUserMessage(&notify.user, proto.CmdGamePlayerReturn2lobby, &proto.PlayerReturn2Lobby{ErrCode: defines.ErrCommonSuccess})
+	rm.SendUserMessage(&notify.user, proto.CmdGamePlayerLeaveRoom, &proto.PlayerLeaveRoomRet{ErrCode: defines.ErrCommonSuccess})
+
+	if len(rm.users) == 0 {
+		rm.ReleaseRoom()
+	}
 }
 
 func (rm *room) onUserReenter(notify *roomNotify) {
@@ -238,7 +245,7 @@ func (rm *room) onUserReleaseRoom(notify *roomNotify) {
 
 	rm.manager.broadcastMessage(users, proto.CmdGamePlayerReleaseRoom, &proto.PlayerGameReleaseRoomRet{
 		ErrCode: defines.ErrCommonSuccess,
-		Sponser: notify.user.Name,
+		Sponser: notify.user.UserId,
 	})
 
 	rm.isReleased = true
@@ -281,11 +288,11 @@ func (rm *room) onUserReleaseRoomResponse(notify *roomNotify) {
 
 	released := rm.checkReleaseRoomCondition()
 
-	rm.manager.broadcastMessage(users, proto.CmdGamePlayerReleaseRoom, &proto.PlayerGameReleaseRoomResponseRet{
+	rm.manager.broadcastMessage(users, proto.CmdGamePlayerReleaseRoomResponse, &proto.PlayerGameReleaseRoomResponseRet{
 		ErrCode: defines.ErrCommonSuccess,
 		Released: released,
 		Agree: message.Agree,
-		Voter: notify.user.Name,
+		Voter: notify.user.UserId,
 	})
 
 	if released {
@@ -314,7 +321,7 @@ func (rm *room) checkReleaseRoomCondition() bool {
 			agreeCount++
 		}
 	}
-	if agreeCount == rm.module.PlayerCount {
+	if agreeCount == rm.game.GetPlayerCount() {
 		return true
 	}
 	return false
@@ -343,12 +350,12 @@ func (rm *room) OnStop() {
 	rm.game.OnRelease()
 
 	for _, user := range rm.users {
-		rm.UpdateProp(user.UserId, defines.PpRoomId, 0)
+		rm.UpdateProp(user.UserId, defines.PpRoomId, uint32(0))
 	}
 
 	for _, user := range rm.users {
 		fmt.Println("player return to lobby", user)
-		rm.SendUserMessage(user, proto.CmdGamePlayerReturn2lobby, &proto.PlayerReturn2Lobby{})
+		rm.SendUserMessage(user, proto.CmdGamePlayerReturn2lobby, &proto.PlayerReturn2Lobby{ErrCode: defines.ErrCommonSuccess})
 	}
 }
 
@@ -406,7 +413,7 @@ func (rm *room) UpdateProp(userId uint32, prop int, value interface{}) {
 			}
 			if update {
 				rm.manager.sendMessage(user, proto.CmdBaseUpsePropUpdate, &proto.SyncUserProps {
-					Props: proto.UserProp{
+					Props: &proto.UserProp{
 						Ppkey: prop,
 						PpVal: value,
 					},

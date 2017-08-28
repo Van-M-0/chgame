@@ -107,6 +107,7 @@ func startGame(moduels []defines.GameModule) {
 	}
 
 	game.NewGameServer(&defines.GameOption{
+		ClientHost: cfg.FrontHost,
 		GwHost: cfg.BackendHost,
 		Moudles: moduels,
 	}).Start()

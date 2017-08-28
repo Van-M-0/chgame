@@ -36,13 +36,15 @@ func (gs *gameServer) Start() error {
 			gs.serverId = res.Id
 
 			registerModules := func() string {
+				fmt.Println("register game conf ...", gs.opt.Moudles)
 				var modReply proto.MsGameMoudleRegisterReply
 				modList := make([]proto.MsModuleItem, 0)
 				for _, m := range gs.opt.Moudles {
+					fmt.Println("register game conf", m.GameConf)
 					modList = append(modList, proto.MsModuleItem{
 						Kind: m.Type,
 						GameConf: m.GameConf,
-						GatewayHost: gs.opt.GwHost,
+						GatewayHost: gs.opt.ClientHost,
 					})
 				}
 				err := gs.msClient.Call("GameModuleService.RegisterModule", &proto.MsGameMoudleRegisterArg{

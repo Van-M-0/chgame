@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"strconv"
+	"net/http"
 )
 /*
 func testpb() {
@@ -133,6 +134,23 @@ func test1() {
 }
 
 func main() {
+
+	downlaod := func(w http.ResponseWriter, r *http.Request) {
+
+		w.Header().Set("Content-Disposition", "attachment; filename=WHATEVER_YOU_WANT")
+		w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
+
+		file := "./file/a.txt"
+		http.ServeFile(w, r, file)
+	}
+
+	os.Mkdir("file", 0777)
+	//http.Handle("/pollux/", http.StripPrefix("/pollux/", http.FileServer(http.Dir("file"))))
+	http.HandleFunc("/pollux/", downlaod)
+	err := http.ListenAndServe(":8080", nil)
+	if err != nil {
+		fmt.Println("listen and serve error ", err)
+	}
 
 	tptr := time.NewTimer(time.Duration(3 * time.Second))
 	t := *tptr

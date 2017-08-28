@@ -9,6 +9,7 @@ import (
 	"net"
 	"communicator"
 	"io/ioutil"
+	"os"
 )
 
 type appInfo struct {
@@ -189,7 +190,7 @@ func (hp *http2Proxy) getGameModules(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("rep >", rep, GameModService != nil)
 
 	data, err := json.Marshal(rep)
-	fmt.Println("data", data)
+	fmt.Println("data", data, string(data))
 	if err != nil {
 		w.Write([]byte(`{"ErrCode":"error"}`))
 	} else {
@@ -223,6 +224,24 @@ func (hp *http2Proxy) getOpenList(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("rep >", rep, GameModService != nil)
 }
 
+func (hp *http2Proxy) downloadFile(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	v := r.Form["file"]
+	fmt.Println("downlaod file", v[0])
+
+
+	file := "./file/"+v[0]
+	if _, err := os.Stat(file); err != nil {
+		fmt.Println("stat file ", err, os.IsNotExist(err))
+		fmt.Println("file not exists")
+		w.WriteHeader(403)
+	} else {
+		w.Header().Set("Content-Disposition", "attachment; filename=" + v[0])
+		w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
+		http.ServeFile(w, r, file)
+	}
+}
+
 func (hp *http2Proxy) serve() {
 	hp.pub.Start()
 
@@ -233,6 +252,8 @@ func (hp *http2Proxy) serve() {
 	http.HandleFunc("/notices", hp.notice)
 	http.HandleFunc("/clientList", hp.getGameModules)
 	http.HandleFunc("/OpenList", hp.getOpenList)
+	//http.HandleFunc("/download", hp.downloadFile)
+	http.Handle("/download/", http.StripPrefix("/download/", http.FileServer(http.Dir("file"))))
 
 	fmt.Println("http server start...", hp.httpAddr)
 

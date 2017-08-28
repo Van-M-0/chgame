@@ -302,7 +302,16 @@ func (sm *sceneManager) onGwPlayerEnterRoom(player *defines.PlayerInfo, data []b
 }
 
 func (sm *sceneManager) onGwPlayerLeaveRoom(player *defines.PlayerInfo, data []byte) {
+	var message proto.PlayerLeaveRoom
+	if err := msgpacker.UnMarshal(data, &message); err != nil {
+		return
+	}
+	if player.RoomId == 0 {
+		sm.SendMessage(player.Uid, proto.CmdGamePlayerLeaveRoom, &proto.PlayerLeaveRoomRet{ErrCode: defines.ErrCommonInvalidReq})
+		return
+	}
 
+	sm.roomMgr.leaveRoom(player, &message)
 }
 
 func (sm *sceneManager) updateUserInfo(uid, userId uint32) (string, *defines.PlayerInfo)  {

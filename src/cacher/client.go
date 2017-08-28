@@ -203,7 +203,7 @@ func (cc *cacheClient) UpdateUserInfo(uid uint32, prop int, value interface{}) b
 			val = int(val.(uint32))
 		}
 		if v, ok := val.(int); ok {
-			if v > 0 {
+			if v >= 0 {
 				reply, err := cc.command("hset", users(int(uid)), keyName, v)
 				if err != nil {
 					fmt.Println("UpdateUserInfo set cache error ", uid, key, val, reply, err)
@@ -221,7 +221,7 @@ func (cc *cacheClient) UpdateUserInfo(uid uint32, prop int, value interface{}) b
 
 	updateInt64Prop := func(key int, val interface{}) bool {
 		if v, ok := val.(int64); ok {
-			if v > 0 {
+			if v >= 0 {
 				reply, err := cc.command("hset", users(int(uid)), keyName, v)
 				if err != nil {
 					fmt.Println("UpdateUserInfo set cache error ", uid, key, val, reply, err)

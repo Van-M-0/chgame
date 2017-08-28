@@ -150,6 +150,18 @@ func (rm *roomManager) reEnter(info *defines.PlayerInfo) {
 	}
 }
 
+func (rm *roomManager) leaveRoom(info *defines.PlayerInfo, ret *proto.PlayerLeaveRoom) {
+	room := rm.getRoom(info.RoomId)
+	if room == nil {
+		fmt.Println("leave ", info.RoomId)
+		return
+	}
+	room.notify <- &roomNotify{
+		cmd: proto.CmdGamePlayerLeaveRoom,
+		user: *info,
+	}
+}
+
 func (rm *roomManager) gameMessage(info *defines.PlayerInfo, cmd uint32, msg []byte) {
 	room := rm.getRoom(info.RoomId)
 	if room == nil {

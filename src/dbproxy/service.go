@@ -34,7 +34,7 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 	service.lock.Lock()
 	ret := service.db.GetUserInfo(req.Acc, &userInfo)
 	service.lock.Unlock()
-
+	fmt.Println("luser login ", req, res)
 	if req.LoginType == defines.LoginTypeWechat {
 		if !ret {
 			name := req.Name
@@ -174,6 +174,7 @@ func (service *DBService) CreateAccount(req *proto.DbCreateAccountArg, res *prot
 				Diamond: 10,
 				RoomCard: 1,
 				Score: 0,
+				Regtime: time.Now(),
 			}
 			r = service.db.AddUserInfo(userSuccess)
 			res.Err = "ok"

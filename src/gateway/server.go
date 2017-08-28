@@ -7,6 +7,7 @@ import (
 	"msgpacker"
 	"fmt"
 	"rpcd"
+	"time"
 )
 
 type gateway struct {
@@ -34,6 +35,7 @@ func (gw *gateway) Start() error {
 		Host: gw.option.FrontHost,
 		ConnectCb: func(client defines.ITcpClient) error {
 			fmt.Println("client conect ", client.GetRemoteAddress())
+			client.Set("deadline", time.Minute * 5)
 			return nil
 		},
 		CloseCb: func(client defines.ITcpClient) {

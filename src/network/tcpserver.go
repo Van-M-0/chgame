@@ -4,6 +4,7 @@ import (
 	"exportor/defines"
 	"net"
 	"fmt"
+	"time"
 )
 
 type tcpServer struct {
@@ -67,7 +68,16 @@ func (server *tcpServer) handleClient(conn net.Conn) {
 	}
 	go client.sendLoop()
 
+	var t time.Duration
+	deadTime := client.Get("deadline")
+	if deadTime != nil {
+		t = deadTime.(time.Duration)
+	}
+
 	for {
+		if t != 0 {
+			conn.SetDeadline(time.Now().Add(t))
+		}
 		m, err := client.readMessage()
 		if err != nil {
 			fmt.Println("decode msg error", err)

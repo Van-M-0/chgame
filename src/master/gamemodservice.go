@@ -92,6 +92,7 @@ func (gms *GameModuleService) getModuleList(province string) []proto.ModuleInfo 
 			Conf:	  m.Conf,
 			GateIp:   m.GateIp,
 		}
+		fmt.Println("mode", c)
 		l = append(l, c)
 	}
 	fmt.Println("mods ", l)
