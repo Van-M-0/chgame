@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"io/ioutil"
 	"encoding/json"
+	"world"
 )
 
 var cfg defines.StartConfigFile
@@ -57,6 +58,10 @@ func init() {
 
 func startMaster() {
 	master.NewMasterServer(&cfg).Start()
+}
+
+func startWorld() {
+	world.NewWorldServer(&cfg).Start()
 }
 
 func startGate() {
@@ -289,6 +294,8 @@ func StartProgram(p string, data interface{}) {
 		startGame(data.([]defines.GameModule))
 	} else if p == "master" {
 		startMaster()
+	} else if p == "world" {
+		startWorld()
 	}
 
 	wg := new(sync.WaitGroup)

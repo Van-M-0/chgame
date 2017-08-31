@@ -23,7 +23,7 @@ func (hp *http2Proxy) serve() {
 	})
 
 //	http.HandleFunc("/wechat", hp.wechatLogin)
-	fmt.Println("http server start...", hp.httpAddr)
+	fmt.Println("world http server start...", hp.httpAddr)
 
 	if err := http.ListenAndServe(hp.httpAddr, nil); err != nil {
 		panic("listen http error " + hp.httpAddr + err.Error())

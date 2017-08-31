@@ -294,7 +294,7 @@ func (sm *sceneManager) onGwPlayerEnterRoom(player *defines.PlayerInfo, data []b
 	}
 	if player.RoomId == 0 {
 		sm.roomMgr.enterRoom(player, message.RoomId)
-	} else if player.RoomId == player.RoomId {
+	} else if player.RoomId == message.RoomId {
 		sm.roomMgr.reEnter(player)
 	} else {
 		sm.SendMessage(player.Uid, proto.CmdGameCreateRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomNotSame})

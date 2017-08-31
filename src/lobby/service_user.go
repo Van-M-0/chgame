@@ -118,12 +118,13 @@ func (um *userManager) addUser(uid uint32, cu *proto.CacheUser) *userInfo {
 	return user
 }
 
-func (um *userManager) reAddUser(uid uint32, user *userInfo) {
+func (um *userManager) reAddUser(uid uint32, user *userInfo, cu *proto.CacheUser) {
 	um.userLock.Lock()
 	fmt.Println("re add user ", uid, user.uid, user)
 	delete(um.users, user.uid)
 	um.users[uid] = user
 	user.uid = uid
+	user.roomId = cu.RoomId
 	um.userLock.Unlock()
 }
 
@@ -298,8 +299,13 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 
 	if p != nil {
 		fmt.Println("handle palyer login userin")
+		if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
+			fmt.Println("re-get cache error ", err)
+			replyErr(defines.ErrCommonCache)
+			return
+		}
 		um.cc.SetUserCidUserId(uid, int(p.userId))
-		um.reAddUser(uid, p)
+		um.reAddUser(uid, p, &cacheUser)
 		replaySuc(p)
 		replyItems(p)
 		if p.IdCard.Card != "" {

@@ -7,11 +7,13 @@ import (
 
 type World struct {
 	hp 		*http2Proxy
+	db 		*dbClient
 }
 
 func NewWorldServer (cfg *defines.StartConfigFile) defines.IServer {
 	ms := &World{}
-	ms.hp = newHttpProxy(cfg.HttpHost)
+	ms.hp = newHttpProxy(cfg.WorldHttp)
+	ms.db = newDbClient()
 	return ms
 }
 
