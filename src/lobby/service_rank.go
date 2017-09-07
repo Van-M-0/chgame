@@ -45,7 +45,7 @@ func (rs *rankService) loadUserRanks(rankType int, count int) {
 	}
 	rs.ranksLock.Unlock()
 
-	fmt.Println("load diamond user rank", rs.diamondRanks)
+	//fmt.Println("load diamond user rank", rs.diamondRanks)
 }
 
 func (rs *rankService) onUserGetRanks(uid uint32, req *proto.ClientLoadUserRank) {

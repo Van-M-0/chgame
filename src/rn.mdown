@@ -125,7 +125,7 @@
 
 * componentWillMount()
 * componentDidMount()
-* componetWillUpdate(object nextProps, objext nextState)
+* componetWillUpdate(object nextProps, object nextState)
 * componentDidUpdate(object preProps, object preState)
 * componentWillUnmount()
 

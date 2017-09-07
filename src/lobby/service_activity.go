@@ -91,7 +91,7 @@ func (ac *Activities) start() {
 				}
 
 				activity.OnStart()
-				fmt.Println("activity start ", a)
+				//fmt.Println("activity start ", a)
 			}
 		}
 
@@ -221,7 +221,7 @@ func (fc *FirstChargeActivity) OnStop() {
 }
 
 func (fc *FirstChargeActivity) OnEvent(e *ActivityEvent) {
-	fmt.Println("first charge activity ", e)
+	//fmt.Println("first charge activity ", e)
 	for _, r := range fc.rewards {
 		if r.RewardType == RewardTypeAddition {
 		} else if r.RewardType == RewardTypeItem {

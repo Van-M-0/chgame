@@ -24,6 +24,7 @@ type lobby struct {
 	as 				*Activities
 	qs 				*QuestService
 	is 				*IdentifyService
+	clubs 			*AgentClub
 	dbClient 		*rpcd.RpcdClient
 	msClient 		*rpcd.RpcdClient
 	serverId 		int
@@ -42,15 +43,18 @@ func newLobby(option *defines.LobbyOption) *lobby {
 	lb.as = newActivities(lb)
 	lb.qs = newQuestService(lb)
 	lb.is = newIdentifyService(lb)
+	lb.clubs = newAgentClub(lb)
 	return lb
 }
 
 func (lb *lobby) Start() error {
 
 	lb.gwClient = network.NewTcpClient(&defines.NetClientOption{
+		SendChSize: 10240,
 		Host: lb.opt.GwHost,
+		SendActor: 100,
 		ConnectCb: func (client defines.ITcpClient) error {
-			fmt.Println("connect gate succcess, send auth info")
+			//fmt.Println("connect gate succcess, send auth info")
 			var res proto.MsServerIdReply
 			lb.msClient.Call("ServerService.GetServerId", &proto.MsServerIdArg{Type:"lobby"}, &res)
 			lb.serverId = res.Id
@@ -58,11 +62,11 @@ func (lb *lobby) Start() error {
 				Type: "lobby",
 				ServerId: res.Id,
 			})
-			fmt.Println("lobby auth ", res.Id)
+			//fmt.Println("lobby auth ", res.Id)
 			return nil
 		},
 		CloseCb: func (client defines.ITcpClient) {
-			fmt.Println("closed gate success")
+			//fmt.Println("closed gate success")
 		},
 		AuthCb: func (client defines.ITcpClient) error {
 			return nil
@@ -78,7 +82,6 @@ func (lb *lobby) Start() error {
 	lb.userMgr.setLobby(lb)
 	lb.userMgr.start()
 	lb.processor.Start()
-	lb.bpro.Start()
 	lb.ns.start()
 	lb.rs.start()
 	lb.mall.start()
@@ -86,6 +89,7 @@ func (lb *lobby) Start() error {
 	lb.as.start()
 	lb.qs.start()
 	lb.is.start()
+	lb.clubs.start()
 	return nil
 }
 
@@ -106,10 +110,9 @@ func (lb *lobby) onGwMessage(message *proto.Message) {
 	if message.Cmd == proto.ClientRouteLobby {
 		var header proto.GateLobbyHeader
 		if err := msgpacker.UnMarshal(message.Msg, &header); err != nil {
-			fmt.Println("unmarshal client route lobby header error")
+			fmt.Println("unmarshal client route lobby header error", err, header, message.Msg)
 			return
 		}
-		fmt.Println("lobby on gw message 1", header.Cmd, header)
 		lb.processor.process(header.Uid, func() {
 			lb.handleClientMessage(header.Uid, header.Cmd, header.Msg)
 		})
@@ -119,7 +122,7 @@ func (lb *lobby) onGwMessage(message *proto.Message) {
 			fmt.Println("unmarshal client route lobby header error")
 			return
 		}
-		fmt.Println("lobby on gw message 1", header.Cmd, header)
+		//fmt.Println("gm", header.Cmd, header)
 		lb.handleGateMessage(header.Uid, header.Cmd, header.Msg)
 	} else {
 		fmt.Println("lobby on gw message router error ", message)
@@ -128,6 +131,14 @@ func (lb *lobby) onGwMessage(message *proto.Message) {
 
 func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 	switch cmd {
+	case proto.CmdLobbyPerformance:
+		var pf proto.LobbyPerformance
+		if err := msgpacker.UnMarshal(data, &pf); err != nil {
+			fmt.Println("unmarshal performance packet error")
+			return
+		}
+		//fmt.Println("cmsg ", uid, pf.SubCmd)
+		lb.userMgr.handleUserPerformanceMessage(uid, &pf)
 	case proto.CmdClientLogin:
 		var login proto.ClientLogin
 		if err := msgpacker.UnMarshal(data, &login); err != nil {
@@ -255,6 +266,27 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 			return
 		}
 		lb.is.OnUserCheckUserIdentifier(uid, &req)
+	case proto.CmdUserCreatClub:
+		var req proto.ClientCreateClub
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal createclub error")
+			return
+		}
+		lb.clubs.OnUserCreateClub(uid, &req)
+	case proto.CmdUserJoinClub:
+		var req proto.ClientJoinClub
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal joinclub error")
+			return
+		}
+		lb.clubs.OnUserJoinClub(uid, &req)
+	case proto.CmdUserLeaveClub:
+		var req proto.ClientLeaveClub
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			fmt.Println("unmarshal joinclub error")
+			return
+		}
+		lb.clubs.OnUserLeaveClub(uid, &req)
 	default:
 		fmt.Println("lobby handle invalid client cmd ", cmd)
 	}
@@ -270,7 +302,7 @@ func (lb *lobby) send2player(uid uint32, cmd uint32, data interface{}) {
 		Cmd: cmd,
 		Msg: body,
 	}
-	fmt.Println("lobby send 2 player ", header.Cmd, header.Uids)
+	//fmt.Println("ls2p ", header.Cmd, header.Uids)
 	lb.gwClient.Send(proto.LobbyRouteClient, &header)
 }
 

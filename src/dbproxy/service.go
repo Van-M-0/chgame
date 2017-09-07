@@ -31,9 +31,9 @@ func (service *DBService) start() {
 func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUserLoginReply) error {
 	var userInfo table.T_Users
 
-	service.lock.Lock()
+	//service.lock.Lock()
 	ret := service.db.GetUserInfo(req.Acc, &userInfo)
-	service.lock.Unlock()
+	//service.lock.Unlock()
 	fmt.Println("luser login ", req, res)
 	if req.LoginType == defines.LoginTypeWechat {
 		if !ret {
@@ -63,9 +63,9 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 				r = service.db.AddUserInfo(userSuccess)
 			}
 		}
-		service.lock.Lock()
+		//service.lock.Lock()
 		ret = service.db.GetUserInfo(req.Acc, &userInfo)
-		service.lock.Unlock()
+		//service.lock.Unlock()
 
 		userInfo.Headimg = req.Headimg
 	} else {
@@ -96,9 +96,9 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 				r = service.db.AddUserInfo(userSuccess)
 			}
 		}
-		service.lock.Lock()
+		//service.lock.Lock()
 		ret = service.db.GetUserInfo(req.Acc, &userInfo)
-		service.lock.Unlock()
+		//service.lock.Unlock()
 	}
 
 	fmt.Println("user login ", req)
@@ -118,7 +118,7 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 		} else {
 			res.Err = "ok"
 			var itemlist []table.T_UserItem
-			service.db.db.Find(&itemlist).Where("userid = ?",  userInfo.Userid)
+			service.db.db.Where("userid = ?",  userInfo.Userid).Find(&itemlist)
 
 			var items []proto.UserItem
 			for _, item := range itemlist {
@@ -154,9 +154,9 @@ func (service *DBService) CreateAccount(req *proto.DbCreateAccountArg, res *prot
 	var user table.T_Users
 	var userSuccess *table.T_Users
 	fmt.Println("create account ", req)
-	service.lock.Lock()
+	//service.lock.Lock()
 	ret := service.db.GetUserInfo(req.Acc, &user)
-	service.lock.Unlock()
+	//service.lock.Unlock()
 	if !ret {
 		name := "name_" + strconv.Itoa(int(time.Now().Unix()))
 		pwd := "123456"
@@ -358,5 +358,77 @@ func (service *DBService) SaveIdentifyInfo(req *proto.MsSaveIdentifyInfoArg, rep
 		Idcard: req.Idcard,
 	})
 	rep.ErrCode = "ok"
+	return nil
+}
+
+func (service *DBService) LoadClubInfo(req *proto.MsLoadClubInfoReq, rep *proto.MsLoadClubInfoReply) error {
+	var cc []table.T_Club
+	var ce []table.T_ClubMember
+	service.db.db.Find(&cc)
+	service.db.db.Find(&ce)
+
+	rep.ErrCode = "ok"
+	for _, club := range cc {
+		rep.Clubs = append(rep.Clubs, &proto.ClubItem {
+			Id: club.Id,
+			CreatorName: club.Creatorname,
+			CreatorId: club.Creatorid,
+		})
+	}
+
+	for _, member := range ce {
+		rep.ClubMembers = append(rep.ClubMembers, &proto.ClubMemberItem {
+			UserId: member.Userid,
+			ClubId: member.Clubid,
+		})
+	}
+
+	return nil
+}
+
+func (service *DBService) ClubOperation(req *proto.MsClubOperationReq, rep *proto.MsClubOperationReply) error {
+	rep.ErrCode = "ok"
+	if req.Op == "create" {
+		e1 := service.db.db.Create(&table.T_Club{
+			Id: req.Club.Id,
+			Creatorid: req.Club.CreatorId,
+			Creatorname: req.Club.CreatorName,
+		}).RowsAffected != 0
+		e2 := service.db.db.Create(&table.T_ClubMember{
+			Userid: req.UserId,
+			Clubid: req.Club.Id,
+		}).RowsAffected != 0
+		if !e1 || !e2 {
+			fmt.Println(e1, e2)
+			rep.ErrCode = "err"
+		}
+	} else if req.Op == "join" {
+		e2 := service.db.db.Create(&table.T_ClubMember{
+			Userid: req.UserId,
+			Clubid: req.Club.Id,
+		}).RowsAffected != 0
+		if !e2  {
+			fmt.Println(e2)
+			rep.ErrCode = "err"
+		}
+	} else if req.Op == "leave" {
+		var club table.T_Club
+		service.db.db.Where("id = ?", req.Club.Id).Find(&club)
+		var member table.T_ClubMember
+		service.db.db.Where("userid = ?", req.UserId).Find(&member)
+		if club.Id == 0 || member.Userid == 0 {
+			rep.ErrCode = "err"
+		} else {
+			del := service.db.db.Where("clubid = ? and userid = ?", member.Clubid, member.Userid).Delete(&member).RowsAffected
+			fmt.Println("dele rowo ", del)
+			if del == 0 {
+				rep.ErrCode = "err"
+			}
+		}
+	}
+
+	rep.Club = req.Club
+	rep.UserId = req.UserId
+
 	return nil
 }

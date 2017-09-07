@@ -8,6 +8,8 @@ import (
 	"communicator"
 	"fmt"
 	"msgpacker"
+	"sync/atomic"
+	"time"
 )
 
 type userInfo struct {
@@ -43,6 +45,8 @@ type userManager struct {
 	con 			defines.IMsgConsumer
 	rooms    		map[uint32]*room
 	roomLock 		sync.RWMutex
+
+	counter 		chan int
 }
 
 func newUserManager() *userManager {
@@ -64,6 +68,29 @@ func (um *userManager) start() {
 	//um.pub.Start()
 	//um.con.Start()
 	um.cc.Start()
+	um.counter = make(chan int, 40960)
+
+	/*
+	go func() {
+
+		var coutermap = make(map[int]int)
+		total := 0
+
+		lastt := time.Now().Second()
+		for {
+			select {
+			case <- um.counter:
+				curt := time.Now().Second()
+				total++
+				coutermap[curt]++
+				if curt != lastt {
+					lastt = curt
+					fmt.Println("*****************", coutermap, total)
+				}
+			}
+		}
+	}()
+	*/
 }
 
 func (um *userManager) getUser(uid uint32) *userInfo {
@@ -247,7 +274,7 @@ func (um *userManager) getUserProp(uid uint32, prop int) interface{} {
 }
 
 func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
-	fmt.Println("handle palyer login", login)
+	//fmt.Println("handle palyer login", login)
 	p := um.getUserByAcc(login.Account)
 	var cacheUser proto.CacheUser
 
@@ -256,7 +283,7 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 	}
 
 	replaySuc := func(user *userInfo) {
-		fmt.Println("handle palyer login reply success")
+		fmt.Println("login success", user.userId, user.uid)
 		ret := &proto.ClientLoginRet{
 			ErrCode: defines.ErrCommonSuccess,
 			Uid: uid,
@@ -277,14 +304,26 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 	}
 
 	replyItems := func(user *userInfo) {
-		fmt.Println("reply item list")
+		//fmt.Println("reply item list")
 		um.lb.send2player(uid, proto.CmdBaseSynceLoginItems, &proto.SystemSyncItems{
 			Items: user.itemList,
 		})
 	}
 
+	replyClub := func(user *userInfo) {
+		info := &proto.SyncClubInfo{}
+		club := um.lb.clubs.getUserClubInfo(user.userId)
+		if club != nil {
+			info.ClubId = club.id
+			info.CreateorId = int(club.creatorId)
+			info.CreatorName = club.creatorName
+		}
+		//fmt.Println("reply club info", user.userId, info)
+		um.lb.send2player(uid, proto.CmdBaseSynceClubInfo, info)
+	}
+
 	gotUser := func() {
-		fmt.Println("handle palyer login gotuser")
+		//fmt.Println("handle palyer login gotuser")
 		user := um.addUser(uid, &cacheUser)
 		replaySuc(user)
 	}
@@ -308,6 +347,7 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 		um.reAddUser(uid, p, &cacheUser)
 		replaySuc(p)
 		replyItems(p)
+		replyClub(p)
 		if p.IdCard.Card != "" {
 			um.lb.send2player(uid, proto.CmdBaseSynceIdentifyInfo, &p.IdCard)
 		}
@@ -320,13 +360,15 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 			Headimg: login.Headimg,
 			Sex: login.Sex,
 		},&res)
-		fmt.Println("call error", callerr)
+		if callerr != nil {
+			fmt.Println("call error", callerr)
+		}
 		if res.Err == "ok" {
 			if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
-				fmt.Println("get cache error ", err)
+				//fmt.Println("get cache error ", err)
 				replyErr(defines.ErrCommonCache)
 			} else {
-				fmt.Println("get cache user ", cacheUser)
+				//fmt.Println("get cache user ", cacheUser)
 				if cacheUser.Uid != 0 {
 					if um.cc.SetUserCidUserId(uid, cacheUser.Uid) != nil {
 						replyErr(defines.ErrCommonCache)
@@ -336,6 +378,7 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 						u := um.getUser(uid)
 						u.itemList, _ = um.cc.GetUserItems(uint32(cacheUser.Uid))
 						replyItems(u)
+						replyClub(u)
 
 						var ud proto.UserData
 						if err := msgpacker.UnMarshal(res.Ud, &ud); err != nil {
@@ -348,13 +391,13 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 							}
 						}
 
-						fmt.Println("load user quests", u.activities, u.quests)
+						//fmt.Println("load user quests", u.activities, u.quests)
 
 						if res.Identify.Card != "" {
 							u.IdCard = res.Identify
 							um.lb.send2player(uid, proto.CmdBaseSynceIdentifyInfo, &res.Identify)
 						}
-						fmt.Println("user auth info ", res.Identify)
+						//fmt.Println("user auth info ", res.Identify)
 
 					}
 				} else {
@@ -458,4 +501,68 @@ func (um *userManager) handleUserHornMessage(uid uint32, message *proto.UserHorn
 		},
 	})
 }
+
+var pktCounter int32
+
+func (um *userManager) handleUserPerformanceMessage(uid uint32, message *proto.LobbyPerformance) {
+
+	atomic.AddInt32(&pktCounter, 1)
+	u := um.getUser(uid)
+	if u == nil {
+		atomic.AddInt32(&pktCounter, -1)
+		return
+	}
+
+	if message.SubCmd == proto.CmdClientLoadMallList {
+		um.lb.mall.onUserLoadMalls(uid, nil)
+	} else if message.SubCmd == proto.CmdClientBuyItem {
+		um.lb.mall.OnUserBy(uid, &proto.ClientBuyReq{
+			Item:1,
+		})
+	} else if message.SubCmd == proto.CmdUserLoadNotice {
+		um.lb.ns.handleLoadNotices(uid, &proto.LoadNoticeListReq{})
+	} else if message.SubCmd == proto.CmdHornMessage {
+		um.handleUserHornMessage(uid, &proto.UserHornMessageReq{
+			Uid: uid,
+			Content: "hello,你好，额浮生浮生冯绍峰搜房网额范围wefwefe",
+		})
+	} else if message.SubCmd == proto.CmdUserLoadRank {
+		um.lb.rs.onUserGetRanks(uid, &proto.ClientLoadUserRank{
+			RankType: defines.RankTypeDiamond,
+		})
+	} else if message.SubCmd == proto.CmdUserGetRecordList {
+		um.lb.cs.OnUserGetRecordList(uid, nil)
+	} else if message.SubCmd == proto.CmdUserGetRecord {
+		um.lb.cs.OnUserGetRecord(uid, &proto.ClientGetRecord{
+			RecordId: _LastRecordId_,
+		})
+	} else if message.SubCmd == proto.CmdUserLoadActivityList {
+		um.lb.as.OnUserLoadActivities(uid, &proto.ClientLoadActitity{})
+	} else if message.SubCmd == proto.CmdUserLoadQuest {
+		um.lb.qs.OnUserLoadQuest(uid, &proto.ClientLoadQuest{})
+	} else if message.SubCmd == proto.CmdUserProcessQuest {
+		um.lb.qs.OnUserProcessQuest(uid, &proto.ClientProcessQuest{
+			Id: 101,
+		})
+	} else if message.SubCmd == proto.CmdUserCompleteQuest {
+
+	} else if message.SubCmd == proto.CmdUserIdentify {
+		um.lb.is.OnUserCheckUserIdentifier(uid, &proto.ClientIdentify{
+			Id: "584425196606061124",
+			Phone: "13888888888",
+			Name: "hello",
+		})
+	} else if message.SubCmd == proto.CmdUserLoadIdentify {
+
+	}
+
+	um.lb.send2player(uid, proto.CmdLobbyPerformance, &proto.LobbyPerformanceRet{
+		SubCmd: message.SubCmd,
+		T1: message.T,
+		T2: time.Now(),
+	})
+	atomic.AddInt32(&pktCounter, -1)
+	//fmt.Println("f :", message.SubCmd, atomic.LoadInt32(&pktCounter))
+}
+
 

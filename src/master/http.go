@@ -49,8 +49,8 @@ func (hp *http2Proxy) clientWechatLogin(code, device string) (string, string){
 		GrantType string	`json:"grant_type"`
 	}
 
-	request := "appid=" + "wx85469eaffc224f1b" + "&"+
-				"secret=" + "76c8d4ba5c7b27820f6da88d712d21fd" + "&" +
+	request := "appid=" + "wxcecf847deb08a631" + "&"+
+				"secret=" + "f8fe001c12e0306591ed130e56c35099"+ "&" +
 				"code=" + code + "&" +
 				"grant_type=authorization_code"
 

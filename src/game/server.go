@@ -28,6 +28,8 @@ func newGameServer(option *defines.GameOption) *gameServer {
 func (gs *gameServer) Start() error {
 
 	gs.gwClient = network.NewTcpClient(&defines.NetClientOption{
+		SendActor: 1,
+		SendChSize: 10240,
 		Host: gs.opt.GwHost,
 		ConnectCb: func (client defines.ITcpClient) error {
 			fmt.Println("connect gate succcess, send auth info")
@@ -114,7 +116,7 @@ func (gs *gameServer) authServer(message *proto.Message) {
 
 }
 
-func (gs *gameServer) send2players(uids[] uint32, cmd uint32, data interface{}) {
+func (gs *gameServer) send2players(uids[] uint32, index uint32, cmd uint32, data interface{}) {
 	if len(uids) == 0 {
 		fmt.Println("send player message empty uids")
 		return
@@ -127,6 +129,7 @@ func (gs *gameServer) send2players(uids[] uint32, cmd uint32, data interface{}) 
 	header := &proto.GameGateHeader{
 		Uids: uids,
 		Cmd: cmd,
+		Index: index,
 		Msg: body,
 	}
 	fmt.Println("game send 2 player ", header)

@@ -27,6 +27,7 @@ func (rs *recordService) stop() {
 	rs.cc.Stop()
 }
 
+var _LastRecordId_ int
 func (rs *recordService) OnUserGetRecordList(uid uint32, req *proto.ClientGetRecordList) {
 	user := rs.lb.userMgr.getUser(uid)
 	if user == nil {
@@ -47,6 +48,7 @@ func (rs *recordService) OnUserGetRecordList(uid uint32, req *proto.ClientGetRec
 
 	var res proto.ClientGetRecordListRet
 	for id, head := range m {
+		_LastRecordId_ = id
 		res.Records = append(res.Records, proto.RecordItem{
 			RecordId: id,
 			RecordData: head,

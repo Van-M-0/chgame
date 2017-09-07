@@ -29,6 +29,7 @@ import (
 
 var cfg defines.StartConfigFile
 
+var _gate_ defines.IServer
 func init() {
 	file, err := exec.LookPath(os.Args[0])
 	if err != nil {
@@ -65,11 +66,16 @@ func startWorld() {
 }
 
 func startGate() {
-	gateway.NewGateServer(&defines.GatewayOption{
+	_gate_ = gateway.NewGateServer(&defines.GatewayOption{
 		FrontHost: cfg.FrontHost,
 		BackHost: cfg.BackendHost,
 		MaxClient: 100,
-	}).Start()
+	})
+	_gate_.Start()
+}
+
+func StopGate() {
+	_gate_.Stop()
 }
 
 func startLobby() {
@@ -131,6 +137,7 @@ type tclient struct {
 }
 
 func (t *tclient) login(acc string) {
+	fmt.Println("login .....")
 	t.Send(proto.CmdClientLogin, &proto.ClientLogin{
 		Account: acc,
 	})
@@ -173,6 +180,28 @@ func (t *tclient) sendReady() {
 	})
 }
 
+func (t *tclient) leaveRoom(room uint32) {
+	t.Send(proto.CmdGamePlayerLeaveRoom, &proto.PlayerLeaveRoom{
+		RoomId: room,
+	})
+}
+
+func (t *tclient) joinClub() {
+	t.Send(proto.CmdUserJoinClub, &proto.ClientJoinClub{
+		ClubId: 897885,
+	})
+}
+
+func (t *tclient) leaveClub() {
+	t.Send(proto.CmdUserLeaveClub, &proto.ClientLeaveClub{
+		ClubId: 897885,
+	})
+}
+
+func (t *tclient) sendCreateClub() {
+	t.Send(proto.CmdUserCreatClub, &proto.ClientCreateClub{})
+}
+
 func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 	if message.Cmd == proto.CmdClientLogin {
 		var loginRet proto.ClientLoginRet
@@ -189,6 +218,10 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 		} else if loginRet.ErrCode == defines.ErrCommonSuccess{
 			fmt.Println("user login ret______ ok ", loginRet)
 			t.createRoom()
+
+			//t.sendCreateClub()
+			//t.joinClub()
+			//t.leaveClub()
 		} else {
 			fmt.Println("__________login ret _______", loginRet.ErrCode)
 		}
@@ -242,10 +275,39 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 
 		if ret.ErrCode == defines.ErrCommonSuccess {
 			fmt.Println("send user ready message")
-			t.sendReady()
 		} else if ret.ErrCode == defines.ErrEnterRoomQueryConf {
 			t.enterRoom(lastRoomId, uint32(ret.ServerId))
 		}
+	} else if message.Cmd == proto.CmdUserCreatClub {
+		var ret proto.ClientCreateClubRet
+		var origin []byte
+		err := msgpacker.UnMarshal(message.Msg, &origin)
+		msgpacker.UnMarshal(origin, &ret)
+		fmt.Println("create club ", ret, err)
+	} else if message.Cmd == proto.CmdBaseSynceClubInfo {
+		var ret proto.SyncClubInfo
+		var origin []byte
+		msgpacker.UnMarshal(message.Msg, &origin)
+		msgpacker.UnMarshal(origin, &ret)
+		fmt.Println("club info ", ret)
+	} else if message.Cmd == proto.CmdUserJoinClub {
+		var ret proto.ClientJoinClubRet
+		var origin []byte
+		msgpacker.UnMarshal(message.Msg, &origin)
+		msgpacker.UnMarshal(origin, &ret)
+		fmt.Println("join club ", ret)
+	} else if message.Cmd == proto.CmdUserLeaveClub {
+		var ret proto.ClientLeaveClubRet
+		var origin []byte
+		msgpacker.UnMarshal(message.Msg, &origin)
+		msgpacker.UnMarshal(origin, &ret)
+		fmt.Println("leave club ", ret)
+	} else if message.Cmd == proto.CmdGamePlayerLeaveRoom {
+		var ret proto.PlayerLeaveRoomRet
+		var origin []byte
+		msgpacker.UnMarshal(message.Msg, &origin)
+		msgpacker.UnMarshal(origin, &ret)
+		fmt.Println("leave room", ret)
 	}
 }
 
@@ -254,7 +316,8 @@ func startClient() {
 	var t tclient
 
 	c := network.NewTcpClient(&defines.NetClientOption{
-		Host: "192.168.1.121:9890",
+		SendChSize: 10,
+		Host: "192.168.1.123:9890",
 		ConnectCb: func(client defines.ITcpClient) error {
 			return nil
 		},
@@ -269,10 +332,11 @@ func startClient() {
 		},
 	})
 
-	c.Connect()
+	err := c.Connect()
 	t.ITcpClient = c
+	fmt.Println("connect  err ", err)
 
-	t.login("name_9431023")
+	t.login("name_111")
 }
 
 func StartProgram(p string, data interface{}) {
@@ -298,7 +362,9 @@ func StartProgram(p string, data interface{}) {
 		startWorld()
 	}
 
-	wg := new(sync.WaitGroup)
-	wg.Add(1)
-	wg.Wait()
+	if p != "gate"  && p != "lobby" {
+		wg := new(sync.WaitGroup)
+		wg.Add(1)
+		wg.Wait()
+	}
 }

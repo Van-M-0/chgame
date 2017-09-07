@@ -3,7 +3,6 @@ package lobby
 import (
 	"exportor/defines"
 	"exportor/proto"
-	"fmt"
 	"sync"
 )
 
@@ -28,7 +27,7 @@ func (ms *mallService) start() {
 	ms.ItemConfigList = r.ItemConfigList
 	ms.itemsLock.Unlock()
 
-	fmt.Println("local item config", r)
+	//fmt.Println("local item config", r)
 }
 
 func (ms *mallService) onUserLoadMalls(uid uint32, req *proto.ClientLoadMallList) {
@@ -56,7 +55,7 @@ func (ms *mallService) onUserLoadMalls(uid uint32, req *proto.ClientLoadMallList
 func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 	var item proto.ItemConfig
 	user := ms.lb.userMgr.getUser(uid)
-	fmt.Println("user buy", user)
+	//fmt.Println("user buy", user)
 
 	if user == nil {
 		ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
@@ -89,14 +88,14 @@ func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 	}
 
 	if item.Category == defines.MallItemCategoryGold {
-		ms.lb.userMgr.updateUserProp(user, defines.PpGold, item.Nums)
+		ms.lb.userMgr.updateUserProp(user, defines.PpGold, int64(item.Nums))
 	} else if item.Category == defines.MallItemCategoryDiamond {
 		ms.lb.userMgr.updateUserProp(user, defines.PpDiamond, item.Nums)
 	} else if item.Category == defines.MallItemCategoryItem {
 		ms.lb.userMgr.updateUserItem(user, item.Itemid, item.Nums)
 	}
 
-	fmt.Println("client buy item success ", item)
+	//fmt.Println("client buy item success ", item)
 
 	ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
 		ErrCode: defines.ErrCommonSuccess,
@@ -108,7 +107,7 @@ func (ms *mallService) GetItemConfig(itemid []int) []proto.ItemConfig {
 	defer func() {
 		ms.itemsLock.Unlock()
 	}()
-	fmt.Println("get item config ", ms.ItemConfigList)
+	//fmt.Println("get item config ", ms.ItemConfigList)
 	items := []proto.ItemConfig{}
 	for _, id := range itemid {
 		for _, item := range ms.ItemConfigList {

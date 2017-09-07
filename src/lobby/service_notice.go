@@ -1,8 +1,6 @@
 package lobby
 
 import (
-	"exportor/defines"
-	"fmt"
 	"sync"
 	"exportor/proto"
 )
@@ -22,7 +20,7 @@ func newNoticeService(lb *lobby) *noticeService {
 }
 
 func (ns *noticeService) start() {
-	ns.lb.bpro.Register(defines.ChannelTtypeNotice, defines.ChannelUpdateNotice, ns.noticeUpdate)
+	//ns.lb.bpro.Register(defines.ChannelTtypeNotice, defines.ChannelUpdateNotice, ns.noticeUpdate)
 
 	var res proto.MsLoadNoticeReply
 	ns.lb.dbClient.Call("DBService.LoadNotice", &proto.MsLoadNoticeArg{}, &res)
@@ -34,7 +32,7 @@ func (ns *noticeService) start() {
 		ns.notices[n.Id] = n
 	}
 	ns.noticeLock.Unlock()
-	fmt.Println("ns notices map", ns.notices)
+	//fmt.Println("ns notices map", ns.notices)
 }
 
 func (ns *noticeService) noticeUpdate(data interface{}) {
@@ -111,7 +109,7 @@ func (ns *noticeService) noticeUpdate(data interface{}) {
 
 	ns.noticeLock.Unlock()
 
-	fmt.Println("broad cast update notice ", l)
+	//fmt.Println("broad cast update notice ", l)
 
 	// broadcast message
 	ns.lb.broadcastWorldMessage(proto.CmdNoticeUpdate, &proto.NoticeUpdate{List: l})
@@ -128,6 +126,6 @@ func (ns *noticeService) handleLoadNotices(uid uint32, req *proto.LoadNoticeList
 	var res proto.LoadNoticeListRet
 	res.List = l
 
-	fmt.Println("notice res.List ", res.List)
+	//fmt.Println("notice res.List ", res.List)
 	ns.lb.send2player(uid, proto.CmdUserLoadNotice, &res)
 }

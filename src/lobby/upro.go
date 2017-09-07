@@ -26,7 +26,7 @@ type userProcessorManager struct {
 func newUserProcessorMgr() *userProcessorManager {
 	upm := &userProcessorManager{}
 	upm.wg = new(sync.WaitGroup)
-	upm.size = 255
+	upm.size = 1024
 	upm.processor = make([]chan *handlerTask, upm.size)
 	for i := 0; i < upm.size; i++ {
 		upm.processor[i] = make(chan *handlerTask, 10)
@@ -54,7 +54,7 @@ func (upm *userProcessorManager) Start() error {
 			for {
 				task := <- upm.processor[index]
 				if task.req != nil {
-					task.req()
+					upm.call(task.req)
 				} else if task.quit == true {
 					return
 				}

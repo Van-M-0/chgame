@@ -58,7 +58,7 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 
 	module := rm.getGameModule(message.Kind)
 	if module == nil {
-		rm.sm.SendMessage(info.Uid, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomKind})
+		rm.sm.SendMessageRIndex(info.Uid, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomKind})
 		return
 	}
 
@@ -68,7 +68,7 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 		Conf: message.Conf,
 	}, &rep)
 	if rep.RoomId == 0 {
-		rm.sm.SendMessage(info.Uid, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomRoomId})
+		rm.sm.SendMessageRIndex(info.Uid, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomRoomId})
 		return
 	}
 
@@ -96,7 +96,7 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 func (rm *roomManager) enterRoom(info *defines.PlayerInfo, roomId uint32) {
 	room := rm.getRoom(roomId)
 	if room == nil {
-		rm.sm.SendMessage(info.Uid, proto.CmdGameCreateRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomNotExists})
+		rm.sm.SendMessageRIndex(info.Uid, proto.CmdGameCreateRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomNotExists})
 		return
 	}
 
@@ -177,13 +177,13 @@ func (rm *roomManager) gameMessage(info *defines.PlayerInfo, cmd uint32, msg []b
 
 func (rm *roomManager) chatMessage(info *defines.PlayerInfo, cmd uint32, msg []byte) {
 	if info.RoomId == 0 {
-		rm.sm.SendMessage(info.Uid, cmd, &proto.PlayerRoomChatRet{ErrCode: defines.ErrCommonInvalidReq})
+		rm.sm.SendMessageRIndex(info.Uid, cmd, &proto.PlayerRoomChatRet{ErrCode: defines.ErrCommonInvalidReq})
 		return
 	}
 
 	room := rm.getRoom(info.RoomId)
 	if room == nil {
-		rm.sm.SendMessage(info.Uid, cmd, &proto.PlayerRoomChatRet{ErrCode: defines.ErrCommonInvalidReq})
+		rm.sm.SendMessageRIndex(info.Uid, cmd, &proto.PlayerRoomChatRet{ErrCode: defines.ErrCommonInvalidReq})
 		return
 	}
 
@@ -196,13 +196,13 @@ func (rm *roomManager) chatMessage(info *defines.PlayerInfo, cmd uint32, msg []b
 
 func (rm *roomManager) playerReleaseRoom(info *defines.PlayerInfo, cmd uint32, msg []byte) {
 	if info.RoomId == 0 {
-		rm.sm.SendMessage(info.Uid, cmd, &proto.PlayerGameReleaseRoomRet{ErrCode: defines.ErrCommonInvalidReq})
+		rm.sm.SendMessageRIndex(info.Uid, cmd, &proto.PlayerGameReleaseRoomRet{ErrCode: defines.ErrCommonInvalidReq})
 		return
 	}
 
 	room := rm.getRoom(info.RoomId)
 	if room == nil {
-		rm.sm.SendMessage(info.Uid, cmd, &proto.PlayerGameReleaseRoomRet{ErrCode: defines.ErrCommonInvalidReq})
+		rm.sm.SendMessageRIndex(info.Uid, cmd, &proto.PlayerGameReleaseRoomRet{ErrCode: defines.ErrCommonInvalidReq})
 		return
 	}
 
@@ -215,13 +215,13 @@ func (rm *roomManager) playerReleaseRoom(info *defines.PlayerInfo, cmd uint32, m
 
 func (rm *roomManager) playerReleaseRoomResponse(info *defines.PlayerInfo, cmd uint32, msg []byte) {
 	if info.RoomId == 0 {
-		rm.sm.SendMessage(info.Uid, cmd, &proto.PlayerGameReleaseRoomResponseRet{ErrCode: defines.ErrCommonInvalidReq})
+		rm.sm.SendMessageRIndex(info.Uid, cmd, &proto.PlayerGameReleaseRoomResponseRet{ErrCode: defines.ErrCommonInvalidReq})
 		return
 	}
 
 	room := rm.getRoom(info.RoomId)
 	if room == nil {
-		rm.sm.SendMessage(info.Uid, cmd, &proto.PlayerGameReleaseRoomResponseRet{ErrCode: defines.ErrCommonInvalidReq})
+		rm.sm.SendMessageRIndex(info.Uid, cmd, &proto.PlayerGameReleaseRoomResponseRet{ErrCode: defines.ErrCommonInvalidReq})
 		return
 	}
 
@@ -233,19 +233,17 @@ func (rm *roomManager) playerReleaseRoomResponse(info *defines.PlayerInfo, cmd u
 }
 
 func (rm *roomManager) sendMessage(info *defines.PlayerInfo, cmd uint32, data interface{}) {
-	rm.sm.SendMessage(info.Uid, cmd, data)
+	rm.sm.SendMessage(info, cmd, data)
 }
 
 func (rm *roomManager) broadcastMessage(players []*defines.PlayerInfo, cmd uint32, data interface{}) {
 	fmt.Println("broadcast message ", players, cmd, data)
-	uids := make([]uint32, len(players))
 	for _, user := range players {
 		if user == nil {
 			fmt.Println("broad cast message find user nil")
 			continue
 		}
-		uids = append(uids, user.Uid)
 	}
-	rm.sm.BroadcastMessage(uids, cmd, data)
+	rm.sm.BroadcastMessage(players, cmd, data)
 }
 

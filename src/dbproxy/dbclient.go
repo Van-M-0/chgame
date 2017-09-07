@@ -303,6 +303,8 @@ func (dc *dbClient) InitTable() {
 	dc.CreateTableIfNot(&table.T_Userdata{})
 	dc.CreateTableIfNot(&table.T_ActionForbid{})
 	dc.CreateTableIfNot(&table.T_AuthInfo{})
+	dc.CreateTableIfNot(&table.T_Club{})
+	dc.CreateTableIfNot(&table.T_ClubMember{})
 }
 
 // t_accounts : account info

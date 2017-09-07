@@ -213,7 +213,7 @@ func (qs *QuestService) OnUserCompletionQuest(uid uint32, req *proto.ClientCompl
 		}
 	}
 	itemConfig := qs.lb.mall.GetItemConfig(r)
-	fmt.Println("quest completion items ", itemConfig)
+	//fmt.Println("quest completion items ", itemConfig)
 
 	for _, item := range itemConfig {
 		qs.lb.userMgr.updateUserItem(user, item.Itemid, item.Nums)

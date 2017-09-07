@@ -158,11 +158,13 @@ func (rm *room) onUserEnter(notify *roomNotify) {
 		return
 	}
 
+	notify.user.RoomId = rm.id
 	if err := rm.game.OnUserEnter(&notify.user); err != nil {
 		rm.SendUserMessage(&notify.user, proto.CmdGameEnterRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomMoudle})
+		notify.user.RoomId = 0
 	} else {
 		rm.users[notify.user.UserId] = &notify.user
-		rm.UpdateProp(notify.user.UserId, defines.PpRoomId, rm.id)
+		rm.updateProp(notify.user.UserId, defines.PpRoomId, rm.id)
 		rm.SendUserMessage(&notify.user, proto.CmdGameEnterRoom, &proto.PlayerEnterRoomRet{
 			ErrCode: defines.ErrCommonSuccess,
 			ServerId: rm.manager.sm.gameServer.serverId,
@@ -172,20 +174,28 @@ func (rm *room) onUserEnter(notify *roomNotify) {
 }
 
 func (rm *room) onUserLeave(notify *roomNotify) {
+	fmt.Println("user leave room")
 	rm.game.OnUserLeave(&notify.user)
-	rm.UpdateProp(notify.user.UserId, defines.PpRoomId, uint32(0))
+	rm.updateProp(notify.user.UserId, defines.PpRoomId, uint32(0))
 	delete(rm.users, notify.user.UserId)
 
 	rm.SendUserMessage(&notify.user, proto.CmdGamePlayerReturn2lobby, &proto.PlayerReturn2Lobby{ErrCode: defines.ErrCommonSuccess})
-	rm.SendUserMessage(&notify.user, proto.CmdGamePlayerLeaveRoom, &proto.PlayerLeaveRoomRet{ErrCode: defines.ErrCommonSuccess})
+	//rm.SendUserMessage(&notify.user, proto.CmdGamePlayerLeaveRoom, &proto.PlayerLeaveRoomRet{ErrCode: defines.ErrCommonSuccess})
 
+	/*
 	if len(rm.users) == 0 {
 		rm.ReleaseRoom()
 	}
+
+	*/
 }
 
 func (rm *room) onUserReenter(notify *roomNotify) {
 	rm.game.OnUserReEnter(&notify.user)
+	rm.SendUserMessage(&notify.user, proto.CmdGameEnterRoom, &proto.PlayerEnterRoomRet{
+		ErrCode: defines.ErrCommonSuccess,
+		ServerId: rm.manager.sm.gameServer.serverId,
+	})
 }
 
 func (rm *room) onUserOffline(notify *roomNotify) {
@@ -233,32 +243,37 @@ func (rm *room) onUserReleaseRoom(notify *roomNotify) {
 		return
 	}
 
-	rm.releaseVoter[notify.user.UserId] = &voter{
-		user: &notify.user,
-		agreed: 1,
-	}
-
 	users := []*defines.PlayerInfo{}
 	for _, user := range rm.users {
 		users = append(users, user)
+
+		rm.releaseVoter[user.UserId] = &voter{
+			user: user,
+			agreed: 0,
+		}
+		if user.UserId == notify.user.UserId {
+			rm.releaseVoter[user.UserId].agreed = 1
+		}
 	}
+
+	released := rm.checkReleaseRoomCondition()
 
 	rm.manager.broadcastMessage(users, proto.CmdGamePlayerReleaseRoom, &proto.PlayerGameReleaseRoomRet{
 		ErrCode: defines.ErrCommonSuccess,
 		Sponser: notify.user.UserId,
+		Released: released,
 	})
+
+	if released {
+		rm.ReleaseRoom()
+		return
+	}
 
 	rm.isReleased = true
 	rm.timeoutCheck = *time.NewTimer(time.Duration(60 * time.Second))
 }
 
 func (rm *room) onUserReleaseRoomResponse(notify *roomNotify) {
-	if rm.isReleased == false {
-		rm.SendUserMessage(&notify.user, proto.CmdGamePlayerReleaseRoomResponse, &proto.PlayerGameReleaseRoomResponseRet{
-			ErrCode: defines.ErrCommonInvalidReq,
-		})
-		return
-	}
 
 	var message proto.PlayerGameReleaseRoomResponse
 	if err := msgpacker.UnMarshal(notify.data.([]byte), &message); err != nil {
@@ -268,16 +283,24 @@ func (rm *room) onUserReleaseRoomResponse(notify *roomNotify) {
 		return
 	}
 
-	if _, ok := rm.releaseVoter[notify.user.UserId]; ok {
+	if rm.isReleased == false {
+		rm.SendUserMessage(&notify.user, proto.CmdGamePlayerReleaseRoomResponse, &proto.PlayerGameReleaseRoomResponseRet{
+			ErrCode: defines.ErrCommonInvalidReq,
+		})
+		return
+	}
+
+	voter, ok := rm.releaseVoter[notify.user.UserId]
+	if !ok || voter.agreed != 0 {
+		rm.SendUserMessage(&notify.user, proto.CmdGamePlayerReleaseRoomResponse, &proto.PlayerGameReleaseRoomResponseRet{
+			ErrCode: defines.ErrCommonInvalidReq,
+		})
 		return
 	} else {
-		a := 1
-		if !message.Agree {
-			a = 2
-		}
-		rm.releaseVoter[notify.user.UserId] = &voter{
-			user: &notify.user,
-			agreed: a,
+		if message.Agree {
+			voter.agreed = 1
+		} else {
+			voter.agreed = 2
 		}
 	}
 
@@ -307,6 +330,7 @@ func (rm *room) releaseTimeoutCheck() {
 		}
 	}
 	released := rm.checkReleaseRoomCondition()
+	fmt.Println("release time check ", released)
 	if released {
 		rm.ReleaseRoom()
 	} else {
@@ -316,14 +340,21 @@ func (rm *room) releaseTimeoutCheck() {
 
 func (rm *room) checkReleaseRoomCondition() bool {
 	agreeCount := 0
+	totalCount := 0
 	for _, u := range rm.releaseVoter {
+		totalCount++
 		if u.agreed == 1 {
 			agreeCount++
 		}
 	}
+	if agreeCount == totalCount {
+		return true
+	}
+	/*
 	if agreeCount == rm.game.GetPlayerCount() {
 		return true
 	}
+	*/
 	return false
 }
 
@@ -350,7 +381,7 @@ func (rm *room) OnStop() {
 	rm.game.OnRelease()
 
 	for _, user := range rm.users {
-		rm.UpdateProp(user.UserId, defines.PpRoomId, uint32(0))
+		rm.updateProp(user.UserId, defines.PpRoomId, uint32(0))
 	}
 
 	for _, user := range rm.users {
@@ -393,7 +424,7 @@ func (rm *room) KillTimer(id uint32) error {
 	return nil
 }
 
-func (rm *room) UpdateProp(userId uint32, prop int, value interface{}) {
+func (rm *room) updateProp(userId uint32, prop int, value interface{}) {
 	if user, ok := rm.users[userId]; ok {
 		if rm.manager.sm.cc.UpdateUserInfo(userId, prop, value) {
 			update := true
@@ -425,6 +456,46 @@ func (rm *room) UpdateProp(userId uint32, prop int, value interface{}) {
 	}
 }
 
+func (rm *room) updateUserItem(user *defines.PlayerInfo, itemId uint32, count int) bool {
+	updateFlag := 0
+	defer func() {
+		p := proto.ItemProp{
+			Flag: updateFlag,
+			ItemId: itemId,
+			Count: count,
+		}
+		if updateFlag != 0 {
+			rm.manager.sendMessage(user, proto.CmdBaseUpsePropUpdate, &proto.SyncUserProps {
+				Items: &p,
+			})
+		}
+	}()
+	for index, item := range user.Items {
+		if item.ItemId == itemId {
+			item.Count += count
+			if item.Count <= 0 {
+				user.Items = append(user.Items[:index], user.Items[index+1:]...)
+				updateFlag = 2
+			} else {
+				updateFlag = 1
+			}
+			rm.manager.sm.cc.UpdateSingleItem(user.UserId, updateFlag, item.ItemId, item.Count)
+			return true
+		}
+	}
+	if count > 0 {
+		updateFlag = 3
+		user.Items = append(user.Items, &proto.UserItem{
+			ItemId: itemId,
+			Count: count,
+		})
+		rm.manager.sm.cc.UpdateSingleItem(user.UserId, updateFlag, itemId, count)
+		return true
+	}
+	fmt.Println("update item err, id not exists ", itemId, count)
+	return false
+}
+
 func (rm *room) GetUserInfoFromCache(user *defines.PlayerInfo) error {
 	var cu proto.CacheUser
 	err := rm.manager.sm.cc.GetUserInfoById(user.UserId, &cu)
@@ -447,4 +518,23 @@ func (rm *room) SaveGameRecord(head, data []byte) int {
 
 func (rm *room) SaveUserRecord(userid, id int) error {
 	return rm.manager.sm.cc.SaveUserRecord(userid, id)
+}
+
+func (rm *room) UpdateUserInfo(info *defines.PlayerInfo, data *proto.GameUserPpUpdate) bool {
+	if info == nil || data == nil {
+		return false
+	}
+	if data.Gold != nil {
+		rm.updateProp(info.UserId, defines.PpGold, *data.Gold)
+	}
+	if data.Score != nil {
+		rm.updateProp(info.UserId, defines.PpScore, *data.Score)
+	}
+	if data.Diamond != nil {
+		rm.updateProp(info.UserId, defines.PpDiamond, *data.Diamond)
+	}
+	if data.Item != nil && data.Item.ItemId != 0 {
+		rm.updateUserItem(info, data.Item.ItemId, data.Item.Count)
+	}
+	return true
 }

@@ -26,6 +26,7 @@ type cacheClient struct {
 	communicator  defines.ICommunicatorClient
 	ccConn        redis.Conn
 	channelNotify chan interface{}
+	pool 		 *redis.Pool
 }
 
 func newCacheClient(gr string) *cacheClient {
@@ -42,6 +43,20 @@ func (cc *cacheClient) connectCacheServer() error {
 		return err
 	}
 	cc.ccConn = conn
+
+	cc.pool = &redis.Pool{
+		MaxIdle:    1000,
+		MaxActive:   10000,
+		IdleTimeout: 180 * time.Second,
+		Dial: func() (redis.Conn, error) {
+			c, err := redis.Dial("tcp", ":6379")
+			if err != nil {
+				return nil, err
+			}
+			return c, nil
+		},
+	}
+
 	return nil
 }
 
@@ -72,10 +87,12 @@ func (cc *cacheClient) Stop() error {
 }
 
 func (cc *cacheClient) command(commandName string, args ...interface{}) (reply interface{}, err error) {
-	fmt.Println("")
-	fmt.Println("redis command> ", commandName, args)
-	fmt.Println("")
-	return cc.ccConn.Do(commandName, args...)
+	if cc.group != "DBService" && cc.group != "lobby" && commandName != "hgetall"{
+		fmt.Println("redis command> ", commandName, args)
+	}
+	con := cc.pool.Get()
+	defer con.Close()
+	return con.Do(commandName, args...)
 }
 
 func (cc *cacheClient) GetUserId(account string) (uint32,error) {
@@ -297,8 +314,9 @@ func (cc *cacheClient) FlushAll() {
 	if cc.group != "dbproxy" {
 		return
 	}
-	cc.ccConn.Do("flushall")
-
+	con := cc.pool.Get()
+	defer con.Close()
+	con.Do("flushall")
 }
 
 func (cc *cacheClient) NoticeOperation(notice *[]*proto.CacheNotice, op string) error {
@@ -526,5 +544,7 @@ func(cc *cacheClient) GetGameRecordContent(id int) ([]byte, error) {
 }
 
 func (cc *cacheClient) Scripts(args ...interface{}) {
-	cc.ccConn.Do("eval", args...)
+	con := cc.pool.Get()
+	defer con.Close()
+	con.Do("eval", args...)
 }

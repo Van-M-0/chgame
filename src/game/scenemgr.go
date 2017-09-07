@@ -9,6 +9,7 @@ import (
 	"communicator"
 	"rpcd"
 	"runtime/debug"
+	"math/rand"
 )
 
 const (
@@ -120,12 +121,20 @@ func (sm *sceneManager) RouteMessage(channel string, message *proto.Message) {
 
 }
 
-func (sm *sceneManager) SendMessage(uid uint32, cmd uint32, data interface{}) {
-	sm.gameServer.send2players([]uint32{uid}, cmd, data)
+func (sm *sceneManager) SendMessage(info *defines.PlayerInfo, cmd uint32, data interface{}) {
+	sm.gameServer.send2players([]uint32{info.Uid}, info.RoomId, cmd, data)
 }
 
-func (sm *sceneManager) BroadcastMessage(uids []uint32, cmd uint32, data interface{}) {
-	sm.gameServer.send2players(uids, cmd, data)
+func (sm *sceneManager) SendMessageRIndex(uid uint32, cmd uint32, data interface{}) {
+	sm.gameServer.send2players([]uint32{uid}, uint32(rand.Intn(10000)), cmd, data)
+}
+
+func (sm *sceneManager) BroadcastMessage(info []*defines.PlayerInfo, cmd uint32, data interface{}) {
+	uids := []uint32{}
+	for _, user := range info {
+		uids = append(uids, user.Uid)
+	}
+	sm.gameServer.send2players(uids, uint32(rand.Intn(100000)), cmd, data)
 }
 
 func (sm *sceneManager) onBrokerMessage(cmd string, data interface{}) {
@@ -172,7 +181,7 @@ func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
 	fmt.Println("recv client command ", uid, cmd, data)
 
 	replyUserErr := func(err int) {
-		sm.SendMessage(uid, cmd, &proto.PlayerGameCommonError{ErrCode: err})
+		sm.SendMessageRIndex(uid, cmd, &proto.PlayerGameCommonError{ErrCode: err})
 	}
 
 	var player *defines.PlayerInfo
@@ -230,7 +239,7 @@ func (sm *sceneManager) onGwPlayerLogin(uid uint32, data []byte) {
 
 	err, player := sm.updateUserInfo(uid, playerLogin.Uid)
 	if err != "ok" {
-		sm.SendMessage(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode:defines.ErrCommonCache})
+		sm.SendMessageRIndex(uid, proto.CmdGamePlayerLogin, &proto.PlayerLoginRet{ErrCode:defines.ErrCommonCache})
 		return
 	}
 
@@ -250,7 +259,7 @@ func (sm *sceneManager) onGwPlayerLogin(uid uint32, data []byte) {
 		UserIdTest: int(player.UserId),
 	}
 	fmt.Println("dummy player ", dummyInfo)
-	sm.SendMessage(uid, proto.CmdGamePlayerLogin, dummyInfo)
+	sm.SendMessageRIndex(uid, proto.CmdGamePlayerLogin, dummyInfo)
 
 	if player.RoomId != 0 {
 		fmt.Println("user login with room id", player.RoomId)
@@ -274,13 +283,13 @@ func (sm *sceneManager) onGwPlayerGameMessage(player *defines.PlayerInfo, data [
 func (sm *sceneManager) onGwPlayerCreateRoom(player *defines.PlayerInfo, data []byte) {
 	var message proto.PlayerCreateRoom
 	if err := msgpacker.UnMarshal(data, &message); err != nil {
-		sm.SendMessage(player.Uid, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCoomonSystem})
+		sm.SendMessageRIndex(player.Uid, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCoomonSystem})
 		return
 	}
 
 	if player.RoomId != 0 {
 		fmt.Println("player already have room")
-		sm.SendMessage(player.Uid, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomHaveRoom})
+		sm.SendMessageRIndex(player.Uid, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrCreateRoomHaveRoom})
 		return
 	}
 
@@ -297,7 +306,7 @@ func (sm *sceneManager) onGwPlayerEnterRoom(player *defines.PlayerInfo, data []b
 	} else if player.RoomId == message.RoomId {
 		sm.roomMgr.reEnter(player)
 	} else {
-		sm.SendMessage(player.Uid, proto.CmdGameCreateRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomNotSame})
+		sm.SendMessageRIndex(player.Uid, proto.CmdGameCreateRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomNotSame})
 	}
 }
 
@@ -307,7 +316,7 @@ func (sm *sceneManager) onGwPlayerLeaveRoom(player *defines.PlayerInfo, data []b
 		return
 	}
 	if player.RoomId == 0 {
-		sm.SendMessage(player.Uid, proto.CmdGamePlayerLeaveRoom, &proto.PlayerLeaveRoomRet{ErrCode: defines.ErrCommonInvalidReq})
+		sm.SendMessageRIndex(player.Uid, proto.CmdGamePlayerLeaveRoom, &proto.PlayerLeaveRoomRet{ErrCode: defines.ErrCommonInvalidReq})
 		return
 	}
 

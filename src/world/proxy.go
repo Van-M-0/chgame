@@ -16,7 +16,9 @@ type T_GameArea struct {
 	Province 	string
 	Source 		string
 	Database 	string
+	Game 		string
 }
+
 /*	table defines end
 */
 
@@ -74,12 +76,21 @@ func (dc *dbClient) InitTable() {
 			Province: "四川省",
 			Source: "192.168.1.123",
 			Database: "mygame",
+			Game: "斗地主",
 		}).Create(&T_GameArea{
-			Area: "绵阳",
+			Area: "成都",
 			City: "成都市",
 			Province: "四川省",
 			Source: "192.168.1.123",
 			Database: "mygame",
+			Game: "血战麻将",
+		}).Create(&T_GameArea{
+			Area: "绵阳",
+			City: "绵阳市",
+			Province: "四川省",
+			Source: "192.168.1.123",
+			Database: "mygame",
+			Game: "绵阳麻将",
 		})
 	}
 }

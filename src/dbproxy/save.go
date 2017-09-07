@@ -79,7 +79,7 @@ func (ds *dataSaver) start() {
 		}
 	}
 	ds.safeRoutine(func() {
-		timeoutFn(1, ds.collect)
+		timeoutFn(2, ds.collect)
 	})
 	ds.safeRoutine(ds.save)
 }
@@ -90,12 +90,11 @@ func (ds *dataSaver) stop() {
 
 func (ds *dataSaver) collect() {
 	getUsers := func() {
-		users, err := ds.cc.GetAllUsers()
-		fmt.Println("collect users", err, users)
+		users, _ := ds.cc.GetAllUsers()
 		if users != nil {
 			l := []*table.T_Users{}
 			for _, user := range users {
-				fmt.Println("collect users", *user)
+				//fmt.Println("collect users", *user)
 				l = append(l, &table.T_Users{
 					Userid: uint32(user.Uid),
 					Account: user.Account,

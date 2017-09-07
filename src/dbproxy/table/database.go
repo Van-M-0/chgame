@@ -170,3 +170,14 @@ type T_AuthInfo struct {
 	Idcard 		string
 	Name 		string
 }
+
+type T_Club struct {
+	Id 			int 		`gorm:"primary_key"`
+	Creatorid 	uint32
+	Creatorname string
+}
+
+type T_ClubMember struct {
+	Userid 		uint32 		`gorm:"primary_key"`
+	Clubid	 	int 		`gorm:"index:acc_index;not null"`
+}
