@@ -6,10 +6,10 @@ import (
 	"sync"
 	"cacher"
 	"communicator"
-	"fmt"
 	"msgpacker"
 	"sync/atomic"
 	"time"
+	"mylog"
 )
 
 type userInfo struct {
@@ -85,7 +85,7 @@ func (um *userManager) start() {
 				coutermap[curt]++
 				if curt != lastt {
 					lastt = curt
-					fmt.Println("*****************", coutermap, total)
+					mylog.Debug("*****************", coutermap, total)
 				}
 			}
 		}
@@ -147,7 +147,7 @@ func (um *userManager) addUser(uid uint32, cu *proto.CacheUser) *userInfo {
 
 func (um *userManager) reAddUser(uid uint32, user *userInfo, cu *proto.CacheUser) {
 	um.userLock.Lock()
-	fmt.Println("re add user ", uid, user.uid, user)
+	mylog.Debug("re add user ", uid, user.uid, user)
 	delete(um.users, user.uid)
 	um.users[uid] = user
 	user.uid = uid
@@ -167,7 +167,8 @@ func (um *userManager) delUser(uid uint32) {
 func (um *userManager) updateUserProp(u *userInfo, prop int, val interface{}) bool {
 	updateProp := func() bool {
 		um.userLock.Lock()
-		um.userLock.Unlock()
+		defer um.userLock.Unlock()
+
 		user, ok := um.users[u.uid]
 		if ok && user != nil {
 			if prop == defines.PpDiamond {
@@ -190,6 +191,8 @@ func (um *userManager) updateUserProp(u *userInfo, prop int, val interface{}) bo
 					user.score = 0
 				}
 				val = user.score
+			} else if prop == defines.PpRoomId {
+				user.roomId = val.(int)
 			} else {
 				return false
 			}
@@ -207,7 +210,7 @@ func (um *userManager) updateUserProp(u *userInfo, prop int, val interface{}) bo
 		})
 		um.cc.UpdateUserInfo(u.userId, prop, val)
 	} else {
-		fmt.Println("udpate user prop error ", u.userId, prop, val)
+		mylog.Debug("udpate user prop error ", u.userId, prop, val)
 	}
 	return update
 }
@@ -248,7 +251,7 @@ func (um *userManager) updateUserItem(user *userInfo, itemId uint32, count int) 
 		um.cc.UpdateSingleItem(user.userId, updateFlag, itemId, count)
 		return true
 	}
-	fmt.Println("update item err, id not exists ", itemId, count)
+	mylog.Debug("update item err, id not exists ", itemId, count)
 	return false
 }
 
@@ -274,7 +277,7 @@ func (um *userManager) getUserProp(uid uint32, prop int) interface{} {
 }
 
 func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
-	//fmt.Println("handle palyer login", login)
+	//mylog.Debug("handle palyer login", login)
 	p := um.getUserByAcc(login.Account)
 	var cacheUser proto.CacheUser
 
@@ -283,7 +286,7 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 	}
 
 	replaySuc := func(user *userInfo) {
-		fmt.Println("login success", user.userId, user.uid)
+		mylog.Debug("login success", user.userId, user.uid)
 		ret := &proto.ClientLoginRet{
 			ErrCode: defines.ErrCommonSuccess,
 			Uid: uid,
@@ -304,7 +307,7 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 	}
 
 	replyItems := func(user *userInfo) {
-		//fmt.Println("reply item list")
+		//mylog.Debug("reply item list")
 		um.lb.send2player(uid, proto.CmdBaseSynceLoginItems, &proto.SystemSyncItems{
 			Items: user.itemList,
 		})
@@ -318,28 +321,28 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 			info.CreateorId = int(club.creatorId)
 			info.CreatorName = club.creatorName
 		}
-		//fmt.Println("reply club info", user.userId, info)
+		//mylog.Debug("reply club info", user.userId, info)
 		um.lb.send2player(uid, proto.CmdBaseSynceClubInfo, info)
 	}
 
 	gotUser := func() {
-		//fmt.Println("handle palyer login gotuser")
+		//mylog.Debug("handle palyer login gotuser")
 		user := um.addUser(uid, &cacheUser)
 		replaySuc(user)
 	}
 
 	/*
 	if err := um.cc.GetUserInfo(login.Account, &cacheUser); err == nil {
-		fmt.Println("get cache user info")
+		mylog.Debug("get cache user info")
 		gotUser()
 		return
 	}
 	*/
 
 	if p != nil {
-		fmt.Println("handle palyer login userin")
+		mylog.Debug("handle palyer login userin")
 		if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
-			fmt.Println("re-get cache error ", err)
+			mylog.Debug("re-get cache error ", err)
 			replyErr(defines.ErrCommonCache)
 			return
 		}
@@ -361,14 +364,14 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 			Sex: login.Sex,
 		},&res)
 		if callerr != nil {
-			fmt.Println("call error", callerr)
+			mylog.Debug("call error", callerr)
 		}
 		if res.Err == "ok" {
 			if err := um.cc.GetUserInfo(login.Account, &cacheUser); err != nil {
-				//fmt.Println("get cache error ", err)
+				//mylog.Debug("get cache error ", err)
 				replyErr(defines.ErrCommonCache)
 			} else {
-				//fmt.Println("get cache user ", cacheUser)
+				//mylog.Debug("get cache user ", cacheUser)
 				if cacheUser.Uid != 0 {
 					if um.cc.SetUserCidUserId(uid, cacheUser.Uid) != nil {
 						replyErr(defines.ErrCommonCache)
@@ -384,20 +387,20 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 						if err := msgpacker.UnMarshal(res.Ud, &ud); err != nil {
 						} else {
 							if err := msgpacker.UnMarshal(ud.Quest, &u.quests); err != nil {
-								fmt.Println("user quests error ", err)
+								mylog.Debug("user quests error ", err)
 							}
 							if err := msgpacker.UnMarshal(ud.Activity, &u.activities); err != nil {
-								fmt.Println("user activities error ", err)
+								mylog.Debug("user activities error ", err)
 							}
 						}
 
-						//fmt.Println("load user quests", u.activities, u.quests)
+						//mylog.Debug("load user quests", u.activities, u.quests)
 
 						if res.Identify.Card != "" {
 							u.IdCard = res.Identify
 							um.lb.send2player(uid, proto.CmdBaseSynceIdentifyInfo, &res.Identify)
 						}
-						//fmt.Println("user auth info ", res.Identify)
+						//mylog.Debug("user auth info ", res.Identify)
 
 					}
 				} else {
@@ -413,7 +416,7 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 }
 
 func (um *userManager) handleClientDisconnect(uid uint32) {
-	fmt.Println("user discconnectd ", um.users[uid])
+	mylog.Debug("user discconnectd ", um.users[uid])
 
 	um.cc.DelUserCidUserId(uid)
 	um.delUser(uid)
@@ -426,12 +429,12 @@ func (um *userManager) handleClientDisconnect(uid uint32) {
 	go func(user *userInfo) {
 		ad, err := msgpacker.Marshal(user.activities)
 		if err != nil {
-			fmt.Println("fmt user activities error ", err)
+			mylog.Debug("fmt user activities error ", err)
 			return
 		}
 		qd, err := msgpacker.Marshal(user.quests)
 		if err != nil {
-			fmt.Println("fmt user quest error ", err)
+			mylog.Debug("fmt user quest error ", err)
 			return
 		}
 		ud, err := msgpacker.Marshal(&proto.UserData{
@@ -439,7 +442,7 @@ func (um *userManager) handleClientDisconnect(uid uint32) {
 			Quest: qd,
 		})
 		if err != nil {
-			fmt.Println("fmt user data error", err)
+			mylog.Debug("fmt user data error", err)
 			return
 		}
 		var rep proto.MsSaveUserDataReply
@@ -448,16 +451,16 @@ func (um *userManager) handleClientDisconnect(uid uint32) {
 			UserData: ud,
 		}, &rep)
 		if rep.ErrCode != "ok" || err != nil {
-			fmt.Println("save user data error", rep.ErrCode, err)
+			mylog.Debug("save user data error", rep.ErrCode, err)
 		}
 	}(user)
 }
 
 func (um *userManager) handleCreateAccount(uid uint32, account *proto.CreateAccount) {
-	fmt.Println("handle create account ", account)
+	mylog.Debug("handle create account ", account)
 
 	replyErr := func(code int) {
-		fmt.Println("common error", code)
+		mylog.Debug("common error", code)
 		um.lb.send2player(uid, proto.CmdCreateAccount, &proto.CreateAccountRet{ErrCode: code})
 	}
 
@@ -500,6 +503,19 @@ func (um *userManager) handleUserHornMessage(uid uint32, message *proto.UserHorn
 			Content: message.Content,
 		},
 	})
+}
+
+func (um *userManager) handleClearUserInfo(uid uint32, message *proto.ClearUserInfo) {
+	u := um.getUser(uid)
+	if u == nil {
+		mylog.Debug("clear err ", uid, message)
+		return
+	}
+
+	mylog.Debug("clearinfo ", u.userId, u.uid, u.roomId)
+	if message.Type == defines.PpRoomId {
+		um.updateUserProp(u, defines.PpRoomId, 0)
+	}
 }
 
 var pktCounter int32
@@ -562,7 +578,7 @@ func (um *userManager) handleUserPerformanceMessage(uid uint32, message *proto.L
 		T2: time.Now(),
 	})
 	atomic.AddInt32(&pktCounter, -1)
-	//fmt.Println("f :", message.SubCmd, atomic.LoadInt32(&pktCounter))
+	//mylog.Debug("f :", message.SubCmd, atomic.LoadInt32(&pktCounter))
 }
 
 

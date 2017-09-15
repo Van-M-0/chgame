@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 	"sync"
+	"mylog"
 )
 
 
@@ -37,7 +38,7 @@ type tcpClient struct {
 }
 
 func newTcpClient(opt *defines.NetClientOption) *tcpClient {
-	fmt.Println("new client send chan size ", opt.SendChSize)
+	mylog.Debug("new client send chan size ", opt.SendChSize)
 	client := &tcpClient{
 		opt: opt,
 		sendCh: make(chan *message, opt.SendChSize),
@@ -82,22 +83,22 @@ func (client *tcpClient) Close() error {
 		client.opt.CloseCb(client)
 	}
 	if err := client.conn.Close(); err != nil {
-		fmt.Println("client.close error ", err)
+		mylog.Debug("client.close error ", err)
 	}
 	atomic.AddInt32(&client.stoped, 1)
 	//for i := 0; i < client.opt.SendActor + 1; i++ {
 		client.quit <- true
 	//}
-	fmt.Println("close client ...")
+	mylog.Debug("close client ...")
 	close(client.sendCh)
 	for {
 		if value, ok := <-client.sendCh; ok {
-			fmt.Println("send chan value ", value)
+			mylog.Debug("send chan value ", value)
 		} else {
 			break
 		}
 	}
-	fmt.Println("client.closecb ")
+	mylog.Debug("client.closecb ")
 	return nil
 }
 
@@ -105,12 +106,13 @@ func (client *tcpClient) IsClosed() bool { return atomic.LoadInt32(&client.stope
 
 func (client *tcpClient) Send(cmd uint32, data interface{}) error {
 	if atomic.LoadInt32(&client.stoped) != 0 {
+		mylog.Debug("cs .", client.GetId())
 		return nil
 	}
 	if client.notifySendChan != nil {
 
 		if len(client.sendCh) > client.opt.SendChSize - 3 {
-			fmt.Println("send chan size ", client.GetId(), len(client.sendCh))
+			mylog.Debug("send chan size ", client.GetId(), len(client.sendCh))
 		}
 
 		client.sendCh <- &message{cmd: cmd, data: data}
@@ -129,9 +131,9 @@ func (client *tcpClient) Send(cmd uint32, data interface{}) error {
 		return nil
 	}
 	if len(client.sendCh) > client.opt.SendChSize - 3 {
-		fmt.Println("==================== ", client.GetId(), len(client.sendCh))
-		fmt.Println("send chan size ", client.GetId(), len(client.sendCh))
-		fmt.Println("==================== ", client.GetId(), len(client.sendCh))
+		mylog.Debug("==================== ", client.GetId(), len(client.sendCh))
+		mylog.Debug("send chan size ", client.GetId(), len(client.sendCh))
+		mylog.Debug("==================== ", client.GetId(), len(client.sendCh))
 	}
 	client.sendCh <- &message{cmd: cmd, data: data}
 	return nil
@@ -142,22 +144,22 @@ func (client *tcpClient) FlushSendBuffer() int {
 	data := make([]byte, 0)
 	for k := 0; k < count; k++ {
 		m := <- client.sendCh
-		//fmt.Println("flush client packet ", m.cmd, m.data)
+		//mylog.Debug("flush client packet ", m.cmd, m.data)
 		if raw, err :=client.packer.Pack(m.cmd, m.data); err == nil {
 			data = append(data, raw...)
 		} else {
-			fmt.Println("send pack data err ", err)
+			mylog.Debug("send pack data err ", err)
 		}
 	}
 	if len(data) > 0 {
-		//fmt.Println("ssend actor send data ------: ", client.GetId(), count, len(data), time.Now())
+		//mylog.Debug("ssend actor send data ------: ", client.GetId(), count, len(data), time.Now())
 		if _, err := client.conn.Write(data); err != nil {
-			fmt.Println("write data error ", err)
+			mylog.Debug("write data error ", err)
 			return 0
 		}
-		//fmt.Println("swf ", time.Now())
+		//mylog.Debug("swf ", time.Now())
 		//} else {
-		//	fmt.Println("not data send", len(client.sendCh))
+		//	mylog.Debug("not data send", len(client.sendCh))
 	}
 	return count
 }
@@ -166,7 +168,7 @@ var clientSendCounter [300]int32
 var staticLastTime time.Time
 var startTime time.Time
 func (client *tcpClient) sendLoop() {
-	//fmt.Println("send looop start")
+	//mylog.Debug("send looop start")
 
 	send := func() {
 		//t := time.NewTimer(time.Second * 30)
@@ -177,20 +179,20 @@ func (client *tcpClient) sendLoop() {
 		t := time.Tick(time.Millisecond * 80)
 		for {
 			if ge.Sub(gt) >= time.Second * 1 {
-				//fmt.Println("client ---xxxxxxxxxxxxxxxxxxxxxxx", ge.Sub(gt), ge, gt, time.Now(), client.GetId(), len(client.sendCh))
+				//mylog.Debug("client ---xxxxxxxxxxxxxxxxxxxxxxx", ge.Sub(gt), ge, gt, time.Now(), client.GetId(), len(client.sendCh))
 				(fmt.Sprintf("xxxxxxxxx id %v, p:(%v %v %v) a(%v %v %v %v) l(%v)", client.GetId(), ge.Sub(gt), gt, ge, p1, p2, p3, p4, len(client.sendCh)))
 			}
-			//fmt.Println("send loop scheldu ", ge.Sub(gt))
+			//mylog.Debug("send loop scheldu ", ge.Sub(gt))
 			gt = time.Now()
 			select {
 			case <- client.quit:
-				fmt.Println("c ",client.GetId(), len(client.sendCh))
+				mylog.Debug("c ",client.GetId(), len(client.sendCh))
 				return
 				/*
 			case <-t.C:
-				fmt.Println("prof tout " ,time.Now().Sub(wst))
+				mylog.Debug("prof tout " ,time.Now().Sub(wst))
 				if time.Now().Sub(wst) > time.Second * 4 {
-					fmt.Println("write not return ", wst, wet, time.Now())
+					mylog.Debug("write not return ", wst, wet, time.Now())
 					return
 				}
 				*/
@@ -205,7 +207,7 @@ func (client *tcpClient) sendLoop() {
 				if raw, err :=client.packer.Pack(m.cmd, m.data); err == nil {
 					data = append(data, raw...)
 				} else {
-					fmt.Println("send pack data err ", err)
+					mylog.Debug("send pack data err ", err)
 				}
 				*/
 				p2 = time.Now()
@@ -213,9 +215,10 @@ func (client *tcpClient) sendLoop() {
 				for k := 0; k < count; k++ {
 					m := <- client.sendCh
 					if raw, err :=client.packer.Pack(m.cmd, m.data); err == nil {
+						mylog.Debug("packet ", m.cmd, client.GetId())
 						data = append(data, raw...)
 					} else {
-						fmt.Println("send pack data err ", err)
+						mylog.Debug("send pack data err ", err)
 					}
 				}
 				p3 = time.Now()
@@ -224,21 +227,21 @@ func (client *tcpClient) sendLoop() {
 				}
 				if len(data) > 0 {
 					//atomic.AddInt32(&clientSendCounter[int(time.Now().Sub(startTime).Seconds())], int32(count))
-					//fmt.Println("client send actor send data ------: ", client.GetId(), count, len(data), time.Now())
+					//mylog.Debug("client send actor send data ------: ", client.GetId(), count, len(data), time.Now())
 					if _, err := client.conn.Write(data); err != nil {
-						fmt.Println("write data error ", err)
+						mylog.Debug("write data error ", err)
 						return
 					}
-					//fmt.Println("wf ", client.GetId(), time.Now())
+					//mylog.Debug("wf ", client.GetId(), time.Now())
 				//} else {
-				//	fmt.Println("client not data send", len(client.sendCh))
+				//	mylog.Debug("client not data send", len(client.sendCh))
 				}
 				if staticLastTime.Second() == 0 {
 					staticLastTime = time.Now()
 				}
 				p4 = time.Now()
 				if p4.Sub(staticLastTime).Seconds() >= 1 {
-					//fmt.Println("client send counter ", clientSendCounter)
+					//mylog.Debug("client send counter ", clientSendCounter)
 					staticLastTime = p4
 				}
 				/*
@@ -270,7 +273,7 @@ func (client *tcpClient) sendLoop() {
 			for {
 				select {
 				case <- time.After(time.Second * 2):
-					//fmt.Println("send ...... ", xxxcounter)
+					//mylog.Debug("send ...... ", xxxcounter)
 				}
 			}
 		}()
@@ -278,37 +281,37 @@ func (client *tcpClient) sendLoop() {
 		sf := func () {
 
 			defer func() {
-				fmt.Println("send loop error ? ")
+				mylog.Debug("send loop error ? ")
 			}()
 			t := time.Tick(time.Millisecond * 30)
 			for {
 				select {
 				case <- client.quit:
-					fmt.Println("server send actor quit")
+					mylog.Debug("server send actor quit")
 					return
 				case <- t:
 					if !client.IsClosed() {
 						if len(client.sendCh) > 0 {
-							//fmt.Println("f 1")
+							//mylog.Debug("f 1")
 							count := client.FlushSendBuffer()
-							//fmt.Println("f 2")
+							//mylog.Debug("f 2")
 							//atomic.AddInt32(&xxxcounter[time.Now().Second()], int32(count))
 							tick := 0
 							for cur := len(client.sendCh); cur > 30;  {
-								//fmt.Println("f 3")
+								//mylog.Debug("f 3")
 								count += client.FlushSendBuffer()
-								//fmt.Println("f 4")
+								//mylog.Debug("f 4")
 								//atomic.AddInt32(&xxxcounter[time.Now().Second()], int32(count))
-								//fmt.Println("packet still more than > 50", client.GetId())
+								//mylog.Debug("packet still more than > 50", client.GetId())
 								tick++
 								if tick % 30 == 0 { break }
 							}
 							if len(client.sendCh) > 10 {
-								//fmt.Println("ser chan is ", len(client.sendCh))
+								//mylog.Debug("ser chan is ", len(client.sendCh))
 							}
 						}
 					} else {
-						fmt.Println("client is closed ?")
+						mylog.Debug("client is closed ?")
 					}
 					/*
 					count := len(client.sendCh)
@@ -318,23 +321,23 @@ func (client *tcpClient) sendLoop() {
 						if raw, err :=client.packer.Pack(m.cmd, m.data); err == nil {
 							data = append(data, raw...)
 						} else {
-							fmt.Println("send pack data err ", err)
+							mylog.Debug("send pack data err ", err)
 						}
 					}
 					atomic.AddInt32(&xxxcounter[time.Now().Second()], int32(count))
 					tick++
 					if tick % 30 == 0 {
-						fmt.Println("ssend conn ", xxxcounter)
+						mylog.Debug("ssend conn ", xxxcounter)
 					}
 					if len(data) > 0 {
-						//fmt.Println("ssend actor send data ------: ", client.GetId(), count, len(data), time.Now())
+						//mylog.Debug("ssend actor send data ------: ", client.GetId(), count, len(data), time.Now())
 						if _, err := client.conn.Write(data); err != nil {
-							fmt.Println("write data error ", err)
+							mylog.Debug("write data error ", err)
 							return
 						}
-						//fmt.Println("swf ", time.Now())
+						//mylog.Debug("swf ", time.Now())
 					//} else {
-					//	fmt.Println("not data send", len(client.sendCh))
+					//	mylog.Debug("not data send", len(client.sendCh))
 					}
 					*/
 				}
@@ -356,21 +359,21 @@ func (client *tcpClient) recvLoop() {
 		for {
 			headerBuf := make([]byte, 8)
 			if _, err := io.ReadFull(client.conn, headerBuf); err != nil {
-				fmt.Println("recv lopp err", err)
+				mylog.Debug("recv lopp err", err)
 				return
 			}
 			header, err := client.packer.Unpack(headerBuf)
 			if err != nil {
-				fmt.Println("recv lopp err 1", err)
+				mylog.Debug("recv lopp err 1", err)
 				return
 			}
 			body := make([]byte, header.Len)
 			if _, err := io.ReadFull(client.conn, body[:]); err != nil {
-				fmt.Println("recv lopp err 2", err)
+				mylog.Debug("recv lopp err 2", err)
 				return
 			}
 			header.Msg = body
-			fmt.Println("recv loop ", header)
+			mylog.Debug("recv loop ", header)
 			client.opt.MsgCb(client, header)
 		}
 	}
@@ -387,7 +390,7 @@ func (client *tcpClient) recvLoop() {
 		for {
 			m, err := client.readMessage()
 			if err != nil {
-				fmt.Println("get msg err : ", err)
+				mylog.Debug("get msg err : ", err)
 				return
 			}
 			client.opt.MsgCb(client, m)

@@ -5,7 +5,6 @@ import (
 	"github.com/garyburd/redigo/redis"
 	"time"
 	"log"
-	"fmt"
 	"exportor/proto"
 	"dbproxy/table"
 	"errors"
@@ -13,6 +12,7 @@ import (
 	"strings"
 	"strconv"
 	"reflect"
+	"mylog"
 )
 
 const (
@@ -75,7 +75,7 @@ func (cc *cacheClient) Start() error {
 	go func() {
 		select {
 		case d := <- cc.channelNotify:
-			fmt.Println("d isl", d)
+			mylog.Debug("d isl", d)
 		}
 	}()
 
@@ -88,7 +88,7 @@ func (cc *cacheClient) Stop() error {
 
 func (cc *cacheClient) command(commandName string, args ...interface{}) (reply interface{}, err error) {
 	if cc.group != "DBService" && cc.group != "lobby" && commandName != "hgetall"{
-		fmt.Println("redis command> ", commandName, args)
+		mylog.Debug("redis command> ", commandName, args)
 	}
 	con := cc.pool.Get()
 	defer con.Close()
@@ -105,23 +105,23 @@ func (cc *cacheClient) GetUserInfo(account string, user *proto.CacheUser) error 
 	uid, err := cc.GetUserId(account)
 
 	if err == redis.ErrNil {
-		fmt.Println("cache user not in")
+		mylog.Debug("cache user not in")
 		return err
 	}
 
 	if err != nil {
-		fmt.Println("get user id error", err, account)
+		mylog.Debug("get user id error", err, account)
 		return err
 	}
 
 	values, err := redis.Values(cc.command("HGETALL", users(int(uid))))
 	if err != nil {
-		fmt.Println("get user info error", account, uid)
+		mylog.Debug("get user info error", account, uid)
 		return err
 	}
 
 	if err := redis.ScanStruct(values, user); err != nil {
-		fmt.Println("scan stuct error ", err)
+		mylog.Debug("scan stuct error ", err)
 		return err
 	}
 
@@ -131,7 +131,7 @@ func (cc *cacheClient) GetUserInfo(account string, user *proto.CacheUser) error 
 func (cc *cacheClient) GetUserInfoById(uid uint32, user *proto.CacheUser) error {
 	values, err := redis.Values(cc.command("HGETALL", users(int(uid))))
 	if err != nil {
-		fmt.Println("get user info error", uid)
+		mylog.Debug("get user info error", uid)
 		return err
 	}
 
@@ -146,7 +146,7 @@ func (cc *cacheClient) SetUserInfo(d interface{}, dbRet bool) error {
 	userInfo := d.(*table.T_Users)
 
 	if _, err := cc.command("set", accountId(userInfo.Account), userInfo.Userid); err != nil {
-		fmt.Println("set account info err ", accountId(userInfo.Account), userInfo.Account, userInfo.Userid)
+		mylog.Debug("set account info err ", accountId(userInfo.Account), userInfo.Account, userInfo.Userid)
 		return err
 	}
 
@@ -174,7 +174,7 @@ func (cc *cacheClient) SetUserInfo(d interface{}, dbRet bool) error {
 
 func (cc *cacheClient) SetUserCidUserId(uid uint32, userId int) error {
 	if _, err := cc.command("set", ciduserid(uid), userId); err != nil {
-		fmt.Println("set account info err ", ciduserid(uid), uid, userId)
+		mylog.Debug("set account info err ", ciduserid(uid), uid, userId)
 		return err
 	}
 	return nil
@@ -191,7 +191,7 @@ func (cc *cacheClient) GetUserCidUserId(uid uint32) int {
 
 func (cc *cacheClient) DelUserCidUserId(uid uint32) {
 	if _, err := cc.command("del", ciduserid(uid)); err != nil {
-		fmt.Println("del user cid user error", err)
+		mylog.Debug("del user cid user error", err)
 	}
 }
 
@@ -223,15 +223,15 @@ func (cc *cacheClient) UpdateUserInfo(uid uint32, prop int, value interface{}) b
 			if v >= 0 {
 				reply, err := cc.command("hset", users(int(uid)), keyName, v)
 				if err != nil {
-					fmt.Println("UpdateUserInfo set cache error ", uid, key, val, reply, err)
+					mylog.Debug("UpdateUserInfo set cache error ", uid, key, val, reply, err)
 				} else {
 					return true
 				}
 			} else {
-				fmt.Println("UpdateUserInfo update cache value ?? ", key, v)
+				mylog.Debug("UpdateUserInfo update cache value ?? ", key, v)
 			}
 		} else {
-			fmt.Println("UpdateUserInfo value not right", prop, value)
+			mylog.Debug("UpdateUserInfo value not right", prop, value)
 		}
 		return false
 	}
@@ -241,15 +241,15 @@ func (cc *cacheClient) UpdateUserInfo(uid uint32, prop int, value interface{}) b
 			if v >= 0 {
 				reply, err := cc.command("hset", users(int(uid)), keyName, v)
 				if err != nil {
-					fmt.Println("UpdateUserInfo set cache error ", uid, key, val, reply, err)
+					mylog.Debug("UpdateUserInfo set cache error ", uid, key, val, reply, err)
 				} else {
 					return true
 				}
 			} else {
-				fmt.Println("UpdateUserInfo update cache value ?? ", key, v)
+				mylog.Debug("UpdateUserInfo update cache value ?? ", key, v)
 			}
 		} else {
-			fmt.Println("UpdateUserInfo value not right", prop, value)
+			mylog.Debug("UpdateUserInfo value not right", prop, value)
 		}
 		return false
 	}
@@ -260,7 +260,7 @@ func (cc *cacheClient) UpdateUserInfo(uid uint32, prop int, value interface{}) b
 		return updateInt64Prop(prop, value)
 	}
 
-	fmt.Println("UpdateUserInfo udpate prop not exists ", prop)
+	mylog.Debug("UpdateUserInfo udpate prop not exists ", prop)
 	return false
 }
 
@@ -283,13 +283,13 @@ func (cc *cacheClient) GetServers() ([]*proto.CacheServer, error) {
 	for _, key := range skeys {
 		values, err := redis.Values(cc.command("hgetall", key))
 		if err != nil {
-			fmt.Println("get server err ", key, err)
+			mylog.Debug("get server err ", key, err)
 			continue
 		}
 
 		var ser proto.CacheServer
 		if err := redis.ScanStruct(values, ser); err != nil {
-			fmt.Println("get server scan values error", err)
+			mylog.Debug("get server scan values error", err)
 			continue
 		}
 
@@ -323,7 +323,7 @@ func (cc *cacheClient) NoticeOperation(notice *[]*proto.CacheNotice, op string) 
 	if op == "update" {
 		for _, n := range *notice {
 			if _, err := cc.command("hmset", redis.Args{notices(n.Id)}.AddFlat(n)...); err != nil {
-				fmt.Println("set notices error", err)
+				mylog.Debug("set notices error", err)
 			}
 		}
 	} else if op == "del" {
@@ -332,7 +332,7 @@ func (cc *cacheClient) NoticeOperation(notice *[]*proto.CacheNotice, op string) 
 			ids = append(ids, notices(n.Id))
 		}
 		if _, err := cc.command("del", redis.Args{}.AddFlat(ids)...); err != nil {
-			fmt.Println("set notices error", err)
+			mylog.Debug("set notices error", err)
 		}
 	} else if op == "getall" {
 		nids, err := redis.Strings(cc.command("keys", noticesPattern()))
@@ -343,17 +343,17 @@ func (cc *cacheClient) NoticeOperation(notice *[]*proto.CacheNotice, op string) 
 		for _, key := range nids {
 			values, err := redis.Values(cc.command("hgetall", key))
 			if err != nil {
-				fmt.Println("get notice err ", key, err)
+				mylog.Debug("get notice err ", key, err)
 				continue
 			}
 
 			var ns proto.CacheNotice
 			if err := redis.ScanStruct(values, &ns); err != nil {
-				fmt.Println("get notice scan values error", err)
+				mylog.Debug("get notice scan values error", err)
 				continue
 			}
 
-			fmt.Println("ns is .. ", ns)
+			mylog.Debug("ns is .. ", ns)
 
 			*notice = append(*notice, &ns)
 		}
@@ -371,7 +371,7 @@ func (cc *cacheClient) UpdateSingleItem(userid uint32, flag int, id uint32, coun
 			Count: count,
 		}
 		if _, err := cc.command("hmset", redis.Args{useritems(userid, id)}.AddFlat(&citem)...); err != nil {
-			fmt.Println("set notices error", err)
+			mylog.Debug("set notices error", err)
 			return err
 		}
 	}
@@ -386,7 +386,7 @@ func(cc *cacheClient) UpdateUserItems(userid uint32, items []proto.UserItem) err
 			Count: item.Count,
 		}
 		if _, err := cc.command("hmset", redis.Args{useritems(userid, item.ItemId)}.AddFlat(&citem)...); err != nil {
-			fmt.Println("set notices error", err)
+			mylog.Debug("set notices error", err)
 		}
 	}
 	return nil
@@ -404,13 +404,13 @@ func(cc *cacheClient) GetUserItems(userid uint32) ([]*proto.UserItem, error) {
 	for _, key := range skeys {
 		values, err := redis.Values(cc.command("hgetall", key))
 		if err != nil {
-			fmt.Println("get user items err ", key, err)
+			mylog.Debug("get user items err ", key, err)
 			continue
 		}
 
 		var i proto.CacheUserItem
 		if err := redis.ScanStruct(values, &i); err != nil {
-			fmt.Println("get user items scan values error", err)
+			mylog.Debug("get user items scan values error", err)
 			continue
 		}
 
@@ -438,13 +438,13 @@ func (cc *cacheClient) GetAllUsers() ([]*proto.CacheUser, error) {
 	for _, key := range keys {
 		values, err := redis.Values(cc.command("hgetall", key))
 		if err != nil {
-			fmt.Println("get user err ", key, err)
+			mylog.Debug("get user err ", key, err)
 			continue
 		}
 
 		var i proto.CacheUser
 		if err := redis.ScanStruct(values, &i); err != nil {
-			fmt.Println("get user scan values error", err)
+			mylog.Debug("get user scan values error", err)
 			continue
 		}
 
@@ -468,13 +468,13 @@ func (cc *cacheClient) GetAllUserItem() ([]*proto.CacheUserItem, error) {
 	for _, key := range keys {
 		values, err := redis.Values(cc.command("hgetall", key))
 		if err != nil {
-			fmt.Println("get user items err ", key, err)
+			mylog.Debug("get user items err ", key, err)
 			continue
 		}
 
 		var i proto.CacheUserItem
 		if err := redis.ScanStruct(values, &i); err != nil {
-			fmt.Println("get user items scan values error", err)
+			mylog.Debug("get user items scan values error", err)
 			continue
 		}
 
@@ -488,10 +488,10 @@ func (cc *cacheClient) SaveGameRecord(head, content []byte) int {
 	id, _ := redis.Int(cc.command("incr", recordId()))
 	id += 100000
 	if _, err := cc.command("set", recordHead(id), head, "ex", RecordTimeOut); err != nil {
-		fmt.Println("save record head error ", err)
+		mylog.Debug("save record head error ", err)
 	}
 	if _, err := cc.command("set", recordContent(id), content, "ex", RecordTimeOut); err != nil {
-		fmt.Println("save record content error ", err)
+		mylog.Debug("save record content error ", err)
 	}
 	return id
 }
@@ -503,7 +503,7 @@ func (cc *cacheClient) SaveUserRecord(userId, recordId int) error {
 		cc.command("del", keys[0])
 	}
 	if _, err := cc.command("set", userRecord(userId, recordId), recordId, "ex", RecordTimeOut); err != nil {
-		fmt.Println("save user record error", err)
+		mylog.Debug("save user record error", err)
 	}
 	return nil
 }
@@ -531,7 +531,7 @@ func(cc *cacheClient) GetGameRecordHead(userId int) (map[int][]byte, error) {
 	for i, key := range keys {
 		x := strings.Split(key, ".")
 		id, err := strconv.Atoi(x[len(x)-1])
-		fmt.Println("inner ", i, id)
+		mylog.Debug("inner ", i, id)
 		if err == nil {
 			m[id] = heads[i]
 		}

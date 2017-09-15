@@ -61,5 +61,6 @@ func (rs *RoomService) GetRoomServerId(req *proto.MsGetRoomServerIdArg, res *pro
 		res.Conf = ser.Conf
 	}
 	rs.rmLock.Unlock()
+	res.Alive =  GameSerService.alive(res.ServerId)
 	return nil
 }

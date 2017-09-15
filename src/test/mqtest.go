@@ -6,6 +6,7 @@ import (
 	"communicator/mq/client"
 	"time"
 	"fmt"
+	"mylog"
 )
 
 // broker
@@ -16,7 +17,7 @@ var queue = flag.String("queue", "test_queue", "queue want to bind")
 var msg = flag.String("msg", "hello world", "msg to publish")
 
 func testBroker() {
-	fmt.Println("test broker")
+	mylog.Debug("test broker")
 	flag.Parse()
 
 	cfg := broker.NewDefaultConfig()

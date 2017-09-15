@@ -5,7 +5,7 @@ import (
 	"time"
 	"math/rand"
 	"exportor/defines"
-	"fmt"
+	"mylog"
 )
 
 const (
@@ -74,7 +74,7 @@ func (rm *roomManager) createRoom(info *defines.PlayerInfo, message *proto.Playe
 
 	room := newRoom(rm)
 	room.id = rep.RoomId
-	fmt.Println("room id ", room.id)
+	mylog.Debug("room id ", room.id)
 	rm.rooms[room.id] = room
 	room.createUserId = info.UserId
 	room.module = *module
@@ -110,12 +110,12 @@ func (rm *roomManager) enterRoom(info *defines.PlayerInfo, roomId uint32) {
 func (rm *roomManager) destroyRoom(roomid uint32) {
 	room := rm.getRoom(roomid)
 	if room == nil {
-		fmt.Println("get room *** err *** ", roomid, rm.rooms)
+		mylog.Debug("get room *** err *** ", roomid, rm.rooms)
 		return
 	}
 	delete(rm.rooms, roomid)
 
-	fmt.Println("destroy room")
+	mylog.Debug("destroy room")
 
 	for _, user := range room.users {
 		rm.sm.playerMgr.delPlayer(user)
@@ -125,10 +125,10 @@ func (rm *roomManager) destroyRoom(roomid uint32) {
 }
 
 func (rm *roomManager) offline(info *defines.PlayerInfo) {
-	fmt.Println("player off line", info)
+	mylog.Debug("player off line", info)
 	room := rm.getRoom(info.RoomId)
 	if room == nil {
-		fmt.Println("offline ", info.RoomId)
+		mylog.Debug("offline ", info.RoomId)
 		return
 	}
 	room.notify <- &roomNotify{
@@ -138,10 +138,10 @@ func (rm *roomManager) offline(info *defines.PlayerInfo) {
 }
 
 func (rm *roomManager) reEnter(info *defines.PlayerInfo) {
-	fmt.Println("player reenter", info)
+	mylog.Debug("player reenter", info)
 	room := rm.getRoom(info.RoomId)
 	if room == nil {
-		fmt.Println("reenter ", info.RoomId)
+		mylog.Debug("reenter ", info.RoomId)
 		return
 	}
 	room.notify <- &roomNotify{
@@ -153,7 +153,7 @@ func (rm *roomManager) reEnter(info *defines.PlayerInfo) {
 func (rm *roomManager) leaveRoom(info *defines.PlayerInfo, ret *proto.PlayerLeaveRoom) {
 	room := rm.getRoom(info.RoomId)
 	if room == nil {
-		fmt.Println("leave ", info.RoomId)
+		mylog.Debug("leave ", info.RoomId)
 		return
 	}
 	room.notify <- &roomNotify{
@@ -165,7 +165,7 @@ func (rm *roomManager) leaveRoom(info *defines.PlayerInfo, ret *proto.PlayerLeav
 func (rm *roomManager) gameMessage(info *defines.PlayerInfo, cmd uint32, msg []byte) {
 	room := rm.getRoom(info.RoomId)
 	if room == nil {
-		fmt.Println("room error ", info.RoomId)
+		mylog.Debug("room error ", info.RoomId)
 		return
 	}
 	room.notify <- &roomNotify{
@@ -237,10 +237,10 @@ func (rm *roomManager) sendMessage(info *defines.PlayerInfo, cmd uint32, data in
 }
 
 func (rm *roomManager) broadcastMessage(players []*defines.PlayerInfo, cmd uint32, data interface{}) {
-	fmt.Println("broadcast message ", players, cmd, data)
+	mylog.Debug("broadcast message ", players, cmd, data)
 	for _, user := range players {
 		if user == nil {
-			fmt.Println("broad cast message find user nil")
+			mylog.Debug("broad cast message find user nil")
 			continue
 		}
 	}

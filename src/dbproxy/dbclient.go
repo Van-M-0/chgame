@@ -7,6 +7,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"dbproxy/table"
 	"time"
+	"mylog"
 )
 
 //CREATE DATABASE IF NOT EXISTS mygame default charset utf8 COLLATE utf8_general_ci;
@@ -47,7 +48,7 @@ func Test() {
 	var a TestAAA
 	dc.db.Where("user_id = ? ", 1001).Find(&a)
 
-	fmt.Println(a, len(a.Conf) , string(a.Conf))
+	mylog.Debug(a, len(a.Conf) , string(a.Conf))
 	*/
 
 /*
@@ -103,7 +104,7 @@ func Test() {
 
 	var ranks []t_Myrank
 	dc.db.Order("score desc").Limit(3).Find(&ranks)
-	fmt.Println(ranks)
+	mylog.Debug(ranks)
 	*/
 }
 
@@ -113,9 +114,9 @@ func newDbClient() *dbClient {
 
 	opt := &defines.DatabaseOption{
 		Host: "127.0.0.1:3306",
-		User: "root",
-		Pass: "1",
-		Name: "mygame",
+		User: DbProxyOptoins.User,
+		Pass: DbProxyOptoins.Pwd,
+		Name: DbProxyOptoins.Name,
 		DetailLog: true,
 		Singular: true,
 	}
@@ -127,10 +128,10 @@ func newDbClient() *dbClient {
 		opt.Name,
 	)
 
-	fmt.Println("db proxy connection info ", uri)
+	mylog.Debug("db proxy connection info ", uri)
 	db, err := gorm.Open("mysql", uri)
 	if err != nil {
-		fmt.Println("create db proxy err ", err)
+		mylog.Debug("create db proxy err ", err)
 		return nil
 	}
 
@@ -179,7 +180,7 @@ func (dc *dbClient) DropTable(v ...interface{}) {
 // logic handler
 
 func (dc *dbClient) InitTable() {
-	fmt.Println("init tables")
+	mylog.Debug("init tables")
 /*
 	dc.DropTable(&table.T_Accounts{})
 	dc.DropTable(&table.T_Games{})
@@ -231,12 +232,6 @@ func (dc *dbClient) InitTable() {
 			Area: "成都",
 			City: "成都市",
 			Province: "四川省",
-		}).Create(&table.T_Gamelib{
-			Id: 2,
-			Name: "斗地主",
-			Area: "成都",
-			City: "成都市",
-			Province: "四川省",
 		})
 	}
 
@@ -249,6 +244,13 @@ func (dc *dbClient) InitTable() {
 			Starttime: time.Now(),
 			Finishtime: time.Now(),
 			Rewardids: "1",
+		}).Create(&table.T_Activity{
+			Id: 102,
+			Desc: "1、玩家参与活动需加入官方用户微信群并关注“约8棋牌平台”公众号；\n2、每周日23:59，“约8棋牌平台”更新一组牌型；\n3、玩家需进入“约8棋牌平台”输入“本周牌型”即可显示出当周的奖励牌型图例；\n4、玩家在游戏完成当周的奖励牌型后，截该奖励牌型的结算界面发送至内测微信群；\n5、并且提供自己微信号，由官方人员进行记录，以便不删档测试后发放奖励；\n6、每个玩家每天只能领取一次奖励，不能重复获得奖励；\n7、更多活动详细介绍请关注“约8棋牌平台”微信公众号，点击“热门活动”查看。",
+			Actype: "always",
+			Starttime: time.Now(),
+			Finishtime: time.Now(),
+			Rewardids: "2",
 		})
 
 		dc.db.CreateTable(&table.T_ActivityReward{})
@@ -256,6 +258,11 @@ func (dc *dbClient) InitTable() {
 			Id: 1,
 			RewardType: "addition",
 			Num: 1,
+		}).Create(&table.T_ActivityReward{
+			Id: 2,
+			RewardType: "addition",
+			ItemId: 1,
+			Num: 5,
 		})
 	}
 
@@ -318,7 +325,7 @@ func (dc *dbClient) AddAccountInfo(accInfo *table.T_Accounts) bool {
 
 // t_users : user info
 func (dc *dbClient) AddUserInfo(userInfo *table.T_Users) bool {
-	fmt.Println("add user info : ", userInfo)
+	mylog.Debug("add user info : ", userInfo)
 	return dc.db.Create(userInfo).RowsAffected != 0
 }
 

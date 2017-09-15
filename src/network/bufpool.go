@@ -1,6 +1,8 @@
 package network
 
-import "fmt"
+import (
+	"mylog"
+)
 
 type Buffer struct {
 	index 		int
@@ -97,7 +99,7 @@ func (bf *BufferPool) Pop(size int) *Buffer {
 	if i, ok := bf.indexes[index]; ok {
 		return <- bf.bfList[i]
 	} else {
-		fmt.Println("bufpool pop err ", size)
+		mylog.Debug("bufpool pop err ", size)
 		return nil
 	}
 }

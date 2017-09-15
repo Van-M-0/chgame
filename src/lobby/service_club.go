@@ -6,7 +6,7 @@ import (
 	"time"
 	"math/rand"
 	"exportor/defines"
-	"fmt"
+	"mylog"
 )
 
 type clubMember struct {
@@ -40,7 +40,7 @@ func (ac *AgentClub) start() {
 	var rep proto.MsLoadClubInfoReply
 	ac.lb.dbClient.Call("DBService.LoadClubInfo", &proto.MsLoadClubInfoReq{}, &rep)
 
-	fmt.Println("start ", rep)
+	mylog.Debug("start ", rep)
 	ac.lock.Lock()
 	defer ac.lock.Unlock()
 
@@ -60,7 +60,7 @@ func (ac *AgentClub) start() {
 			}
 		}
 		ac.clubs[club.Id] = ce
-		fmt.Println("club info ", *ce)
+		mylog.Debug("club info ", *ce)
 	}
 }
 
@@ -107,7 +107,7 @@ func (ac *AgentClub) getUserClubInfo(user uint32) *ClubEntry {
 	defer ac.lock.Unlock()
 
 	for _, club := range ac.clubs {
-		//fmt.Println("club ", *club)
+		//mylog.Debug("club ", *club)
 		if _, ok := club.members[user]; ok {
 			return club
 		}
@@ -228,6 +228,11 @@ func (ac *AgentClub) OnUserCreateClub(uid uint32, req *proto.ClientCreateClub) {
 			})
 		}
 		return
+	} else if rep.ErrCode == "agent" {
+		ac.lb.send2player(uid, proto.CmdUserCreatClub, &proto.ClientCreateClubRet{
+			ErrCode: defines.ErrClubNotAgent,
+		})
+		return
 	}
 
 	ac.lb.send2player(uid, proto.CmdUserCreatClub, &proto.ClientCreateClubRet{
@@ -337,11 +342,11 @@ func (ac *AgentClub) OnUserLeaveClub(uid uint32, req *proto.ClientLeaveClub) {
 
 	ac.lb.userMgr.updateUserProp(user, defines.PpDiamond, -5)
 
-	fmt.Println(ac.clubs, ac.clubs[req.ClubId].members)
+	mylog.Debug(ac.clubs, ac.clubs[req.ClubId].members)
 	if err := ac.removeUser4Club(rep.Club.Id, user.userId); !err {
-		fmt.Println("leave club error")
+		mylog.Debug("leave club error")
 	}
-	fmt.Println("fdsfds ", ac.clubs, ac.clubs[req.ClubId].members)
+	mylog.Debug("fdsfds ", ac.clubs, ac.clubs[req.ClubId].members)
 	ac.OnUserClubUpdate(user)
 
 	ac.lb.send2player(uid, proto.CmdUserLeaveClub, &proto.ClientLeaveClubRet{
@@ -357,7 +362,7 @@ func (ac *AgentClub) OnUserClubUpdate(user *userInfo) {
 		info.CreateorId = int(club.creatorId)
 		info.CreatorName = club.creatorName
 	}
-	fmt.Println("reply club info", user, info)
+	mylog.Debug("reply club info", user, info)
 	ac.lb.send2player(user.uid, proto.CmdBaseSynceClubInfo, info)
 }
 

@@ -2,10 +2,10 @@ package dbproxy
 
 import (
 	"exportor/defines"
-	"fmt"
 	"net/rpc"
 	"rpcd"
 	"cacher"
+	"mylog"
 )
 
 type request struct {
@@ -13,7 +13,9 @@ type request struct {
 	i 		interface{}
 }
 
+var DbProxyOptoins *defines.DbProxyOption
 type dbProxyServer struct {
+	opt 				*defines.DbProxyOption
 	cacheClient 		defines.ICacheClient
 	com 				defines.ICommunicator
 	pub 				defines.IMsgPublisher
@@ -25,7 +27,8 @@ type dbProxyServer struct {
 	dtSaver 			*dataSaver
 }
 
-func newDBProxyServer() *dbProxyServer {
+func newDBProxyServer(opt *defines.DbProxyOption) *dbProxyServer {
+	DbProxyOptoins = opt
 	dbServer := &dbProxyServer{}
 	dbServer.dbClient = newDbClient()
 	dbServer.dbservice = newDbService(dbServer.dbClient)
@@ -87,7 +90,7 @@ func (ds *dbProxyServer) load2Cache() {
 	/*
 	ft, err := time.Parse("2006-01-02 15:04:05", "2017-08-08 09:04:01")
 	if err != nil {
-		fmt.Println("fmt time error ", err)
+		mylog.Debug("fmt time error ", err)
 		return
 	}
 	testCreateNotice := func() {
@@ -113,7 +116,7 @@ func (ds *dbProxyServer) load2Cache() {
 	testCreateNotice()
 	var notice []table.T_Notice
 	ds.dbClient.db.Find(&notice)
-	fmt.Println("load notice ", notice)
+	mylog.Debug("load notice ", notice)
 	var cnotice []*proto.CacheNotice
 	for _, n := range notice {
 		cnotice = append(cnotice, &proto.CacheNotice{
@@ -132,17 +135,17 @@ func (ds *dbProxyServer) load2Cache() {
 	/*
 	var n1 []*proto.CacheNotice
 	ds.cacheClient.NoticeOperation(&n1, "getall")
-	fmt.Println("n1 < ", n1, n1[0])
+	mylog.Debug("n1 < ", n1, n1[0])
 	*/
 }
 
 
 func (ds *dbProxyServer) getMessageFromBroker () {
-	fmt.Println("get message from broker")
+	mylog.Debug("get message from broker")
 	getChannelMessage := func(key string) {
 		for {
 			data := ds.con.GetMessage(defines.ChannelTypeDb, key)
-			fmt.Println("get message ", key, data)
+			mylog.Debug("get message ", key, data)
 			ds.chNotify <- &request{cmd: key, i: data}
 		}
 	}
@@ -171,25 +174,25 @@ func (ds *dbProxyServer) handleLogin(i interface{}) {
 	req := i.(*proto.PMLoadUser)
 	var userInfo table.T_Users
 	ret := ds.dbClient.GetUserInfo(req.Acc, &userInfo)
-	fmt.Println(defines.ChannelLoadUser, req, ret)
+	mylog.Debug(defines.ChannelLoadUser, req, ret)
 	ds.chResNotify <- func() {
-		fmt.Println("bbbbbb", req, ret)
+		mylog.Debug("bbbbbb", req, ret)
 		if ret == true {
 			err := ds.cacheClient.SetUserInfo(&userInfo, ret)
 			ret := &proto.PMLoadUserFinish{Err: err, Code: 0}
-			fmt.Println("load user finish ", ret)
+			mylog.Debug("load user finish ", ret)
 			ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, ret)
 		} else {
 			ret := &proto.PMLoadUserFinish{Code: 1}
-			fmt.Println("load user finish ", ret)
+			mylog.Debug("load user finish ", ret)
 			ds.pub.WaitPublish(defines.ChannelTypeDb, defines.ChannelLoadUserFinish, ret)
 		}
 	}
-	fmt.Println("aaaaaaaaaaa", req, ret)
+	mylog.Debug("aaaaaaaaaaa", req, ret)
 }
 func (ds *dbProxyServer) handleCreateAccount(i interface{}) {
 	req := i.(*proto.PMCreateAccount)
-	fmt.Println("create account ", req.Name)
+	mylog.Debug("create account ", req.Name)
 	var user table.T_Users
 	var userSuccess *table.T_Users
 	ret := ds.dbClient.GetUserInfoByName(req.Name, &user)
@@ -223,7 +226,7 @@ func (ds *dbProxyServer) handleCreateAccount(i interface{}) {
 	}
 
 	ds.chResNotify <- func() {
-		fmt.Println("create account ret ", ret, res)
+		mylog.Debug("create account ret ", ret, res)
 		if res.Err == 0 {
 			ds.cacheClient.SetUserInfo(userSuccess, true)
 		}

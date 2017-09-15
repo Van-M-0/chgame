@@ -5,8 +5,8 @@ import (
 	"exportor/defines"
 	"sync"
 	"msgpacker"
-	"fmt"
 	"time"
+	"mylog"
 )
 
 type cliManager struct {
@@ -35,12 +35,12 @@ func (mgr *cliManager) cliConnect(cli defines.ITcpClient) error {
 	}
 	mgr.clis[mgr.idGen] = cli
 	cli.Id(mgr.idGen)
-	fmt.Println("client id ", cli.GetId())
+	mylog.Debug("client id ", cli.GetId())
 	return nil
 }
 
 func (mgr *cliManager) cliDisconnect(cli defines.ITcpClient) {
-	fmt.Println("close client", cli.GetId(), mgr.cliCount)
+	mylog.Debug("close client", cli.GetId(), mgr.cliCount)
 	mgr.Lock()
 	mgr.cliCount--
 	id := cli.GetId()
@@ -53,18 +53,20 @@ func (mgr *cliManager) cliMsg(cli defines.ITcpClient, m *proto.Message) {
 }
 
 func (mgr *cliManager) route2client(uids []uint32, cmd uint32, data []byte) {
-	fmt.Println("2c ", uids, cmd)
+	mylog.Debug("2c ", uids, cmd)
 	if cmd == proto.CmdGameCreateRoom {
 		var createRes proto.PlayerCreateRoomRet
 		if err := msgpacker.UnMarshal(data, &createRes); err != nil {
 			return
 		}
 		if createRes.ErrCode == defines.ErrCommonSuccess {
+			mgr.Lock()
 			for _, uid := range uids {
 				if client, ok := mgr.clis[uid]; ok {
 					client.Set("gameid", uint32(createRes.ServerId))
 				}
 			}
+			mgr.Unlock()
 		}
 	} else if cmd == proto.CmdGameEnterRoom {
 		var enterRes proto.PlayerEnterRoomRet
@@ -73,29 +75,27 @@ func (mgr *cliManager) route2client(uids []uint32, cmd uint32, data []byte) {
 		}
 		if enterRes.ErrCode == defines.ErrCommonSuccess {
 			mgr.Lock()
-			defer mgr.Unlock()
-
 			for _, uid := range uids {
 				if client, ok := mgr.clis[uid]; ok {
 					client.Set("gameid", uint32(enterRes.ServerId))
 				}
 			}
+			mgr.Unlock()
 			return
 		}
 	} else if cmd == proto.CmdGamePlayerReturn2lobby {
 		var res proto.PlayerReturn2Lobby
 		if err := msgpacker.UnMarshal(data, &res); err != nil {
-			fmt.Println("g2l err ", err)
 			return
 		}
 		if res.ErrCode == defines.ErrCommonSuccess {
 			mgr.Lock()
-			defer mgr.Unlock()
 			for _, uid := range uids {
 				if client, ok := mgr.clis[uid]; ok {
 					client.Set("gameid", nil)
 				}
 			}
+			mgr.Unlock()
 		}
 	} else if cmd == proto.CmdLobbyPerformance {
 		var res proto.LobbyPerformanceRet
@@ -106,9 +106,7 @@ func (mgr *cliManager) route2client(uids []uint32, cmd uint32, data []byte) {
 		data, _ = msgpacker.Marshal(res)
 	}
 
-	mgr.RLock()
-	defer mgr.RUnlock()
-
+	mgr.Lock()
 	if uids == nil {
 		for _, cli := range mgr.clis {
 			cli.Send(cmd, data)
@@ -117,7 +115,10 @@ func (mgr *cliManager) route2client(uids []uint32, cmd uint32, data []byte) {
 		for _, uid := range uids {
 			if client, ok := mgr.clis[uid]; ok {
 				client.Send(cmd, data)
+			} else {
+				mylog.Debug("cne ", uid)
 			}
 		}
 	}
+	mgr.Unlock()
 }

@@ -2,7 +2,8 @@ package game
 
 import (
 	"exportor/defines"
-	"fmt"
+
+	"mylog"
 )
 
 type playerManager struct {
@@ -34,13 +35,13 @@ func (pm *playerManager) getPlayerById(id uint32) *defines.PlayerInfo {
 }
 
 func (pm *playerManager) addPlayer(p *defines.PlayerInfo) {
-	fmt.Println("pm.add > ", p.Uid, p.UserId)
+	mylog.Debug("pm.add > ", p.Uid, p.UserId)
 	pm.uidPlayer[p.Uid] = p
 	pm.idPlayer[p.UserId] = p
 }
 
 func (pm *playerManager) delPlayer(p *defines.PlayerInfo) {
-	fmt.Println("pm.del > ", p.Uid, p.UserId)
+	mylog.Debug("pm.del > ", p.Uid, p.UserId)
 	delete(pm.uidPlayer, p.Uid)
 	delete(pm.uidPlayer, p.UserId)
 }

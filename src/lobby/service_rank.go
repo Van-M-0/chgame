@@ -3,8 +3,8 @@ package lobby
 import (
 	"sync"
 	"exportor/proto"
-	"fmt"
 	"exportor/defines"
+	"mylog"
 )
 
 type rankService struct {
@@ -31,9 +31,9 @@ func (rs *rankService) loadUserRanks(rankType int, count int) {
 		Count: count,
 	}, &res)
 
-	fmt.Println("loaduser ranks err ", err)
+	mylog.Debug("loaduser ranks err ", err)
 	if res.ErrCode != "ok" {
-		fmt.Println("load user rank error ", rankType, count, res.ErrCode)
+		mylog.Debug("load user rank error ", rankType, count, res.ErrCode)
 		return
 	}
 
@@ -45,7 +45,7 @@ func (rs *rankService) loadUserRanks(rankType int, count int) {
 	}
 	rs.ranksLock.Unlock()
 
-	//fmt.Println("load diamond user rank", rs.diamondRanks)
+	//mylog.Debug("load diamond user rank", rs.diamondRanks)
 }
 
 func (rs *rankService) onUserGetRanks(uid uint32, req *proto.ClientLoadUserRank) {

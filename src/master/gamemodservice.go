@@ -4,8 +4,8 @@ import (
 	"exportor/proto"
 	"sync"
 	"exportor/defines"
-	"fmt"
 	"rpcd"
+	"mylog"
 )
 
 var GameModService = newGameModuleService()
@@ -41,13 +41,13 @@ func (gms *GameModuleService) load() {
 			}
 		}
 	} else {
-		fmt.Println("load game lib err, ", err, r.ErrCode)
+		mylog.Debug("load game lib err, ", err, r.ErrCode)
 		panic("..........stop.................")
 	}
 }
 
 func (gms *GameModuleService) RegisterModule(req *proto.MsGameMoudleRegisterArg, res *proto.MsGameMoudleRegisterReply) error {
-	fmt.Println("gms request ", req)
+	mylog.Debug("gms request ", req)
 	res.ErrCode = "ok"
 
 	for _, mod := range req.ModList {
@@ -80,22 +80,31 @@ func (gms *GameModuleService) getModuleList(province string) []proto.ModuleInfo 
 	mods := gms.modules
 	gms.modLock.Unlock()
 
-	fmt.Println("mods ", mods)
+	mylog.Debug("mods ", mods)
 
-	l := []proto.ModuleInfo{}
-	for _, m := range gms.modules {
-		c := proto.ModuleInfo{
-			Province: m.Province,
-			City:     m.City,
-			Name: 	  m.Name,
-			Kind:     m.Kind,
-			Conf:	  m.Conf,
-			GateIp:   m.GateIp,
-		}
-		fmt.Println("mode", c)
-		l = append(l, c)
+	mmap := map[string]string {
+		"sichuan":"四川省",
 	}
-	fmt.Println("mods ", l)
+	l := []proto.ModuleInfo{}
+
+	if p, ok := mmap[province]; ok {
+		for _, m := range gms.modules {
+			if p == m.Province {
+				c := proto.ModuleInfo{
+					Province: m.Province,
+					City:     m.City,
+					Name: 	  m.Name,
+					Kind:     m.Kind,
+					Conf:	  m.Conf,
+					GateIp:   m.GateIp,
+				}
+				mylog.Debug("mode", c)
+				l = append(l, c)
+			}
+		}
+	}
+
+	mylog.Debug("mods ", l)
 	return l
 }
 

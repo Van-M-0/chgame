@@ -13,7 +13,7 @@ type World struct {
 func NewWorldServer (cfg *defines.StartConfigFile) defines.IServer {
 	ms := &World{}
 	ms.hp = newHttpProxy(cfg.WorldHttp)
-	ms.db = newDbClient()
+	ms.db = newDbClient(cfg)
 	return ms
 }
 

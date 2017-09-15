@@ -4,8 +4,8 @@ import (
 	"exportor/proto"
 	"sync"
 	"exportor/defines"
-	"fmt"
 	"msgpacker"
+	"mylog"
 )
 
 
@@ -39,7 +39,7 @@ func (mgr *serManager) serConnected(client defines.ITcpClient) {
 func (mgr *serManager) serDisconnected(client defines.ITcpClient) {
 	mgr.Lock()
 	mgr.Unlock()
-	fmt.Println("server disconnected ? ")
+	mylog.Debug("server disconnected ? ")
 	delete(mgr.sers, client.GetId())
 }
 
@@ -48,7 +48,7 @@ func (mgr *serManager) serMessage(client defines.ITcpClient, m *proto.Message) {
 }
 
 func (mgr *serManager) addServer(client defines.ITcpClient, m *proto.RegisterServer) error {
-	fmt.Println("add server ", m)
+	mylog.Debug("add server ", m)
 	mgr.Lock()
 	//mgr.idGen++
 	mgr.sers[uint32(m.ServerId)] = &serverInfo{
@@ -58,7 +58,7 @@ func (mgr *serManager) addServer(client defines.ITcpClient, m *proto.RegisterSer
 	}
 	mgr.Unlock()
 
-	fmt.Println("ser info ", mgr.sers)
+	mylog.Debug("ser info ", mgr.sers)
 
 	client.Id(uint32(m.ServerId))
 
@@ -67,7 +67,7 @@ func (mgr *serManager) addServer(client defines.ITcpClient, m *proto.RegisterSer
 	} else if m.Type == "game" {
 		client.Set("game", true)
 	}
-	fmt.Println("ser info ", mgr.lobbyId )
+	mylog.Debug("ser info ", mgr.lobbyId )
 	/*
 	if m.Type == "lobby" {
 		mgr.gate2Lobby(client, proto.CmdRegisterServerRet, &proto.RegisterServer{
@@ -134,7 +134,7 @@ func (mgr *serManager) client2Lobby(client defines.ITcpClient, message *proto.Me
 	if serInfo, ok := mgr.sers[mgr.lobbyId]; ok {
 		serInfo.cli.Send(proto.ClientRouteLobby, lbMessage)
 	} else {
-		fmt.Println("gs not alive or kick client 1", mgr.sers, mgr.lobbyId)
+		mylog.Debug("gs not alive or kick client 1", mgr.sers, mgr.lobbyId)
 	}
 }
 
@@ -164,7 +164,7 @@ func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Mes
 
 		ser, ok := mgr.sers[serId]
 		if !ok {
-			fmt.Println("gs not alive or kick client 2")
+			mylog.Debug("gs not alive or kick client 2")
 			return
 		}
 		ser.cli.Send(proto.ClientRouteGame, gwMessage)
@@ -188,7 +188,18 @@ func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Mes
 			var res proto.MsGetRoomServerIdReply
 			mgr.gateway.msClient.Call("RoomService.GetRoomServerId", &proto.MsGetRoomServerIdArg{RoomId: enterRoomMessage.RoomId}, &res)
 
-			if res.ServerId == -1 {
+			if res.ServerId == -1 || res.Alive == false {
+				clearRoom, err := msgpacker.Marshal(&proto.ClearUserInfo{
+					Type: defines.PpRoomId,
+				})
+				if err != nil {
+					mylog.Info("pack clearroom err", err)
+					return
+				}
+				mgr.client2Lobby(client, &proto.Message{
+					Cmd: proto.CmdClearPlayerInfo,
+					Msg: clearRoom,
+				})
 				return
 			}
 			//reply to client
@@ -238,4 +249,8 @@ func (mgr *serManager) clientDisconnected(client defines.ITcpClient) {
 		}
 		lb.cli.Send(proto.GateRouteLobby, gwMessage)
 	}
+}
+
+func (mgr *serManager) clientReturnLobby(client defines.ITcpClient) {
+
 }

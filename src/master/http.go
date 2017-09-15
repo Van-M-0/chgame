@@ -2,7 +2,6 @@ package master
 
 import (
 	"encoding/json"
-	"fmt"
 	"exportor/defines"
 	"exportor/proto"
 	"net/http"
@@ -10,6 +9,7 @@ import (
 	"communicator"
 	"io/ioutil"
 	"os"
+	"mylog"
 )
 
 type appInfo struct {
@@ -75,10 +75,10 @@ func (hp *http2Proxy) clientWechatLogin(code, device string) (string, string){
 			AccToken = r.AccToken
 			OpenId = r.OpenId
 		} else {
-			fmt.Println("wechatlogin error")
-			fmt.Println(request)
-			fmt.Println(d)
-			fmt.Println(err)
+			mylog.Debug("wechatlogin error")
+			mylog.Debug(request)
+			mylog.Debug(d)
+			mylog.Debug(err)
 		}
 	})
 
@@ -106,7 +106,7 @@ func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 		GrantType: "authorization_code",
 	})
 	if err != nil {
-		fmt.Println("json.marshal access error ")
+		mylog.Debug("json.marshal access error ")
 		return
 	}
 
@@ -123,7 +123,7 @@ func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 			Openid: openid,
 		})
 		if err != nil {
-			fmt.Println("get state marshal errr", err)
+			mylog.Debug("get state marshal errr", err)
 			return
 		}
 		hp.get2("https://api.weixin.qq.com/sns/userinfo", string(d), true, func(suc bool, data interface{}) {
@@ -133,22 +133,22 @@ func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (hp *http2Proxy) notice(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("notices visited")
+	mylog.Debug("notices visited")
 	r.ParseForm()
 	v := r.Form["a"]
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		fmt.Println("read notice err ", err)
+		mylog.Debug("read notice err ", err)
 		return
 	}
-	fmt.Println(v[0], body, err)
+	mylog.Debug(v[0], body, err)
 
 	type notice struct {
 		Content 	string
 	}
 	var n notice
 	if err := json.Unmarshal([]byte(v[0]), &n); err != nil {
-		fmt.Println("unmarshal data error ", err)
+		mylog.Debug("unmarshal data error ", err)
 		return
 	}
 
@@ -158,7 +158,7 @@ func (hp *http2Proxy) notice(w http.ResponseWriter, r *http.Request) {
 }
 
 func (hp *http2Proxy) getGameModules(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("game moudles visited")
+	mylog.Debug("game moudles visited", r)
 	r.ParseForm()
 	v := r.Form["province"]
 
@@ -187,10 +187,10 @@ func (hp *http2Proxy) getGameModules(w http.ResponseWriter, r *http.Request) {
 	*/
 
 
-	fmt.Println("rep >", rep, GameModService != nil)
+	mylog.Debug("rep >", rep, GameModService != nil)
 
 	data, err := json.Marshal(rep)
-	fmt.Println("data", data, string(data))
+	mylog.Debug("data", data, string(data))
 	if err != nil {
 		w.Write([]byte(`{"ErrCode":"error"}`))
 	} else {
@@ -214,26 +214,26 @@ func (hp *http2Proxy) getOpenList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data, err := json.Marshal(rep)
-	fmt.Println("data", data)
+	mylog.Debug("data", data)
 	if err != nil {
 		w.Write([]byte(`{"ErrCode":"error"}`))
 	} else {
 		w.Write(data)
 	}
 
-	fmt.Println("rep >", rep, GameModService != nil)
+	mylog.Debug("rep >", rep, GameModService != nil)
 }
 
 func (hp *http2Proxy) downloadFile(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	v := r.Form["file"]
-	fmt.Println("downlaod file", v[0])
+	mylog.Debug("downlaod file", v[0])
 
 
 	file := "./file/"+v[0]
 	if _, err := os.Stat(file); err != nil {
-		fmt.Println("stat file ", err, os.IsNotExist(err))
-		fmt.Println("file not exists")
+		mylog.Debug("stat file ", err, os.IsNotExist(err))
+		mylog.Debug("file not exists")
 		w.WriteHeader(403)
 	} else {
 		w.Header().Set("Content-Disposition", "attachment; filename=" + v[0])
@@ -246,7 +246,7 @@ func (hp *http2Proxy) serve() {
 	hp.pub.Start()
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("index visited")
+		mylog.Debug("index visited")
 	})
 	http.HandleFunc("/wechat", hp.wechatLogin)
 	http.HandleFunc("/notices", hp.notice)
@@ -255,12 +255,12 @@ func (hp *http2Proxy) serve() {
 	//http.HandleFunc("/download", hp.downloadFile)
 	http.Handle("/download/", http.StripPrefix("/download/", http.FileServer(http.Dir("file"))))
 
-	fmt.Println("http server start...", hp.httpAddr)
+	mylog.Debug("http server start...", hp.httpAddr)
 
 	if err := http.ListenAndServe(hp.httpAddr, nil); err != nil {
 		panic("listen http error " + hp.httpAddr + err.Error())
 	} else {
-		fmt.Println("http server listen port", hp.httpAddr)
+		mylog.Debug("http server listen port", hp.httpAddr)
 	}
 }
 
@@ -274,7 +274,7 @@ func (hp *http2Proxy) get2(url string, content string, bHttps bool, cb func(bool
 
 	if res.StatusCode == 200 {
 		body, _ := ioutil.ReadAll(res.Body)
-		fmt.Println("get ", request, res, err, string(body))
+		mylog.Debug("get ", request, res, err, string(body))
 		cb(true, body)
 	} else {
 		cb(false, nil)

@@ -4,10 +4,10 @@ import (
 	"exportor/proto"
 	"sync"
 	"time"
-	"fmt"
 	"runtime/debug"
 	"strings"
 	"strconv"
+	"mylog"
 )
 
 const (
@@ -17,6 +17,7 @@ const (
 
 const (
 	ActivityFirstCharge = 101
+	ActivityCardType 	= 102
 )
 
 const (
@@ -91,7 +92,7 @@ func (ac *Activities) start() {
 				}
 
 				activity.OnStart()
-				//fmt.Println("activity start ", a)
+				//mylog.Debug("activity start ", a)
 			}
 		}
 
@@ -109,7 +110,7 @@ func (ac *Activities) start() {
 		call := func(a Activity, e *ActivityEvent) {
 			defer func() {
 				if err := recover(); err != nil {
-					fmt.Println("activity error", err)
+					mylog.Debug("activity error", err)
 					debug.PrintStack()
 				}
 			}()
@@ -163,7 +164,7 @@ func (ac *Activities) create(a *proto.ActivityItem) Activity {
 	for _, s := range rewards {
 		id, err := strconv.Atoi(s)
 		if err != nil {
-			fmt.Println("activity s reward ids error ", a)
+			mylog.Debug("activity s reward ids error ", a)
 			continue
 		}
 		for _, r := range ac.rewardList {
@@ -175,6 +176,10 @@ func (ac *Activities) create(a *proto.ActivityItem) Activity {
 
 	if a.Id == ActivityFirstCharge {
 		return &FirstChargeActivity{
+			ActivityBase: base,
+		}
+	} else if a.Id == ActivityCardType {
+		return &CardTypeActivity{
 			ActivityBase: base,
 		}
 	}
@@ -221,7 +226,30 @@ func (fc *FirstChargeActivity) OnStop() {
 }
 
 func (fc *FirstChargeActivity) OnEvent(e *ActivityEvent) {
-	//fmt.Println("first charge activity ", e)
+	//mylog.Debug("first charge activity ", e)
+	for _, r := range fc.rewards {
+		if r.RewardType == RewardTypeAddition {
+		} else if r.RewardType == RewardTypeItem {
+		} else if r.RewardType == RewardTypeMultiple {
+		}
+	}
+}
+
+
+type CardTypeActivity struct {
+	*ActivityBase
+}
+
+func (fc *CardTypeActivity) OnStart() {
+
+}
+
+func (fc *CardTypeActivity) OnStop() {
+	fc.mgr.stopActivity(fc)
+}
+
+func (fc *CardTypeActivity) OnEvent(e *ActivityEvent) {
+	//mylog.Debug("first charge activity ", e)
 	for _, r := range fc.rewards {
 		if r.RewardType == RewardTypeAddition {
 		} else if r.RewardType == RewardTypeItem {

@@ -36,7 +36,7 @@ func (ms *Master) Stop() error {
 
 func (ms *Master) StartRpc() {
 	start := func() {
-		rpc.Register(newServerService())
+		rpc.Register(GameSerService)
 		rpc.Register(newRoomService())
 		rpc.Register(GameModService)
 		rpc.Register(ms.sdk)

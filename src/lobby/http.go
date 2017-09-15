@@ -4,11 +4,11 @@ import (
 	"net"
 	"net/http"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"exportor/defines"
 	"exportor/proto"
 	"communicator"
+	"mylog"
 )
 
 type appInfo struct {
@@ -61,7 +61,7 @@ func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 		GrantType: "authorization_code",
 	})
 	if err != nil {
-		fmt.Println("json.marshal access error ")
+		mylog.Debug("json.marshal access error ")
 		return
 	}
 
@@ -79,7 +79,7 @@ func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 			Openid: openid,
 		})
 		if err != nil {
-			fmt.Println("get state marshal errr", err)
+			mylog.Debug("get state marshal errr", err)
 			return
 		}
 		hp.get2("https://api.weixin.qq.com/sns/userinfo", string(d), true, func(suc bool, data interface{}) {
@@ -89,22 +89,22 @@ func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (hp *http2Proxy) notice(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("notices visited")
+	mylog.Debug("notices visited")
 	r.ParseForm()
 	v := r.Form["a"]
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		fmt.Println("read notice err ", err)
+		mylog.Debug("read notice err ", err)
 		return
 	}
-	fmt.Println(v[0], body, err)
+	mylog.Debug(v[0], body, err)
 
 	type notice struct {
 		Content 	string
 	}
 	var n notice
 	if err := json.Unmarshal([]byte(v[0]), &n); err != nil {
-		fmt.Println("unmarshal data error ", err)
+		mylog.Debug("unmarshal data error ", err)
 		return
 	}
 
@@ -117,17 +117,17 @@ func (hp *http2Proxy) serve() {
 	hp.pub.Start()
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("index visited")
+		mylog.Debug("index visited")
 	})
 	http.HandleFunc("/wechat", hp.wechatLogin)
 	http.HandleFunc("/notices", hp.notice)
 
-	fmt.Println("http server start...", hp.httpAddr)
+	mylog.Debug("http server start...", hp.httpAddr)
 
 	if err := http.ListenAndServe(hp.httpAddr, nil); err != nil {
 		panic("listen http error " + hp.httpAddr)
 	} else {
-		fmt.Println("http server listen port", hp.httpAddr)
+		mylog.Debug("http server listen port", hp.httpAddr)
 	}
 }
 
@@ -138,9 +138,9 @@ func (hp *http2Proxy) start() {
 func (hp *http2Proxy) get2(url string, content string, bHttps bool, cb func(bool, interface{})) {
 	res, err := http.Get(url+"?"+content)
 	if err != nil {
-		fmt.Println("get error ", url, content, err)
+		mylog.Debug("get error ", url, content, err)
 		return
 	}
-	fmt.Println(res)
+	mylog.Debug(res)
 }
 

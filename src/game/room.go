@@ -8,6 +8,8 @@ import (
 	"runtime/debug"
 	"sync/atomic"
 	"time"
+	"mylog"
+	"strconv"
 )
 
 
@@ -36,6 +38,8 @@ type room struct {
 	releaseVoter 	map[uint32]*voter
 	timeoutCheck 	time.Timer
 	isReleased 		bool
+
+	logPrefix		string
 }
 
 func newRoom(manager *roomManager) *room {
@@ -51,16 +55,16 @@ func newRoom(manager *roomManager) *room {
 func (rm *room) safeCall() {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("room call error", r)
+			mylog.Debug("room call error", r)
 			debug.PrintStack()
 		}
 	}()
 
 	select {
 	case n := <- rm.notify:
-		fmt.Println("room process message ", n.cmd, n)
+		mylog.Debug("room process message ", n.cmd, n)
 		if rm.closed == 1 {
-			fmt.Println("room closed")
+			mylog.Debug("room closed")
 			return
 		}
 
@@ -82,14 +86,14 @@ func (rm *room) safeCall() {
 			rm.onUserOffline(n)
 		}
 	case <- rm.quit:
-		fmt.Println("room destroy", rm.id)
+		mylog.Debug("room destroy", rm.id)
 	case <- rm.timeoutCheck.C:
 		rm.releaseTimeoutCheck()
 	}
 }
 
 func (rm *room) run() {
-	fmt.Println("room run")
+	mylog.Debug("room run")
 	go func () {
 		for {
 			rm.safeCall()
@@ -122,6 +126,12 @@ func (rm *room) onCreate(notify *roomNotify) bool {
 		replyErr(defines.ErrCreateRoomHaveRoom)
 		return false
 	}
+
+	rm.logPrefix = "[" + strconv.Itoa(int(rm.id)) + "] "
+
+	rm.DebugLog("create room success")
+	rm.InfoLog("create room success")
+	rm.ErrLog("create room success")
 
 	if err := rm.game.OnInit(rm, rm.module.GameData); err != nil {
 		replyErr(defines.ErrCreateRoomGameMoudele)
@@ -170,16 +180,20 @@ func (rm *room) onUserEnter(notify *roomNotify) {
 			ServerId: rm.manager.sm.gameServer.serverId,
 		})
 	}
-	fmt.Println("onuser enter ", rm.users)
+	mylog.Debug("onuser enter ", rm.users)
 }
 
 func (rm *room) onUserLeave(notify *roomNotify) {
-	fmt.Println("user leave room")
+	mylog.Debug("user leave room")
 	rm.game.OnUserLeave(&notify.user)
+	oldRoomId := notify.user.RoomId
 	rm.updateProp(notify.user.UserId, defines.PpRoomId, uint32(0))
 	delete(rm.users, notify.user.UserId)
 
-	rm.SendUserMessage(&notify.user, proto.CmdGamePlayerReturn2lobby, &proto.PlayerReturn2Lobby{ErrCode: defines.ErrCommonSuccess})
+	rm.SendUserMessage(&defines.PlayerInfo{
+		Uid: notify.user.Uid,
+		RoomId: oldRoomId,
+	}, proto.CmdGamePlayerReturn2lobby, &proto.PlayerReturn2Lobby{ErrCode: defines.ErrCommonSuccess})
 	//rm.SendUserMessage(&notify.user, proto.CmdGamePlayerLeaveRoom, &proto.PlayerLeaveRoomRet{ErrCode: defines.ErrCommonSuccess})
 
 	/*
@@ -191,6 +205,7 @@ func (rm *room) onUserLeave(notify *roomNotify) {
 }
 
 func (rm *room) onUserReenter(notify *roomNotify) {
+	rm.users[notify.user.UserId] = &notify.user
 	rm.game.OnUserReEnter(&notify.user)
 	rm.SendUserMessage(&notify.user, proto.CmdGameEnterRoom, &proto.PlayerEnterRoomRet{
 		ErrCode: defines.ErrCommonSuccess,
@@ -205,10 +220,10 @@ func (rm *room) onUserOffline(notify *roomNotify) {
 func (rm *room) onUserMessage(notify *roomNotify) {
 	var message proto.PlayerGameMessage
 	if err := msgpacker.UnMarshal(notify.data.([]byte), &message); err != nil {
-		fmt.Println("unmarsh client message error", notify.data)
+		mylog.Debug("unmarsh client message error", notify.data)
 		return
 	}
-	fmt.Println("notify ",notify, message.B)
+	mylog.Debug("notify ",notify, message.B)
 	if err := rm.game.OnUserMessage(&notify.user, message.A, message.B); err != nil {
 
 	} else {
@@ -242,6 +257,8 @@ func (rm *room) onUserReleaseRoom(notify *roomNotify) {
 		})
 		return
 	}
+
+	rm.releaseVoter = make(map[uint32]*voter)
 
 	users := []*defines.PlayerInfo{}
 	for _, user := range rm.users {
@@ -320,17 +337,34 @@ func (rm *room) onUserReleaseRoomResponse(notify *roomNotify) {
 
 	if released {
 		rm.ReleaseRoom()
+	} else {
+		operateCount := 0
+		totalCount := 0
+		for _, u := range rm.releaseVoter {
+			totalCount++
+			if u.agreed != 0 {
+				operateCount++
+			}
+		}
+		if operateCount == totalCount && operateCount != 0 {
+			rm.isReleased = false
+		}
 	}
 }
 
 func (rm *room) releaseTimeoutCheck() {
+
+	if rm.isReleased == false {
+		return
+	}
+
 	for _, u := range rm.releaseVoter {
 		if u.agreed == 0 {
 			u.agreed = 1
 		}
 	}
 	released := rm.checkReleaseRoomCondition()
-	fmt.Println("release time check ", released)
+	mylog.Debug("release time check ", released)
 	if released {
 		rm.ReleaseRoom()
 	} else {
@@ -374,24 +408,30 @@ func (rm *room) OnStop() {
 	if rm.id != 0 {
 		rm.manager.sm.msService.Call("RoomService.ReleaseRoom", &proto.MsReleaseRoomArg{
 			ServerId: rm.manager.sm.gameServer.serverId,
-			RoomId: rm.id,
+			RoomId:   rm.id,
 		}, &proto.MsReleaseReply{})
 	}
 
 	rm.game.OnRelease()
 
-	for _, user := range rm.users {
-		rm.updateProp(user.UserId, defines.PpRoomId, uint32(0))
+
+	mylog.Debug("user stop ")
+	for _, u := range rm.users {
+		mylog.Debug(u)
 	}
 
 	for _, user := range rm.users {
-		fmt.Println("player return to lobby", user)
-		rm.SendUserMessage(user, proto.CmdGamePlayerReturn2lobby, &proto.PlayerReturn2Lobby{ErrCode: defines.ErrCommonSuccess})
+		oldRoomId := user.RoomId
+		rm.updateProp(user.UserId, defines.PpRoomId, uint32(0))
+		rm.SendUserMessage(&defines.PlayerInfo{
+			Uid: user.Uid,
+			RoomId: oldRoomId,
+		}, proto.CmdGamePlayerReturn2lobby, &proto.PlayerReturn2Lobby{ErrCode: defines.ErrCommonSuccess})
 	}
 }
 
 func (rm *room) SendGameMessage(info *defines.PlayerInfo, cmd uint32, data interface{}) {
-	fmt.Println("send user message ", info, cmd, data)
+	mylog.Debug("send user message ", info.UserId, info.Uid, info.RoomId, cmd)
 	rm.manager.sendMessage(info, proto.CmdGamePlayerMessage, &proto.PlayerGameMessageRet{
 		Cmd: cmd,
 		Msg: data,
@@ -403,9 +443,9 @@ func (rm *room) SendUserMessage(info *defines.PlayerInfo, cmd uint32, data inter
 }
 
 func (rm *room) BroadcastMessage(info []*defines.PlayerInfo, cmd uint32, data interface{}) {
-	fmt.Println("bc user message ", cmd, data)
+	mylog.Debug("bc user message ", cmd, data)
 	if info == nil || len(info) == 0 {
-		fmt.Println("broad cast message error ", info)
+		mylog.Debug("broad cast message error ", info)
 		return
 	}
 	rm.manager.broadcastMessage(info, proto.CmdGamePlayerMessage, &proto.PlayerGameMessageRet{
@@ -415,21 +455,26 @@ func (rm *room) BroadcastMessage(info []*defines.PlayerInfo, cmd uint32, data in
 }
 
 func (rm *room) SetTimer(id uint32, data interface{}) error {
-	fmt.Println("SetTimer not implement")
+	mylog.Debug("SetTimer not implement")
 	return nil
 }
 
 func (rm *room) KillTimer(id uint32) error {
-	fmt.Println("KillTimer not implement")
+	mylog.Debug("KillTimer not implement")
 	return nil
 }
 
 func (rm *room) updateProp(userId uint32, prop int, value interface{}) {
 	if user, ok := rm.users[userId]; ok {
+		index := user.RoomId
 		if rm.manager.sm.cc.UpdateUserInfo(userId, prop, value) {
 			update := true
 			if prop == defines.PpRoomId {
-				user.RoomId = value.(uint32)
+				newRoomId := value.(uint32)
+				if newRoomId == 0 && user.RoomId != 0 {
+					index = user.RoomId
+				}
+				user.RoomId = newRoomId
 			} else if prop == defines.PpGold {
 				user.Gold = value.(int64)
 			} else if prop == defines.PpDiamond {
@@ -440,10 +485,13 @@ func (rm *room) updateProp(userId uint32, prop int, value interface{}) {
 				user.Score = value.(int)
 			} else {
 				update = false
-				fmt.Println("update user prop not exists ", userId, prop)
+				mylog.Debug("update user prop not exists ", userId, prop)
 			}
 			if update {
-				rm.manager.sendMessage(user, proto.CmdBaseUpsePropUpdate, &proto.SyncUserProps {
+				rm.manager.sendMessage(&defines.PlayerInfo{
+					Uid: user.Uid,
+					RoomId: index,
+				}, proto.CmdBaseUpsePropUpdate, &proto.SyncUserProps {
 					Props: &proto.UserProp{
 						Ppkey: prop,
 						PpVal: value,
@@ -452,7 +500,7 @@ func (rm *room) updateProp(userId uint32, prop int, value interface{}) {
 			}
 		}
 	} else {
-		fmt.Println("update prop user not in")
+		mylog.Debug("update prop user not in")
 	}
 }
 
@@ -492,7 +540,7 @@ func (rm *room) updateUserItem(user *defines.PlayerInfo, itemId uint32, count in
 		rm.manager.sm.cc.UpdateSingleItem(user.UserId, updateFlag, itemId, count)
 		return true
 	}
-	fmt.Println("update item err, id not exists ", itemId, count)
+	mylog.Debug("update item err, id not exists ", itemId, count)
 	return false
 }
 
@@ -537,4 +585,16 @@ func (rm *room) UpdateUserInfo(info *defines.PlayerInfo, data *proto.GameUserPpU
 		rm.updateUserItem(info, data.Item.ItemId, data.Item.Count)
 	}
 	return true
+}
+
+func (rm *room) InfoLog(args ...interface{}) {
+	mylog.Info(rm.logPrefix, args)
+}
+
+func (rm *room) DebugLog(args ...interface{}) {
+	mylog.Debug(rm.logPrefix, args)
+}
+
+func (rm *room) ErrLog(args ...interface{}) {
+	mylog.Error(rm.logPrefix, args)
 }

@@ -3,7 +3,7 @@ package world
 import (
 	"net"
 	"net/http"
-	"fmt"
+	"mylog"
 )
 
 type http2Proxy struct {
@@ -19,16 +19,16 @@ func newHttpProxy(addr string) *http2Proxy {
 
 func (hp *http2Proxy) serve() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("index visited")
+		mylog.Debug("index visited")
 	})
 
 //	http.HandleFunc("/wechat", hp.wechatLogin)
-	fmt.Println("world http server start...", hp.httpAddr)
+	mylog.Debug("world http server start...", hp.httpAddr)
 
 	if err := http.ListenAndServe(hp.httpAddr, nil); err != nil {
 		panic("listen http error " + hp.httpAddr + err.Error())
 	} else {
-		fmt.Println("http server listen port", hp.httpAddr)
+		mylog.Debug("http server listen port", hp.httpAddr)
 	}
 }
 

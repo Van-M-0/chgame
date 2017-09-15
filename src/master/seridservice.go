@@ -3,7 +3,7 @@ package master
 import (
 	"exportor/proto"
 	"sync"
-	"fmt"
+	"mylog"
 )
 
 type server struct {
@@ -18,6 +18,8 @@ type ServerService struct {
 	ids 		int
 	servers 	map[int]*server
 }
+
+var GameSerService = newServerService()
 
 func newServerService() *ServerService {
 	ss := &ServerService{}
@@ -35,7 +37,7 @@ func (ss *ServerService) GetServerId(req *proto.MsServerIdArg, res *proto.MsServ
 	}
 	ss.serLoc.Unlock()
 	res.Id = ss.ids
-	fmt.Println("GetServerId -> ", req, res)
+	mylog.Debug("GetServerId -> ", req, res)
 	return nil
 }
 
@@ -47,7 +49,7 @@ func (ss *ServerService) ReleaseServer(req *proto.MsServerReleaseArg, res *proto
 		delete(ss.servers, req.Id)
 	}
 	ss.serLoc.Unlock()
-	fmt.Println("Release ServerId -> ", req, res)
+	mylog.Debug("Release ServerId -> ", req, res)
 	return nil
 }
 
@@ -60,7 +62,7 @@ func (ss *ServerService) ServerDisconnected(req *proto.MsServerDiscArg, res *pro
 		res.ErrCode = "error"
 	}
 	ss.serLoc.Unlock()
-	fmt.Println("release serverid", req.Id, res)
+	mylog.Debug("release serverid", req.Id, res)
 	return nil
 }
 
@@ -78,4 +80,11 @@ func (ss *ServerService) SelectGameServer(req *proto.MsSelectGameServerArg, res 
 	}
 	ss.serLoc.Unlock()
 	return nil
+}
+
+func (ss *ServerService) alive(id int) bool {
+	ss.serLoc.Lock()
+	defer ss.serLoc.Unlock()
+	_, ok := ss.servers[id]
+	return ok
 }

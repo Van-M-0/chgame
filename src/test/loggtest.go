@@ -3,6 +3,7 @@ package main
 import (
 	"time"
 	"fmt"
+	"mylog"
 )
 
 func test_log() {
@@ -10,5 +11,5 @@ func test_log() {
 	fmt.Println("time is ", t)
 	a := time.Time{}
 
-	fmt.Println	(a.Unix())
+	mylog.Debug	(a.Unix())
 }

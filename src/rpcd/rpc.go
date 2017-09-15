@@ -3,8 +3,8 @@ package rpcd
 import (
 	"net/rpc"
 	"net"
-	"fmt"
 	"net/http"
+	"mylog"
 )
 
 type RpcdClient struct {
@@ -19,7 +19,7 @@ func StartServer(port string) error {
 	rpc.HandleHTTP()
 	l, e := net.Listen("tcp", port)
 	if e != nil {
-		fmt.Println("listen err", e)
+		mylog.Debug("listen err", e)
 		panic("")
 	}
 	http.Serve(l, nil)
@@ -29,7 +29,7 @@ func StartServer(port string) error {
 func StartClient(port string) *RpcdClient {
 	c, err := rpc.DialHTTP("tcp", port)
 	if err != nil {
-		fmt.Println("dail rpc server error ", err)
+		mylog.Debug("dail rpc server error ", err)
 		panic("")
 	}
 	return &RpcdClient{

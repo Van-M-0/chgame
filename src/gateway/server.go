@@ -5,12 +5,12 @@ import (
 	net "network"
 	"exportor/proto"
 	"msgpacker"
-	"fmt"
 	"rpcd"
 	"time"
 
 	"runtime"
 	"sync/atomic"
+	"mylog"
 )
 
 type gateway struct {
@@ -36,9 +36,10 @@ func (gw *gateway) Start() error {
 
 	go func() {
 		for {
-			t := time.NewTimer(time.Minute * 1)
+			t := time.NewTimer(time.Minute * 2)
 			select {
 			case <-t.C:
+				mylog.Debug("online count", gw.cliManger.cliCount)
 				runtime.GC()
 			}
 		}
@@ -46,7 +47,7 @@ func (gw *gateway) Start() error {
 
 	var xxcountr [60]int32
 	fmtcounter := func() {
-		//fmt.Println("time recv ......", xxcountr)
+		//mylog.Debug("time recv ......", xxcountr)
 	}
 
 	go func() {
@@ -64,8 +65,8 @@ func (gw *gateway) Start() error {
 		Host: gw.option.FrontHost,
 		RecvNum: 10,
 		ConnectCb: func(client defines.ITcpClient) error {
-			fmt.Println("client conect ", client.GetRemoteAddress())
-			client.Set("deadline", time.Minute * 5)
+			mylog.Debug("client conect ", client.GetRemoteAddress())
+			client.Set("deadline", time.Minute * 10)
 			return nil
 		},
 		CloseCb: func(client defines.ITcpClient) {
@@ -83,7 +84,7 @@ func (gw *gateway) Start() error {
 
 	go func() {
 		err := gw.fserver.Start()
-		fmt.Println("fs server start ", err)
+		mylog.Debug("fs server start ", err)
 	}()
 
 	worker := func() chan func() {
@@ -118,7 +119,7 @@ func (gw *gateway) Start() error {
 			gw.serManager.serDisconnected(client)
 			var res proto.MsServerDisReply
 			err := gw.msClient.Call("ServerService.ServerDisconnected", &proto.MsServerDiscArg{Id: int(client.GetId())}, &res)
-			fmt.Println("server disconnect ", err, res.ErrCode)
+			mylog.Debug("server disconnect ", err, res.ErrCode)
 		},
 		MsgCb: func(client defines.ITcpClient, m *proto.Message) {
 			dispatchSlot++
@@ -131,7 +132,7 @@ func (gw *gateway) Start() error {
 				}
 				index := dispatchSlot % workerSize
 				if len(workerSlot[index]) == 128 {
-					fmt.Println("*************************")
+					mylog.Debug("*************************")
 				}
 				workerSlot[index] <- func() {
 					gw.lobbyRoute2client(header.Uids, header.Cmd, header.Msg)
@@ -157,12 +158,6 @@ func (gw *gateway) Start() error {
 			} else if m.Cmd == proto.GameRouteGate {
 
 			}
-
-			if m.Cmd == proto.GameRouteClient {
-				gw.serManager.serMessage(client, m)
-			} else {
-
-			}
 		},
 		AuthCb: func(client defines.ITcpClient) error {
 			return gw.authServer(client)
@@ -173,7 +168,7 @@ func (gw *gateway) Start() error {
 
 	go func() {
 		err := gw.bserver.Start()
-		fmt.Println("bs server start ", err)
+		mylog.Debug("bs server start ", err)
 	}()
 
 	return nil
@@ -209,7 +204,7 @@ func (gw *gateway) Stop() error {
 }
 
 func (gw *gateway) routeCliMessage(client defines.ITcpClient, message *proto.Message) {
-	fmt.Println("4c ", message.Cmd, client.GetId())
+	mylog.Debug("4c ", message.Cmd, client.GetId())
 
 	cmd := message.Cmd
 	if cmd >= proto.CmdRange_Base_S && cmd <= proto.CmdRange_Base_E {
@@ -221,14 +216,14 @@ func (gw *gateway) routeCliMessage(client defines.ITcpClient, message *proto.Mes
 	} else if cmd >= proto.CmdRange_Game_S && cmd <= proto.CmdRange_Game_E {
 		gw.serManager.client2game(client, message)
 	} else {
-		fmt.Println("gateway unkown message cmd", cmd)
+		mylog.Debug("gateway unkown message cmd", cmd)
 	}
 }
 
 func (gw *gateway) handleClientMessage(client defines.ITcpClient, message *proto.Message) {
 	switch message.Cmd {
 	default:
-		fmt.Println("invalid client cmd ", message.Cmd, client.GetRemoteAddress())
+		mylog.Debug("invalid client cmd ", message.Cmd, client.GetRemoteAddress())
 	}
 }
 

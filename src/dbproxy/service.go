@@ -3,12 +3,12 @@ package dbproxy
 import (
 	"sync"
 	"dbproxy/table"
-	"fmt"
 	"exportor/defines"
 	"cacher"
 	"strconv"
 	"time"
 	"exportor/proto"
+	"mylog"
 )
 
 type DBService struct {
@@ -34,7 +34,7 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 	//service.lock.Lock()
 	ret := service.db.GetUserInfo(req.Acc, &userInfo)
 	//service.lock.Unlock()
-	fmt.Println("luser login ", req, res)
+	mylog.Debug("luser login ", req, res)
 	if req.LoginType == defines.LoginTypeWechat {
 		if !ret {
 			name := req.Name
@@ -101,19 +101,19 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 		//service.lock.Unlock()
 	}
 
-	fmt.Println("user login ", req)
+	mylog.Debug("user login ", req)
 	if ret == true {
 
 		// restore cache data
 		var cacheUser proto.CacheUser
 		if err := service.cc.GetUserInfoById(userInfo.Userid, &cacheUser); err == nil {
 			userInfo.Roomid = uint32(cacheUser.RoomId)
-			fmt.Println("restore roomid is ", userInfo.Roomid)
+			mylog.Debug("restore roomid is ", userInfo.Roomid)
 		}
 
 		err := service.cc.SetUserInfo(&userInfo, ret)
 		if err != nil {
-			fmt.Println("set cache user error ", err)
+			mylog.Debug("set cache user error ", err)
 			res.Err = "cache"
 		} else {
 			res.Err = "ok"
@@ -146,14 +146,14 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 	} else {
 		res.Err = "notexists"
 	}
-	fmt.Println("user login ", res)
+	mylog.Debug("user login ", res)
 	return nil
 }
 
 func (service *DBService) CreateAccount(req *proto.DbCreateAccountArg, res *proto.DbCreateAccountReply) error {
 	var user table.T_Users
 	var userSuccess *table.T_Users
-	fmt.Println("create account ", req)
+	mylog.Debug("create account ", req)
 	//service.lock.Lock()
 	ret := service.db.GetUserInfo(req.Acc, &user)
 	//service.lock.Unlock()
@@ -185,7 +185,7 @@ func (service *DBService) CreateAccount(req *proto.DbCreateAccountArg, res *prot
 	} else {
 		res.Err = "exists"
 	}
-	fmt.Println("create account ", res)
+	mylog.Debug("create account ", res)
 	return nil
 }
 
@@ -262,7 +262,7 @@ func (service *DBService) LoadUserRank(req *proto.MsLoadUserRankArg, res *proto.
 		}
 		res.ErrCode = "ok"
 	}
-	fmt.Println("serveice.loaduserrank ", users)
+	mylog.Debug("serveice.loaduserrank ", users)
 	return nil
 }
 
@@ -389,18 +389,24 @@ func (service *DBService) LoadClubInfo(req *proto.MsLoadClubInfoReq, rep *proto.
 func (service *DBService) ClubOperation(req *proto.MsClubOperationReq, rep *proto.MsClubOperationReply) error {
 	rep.ErrCode = "ok"
 	if req.Op == "create" {
-		e1 := service.db.db.Create(&table.T_Club{
-			Id: req.Club.Id,
-			Creatorid: req.Club.CreatorId,
-			Creatorname: req.Club.CreatorName,
-		}).RowsAffected != 0
-		e2 := service.db.db.Create(&table.T_ClubMember{
-			Userid: req.UserId,
-			Clubid: req.Club.Id,
-		}).RowsAffected != 0
-		if !e1 || !e2 {
-			fmt.Println(e1, e2)
-			rep.ErrCode = "err"
+		var userInfo table.T_Users
+		e := service.db.db.Where("userid = ?", req.UserId).Find(&userInfo).RowsAffected != 0
+		if !e || userInfo.Agentid == 0 {
+			rep.ErrCode = "agent"
+		} else {
+			e1 := service.db.db.Create(&table.T_Club{
+				Id: req.Club.Id,
+				Creatorid: req.Club.CreatorId,
+				Creatorname: req.Club.CreatorName,
+			}).RowsAffected != 0
+			e2 := service.db.db.Create(&table.T_ClubMember{
+				Userid: req.UserId,
+				Clubid: req.Club.Id,
+			}).RowsAffected != 0
+			if !e1 || !e2 {
+				mylog.Debug(e1, e2)
+				rep.ErrCode = "err"
+			}
 		}
 	} else if req.Op == "join" {
 		e2 := service.db.db.Create(&table.T_ClubMember{
@@ -408,7 +414,7 @@ func (service *DBService) ClubOperation(req *proto.MsClubOperationReq, rep *prot
 			Clubid: req.Club.Id,
 		}).RowsAffected != 0
 		if !e2  {
-			fmt.Println(e2)
+			mylog.Debug(e2)
 			rep.ErrCode = "err"
 		}
 	} else if req.Op == "leave" {
@@ -420,7 +426,7 @@ func (service *DBService) ClubOperation(req *proto.MsClubOperationReq, rep *prot
 			rep.ErrCode = "err"
 		} else {
 			del := service.db.db.Where("clubid = ? and userid = ?", member.Clubid, member.Userid).Delete(&member).RowsAffected
-			fmt.Println("dele rowo ", del)
+			mylog.Debug("dele rowo ", del)
 			if del == 0 {
 				rep.ErrCode = "err"
 			}

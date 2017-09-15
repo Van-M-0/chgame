@@ -25,9 +25,11 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"world"
+	"mylog"
 )
 
 var cfg defines.StartConfigFile
+var workdir string
 
 var _gate_ defines.IServer
 func init() {
@@ -41,7 +43,9 @@ func init() {
 	}
 	dir, _ := filepath.Split(path)
 	configFile := dir + "config"
-	fmt.Println("config file ", configFile)
+	mylog.Debug("config file ", configFile)
+
+	workdir = dir
 
 	content, err := ioutil.ReadFile(configFile)
 	if err != nil {
@@ -54,7 +58,7 @@ func init() {
 
 	defines.WDServicePort = cfg.WorldHost
 
-	fmt.Println(cfg)
+	mylog.Debug(cfg)
 }
 
 func startMaster() {
@@ -85,15 +89,15 @@ func startLobby() {
 }
 
 func startGame(moduels []defines.GameModule) {
-	fmt.Println("start game server")
+	mylog.Debug("start game server")
 
 	for _, m := range moduels {
 		if m.Creator == nil || m.Releaser == nil {
-			fmt.Println("game ctor/dtor is nil", m.Type)
+			mylog.Error("game ctor/dtor is nil", m.Type)
 			return
 		}
 		if m.PlayerCount == 0 {
-			fmt.Println("game moudle player count == 0 ", m.Type)
+			mylog.Error("game moudle player count == 0 ", m.Type)
 			return
 		}
 	}
@@ -107,25 +111,29 @@ func startGame(moduels []defines.GameModule) {
 		if _, ok := checkMap[m.Type]; ok {
 			delete(checkMap, m.Type)
 		} else {
-			fmt.Println("register moulde not match config game moudles")
+			mylog.Error("register moulde not match config game moudles")
 			return
 		}
 	}
 
 	for range checkMap {
-		fmt.Println("register moulde not match config game moudles")
+		mylog.Error("register moulde not match config game moudles")
 		return
 	}
 
 	game.NewGameServer(&defines.GameOption{
-		ClientHost: cfg.FrontHost,
+		ClientHost: cfg.ClientHost,
 		GwHost: cfg.BackendHost,
 		Moudles: moduels,
 	}).Start()
 }
 
 func startDbProxy() {
-	dbproxy.NewDbProxy().Start()
+	dbproxy.NewDbProxy(&defines.DbProxyOption{
+		Name: cfg.DbName,
+		User: cfg.DbUser,
+		Pwd: cfg.DbPwd,
+	}).Start()
 }
 
 func startCommunicator() {
@@ -137,7 +145,7 @@ type tclient struct {
 }
 
 func (t *tclient) login(acc string) {
-	fmt.Println("login .....")
+	mylog.Debug("login .....")
 	t.Send(proto.CmdClientLogin, &proto.ClientLogin{
 		Account: acc,
 	})
@@ -207,46 +215,46 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 		var loginRet proto.ClientLoginRet
 		var origin []byte
 		err := msgpacker.UnMarshal(message.Msg, &origin)
-		fmt.Println("origin ", origin)
+		mylog.Debug("origin ", origin)
 		msgpacker.UnMarshal(origin, &loginRet)
-		fmt.Println("recv message ", loginRet, err)
+		mylog.Debug("recv message ", loginRet, err)
 
-		fmt.Println("__________login ret _______", loginRet.ErrCode)
+		mylog.Debug("__________login ret _______", loginRet.ErrCode)
 
 		if loginRet.ErrCode == defines.ErrClientLoginNeedCreate {
 			t.createAcc()
 		} else if loginRet.ErrCode == defines.ErrCommonSuccess{
-			fmt.Println("user login ret______ ok ", loginRet)
+			mylog.Debug("user login ret______ ok ", loginRet)
 			t.createRoom()
 
 			//t.sendCreateClub()
 			//t.joinClub()
 			//t.leaveClub()
 		} else {
-			fmt.Println("__________login ret _______", loginRet.ErrCode)
+			mylog.Debug("__________login ret _______", loginRet.ErrCode)
 		}
 
 	} else if message.Cmd == proto.CmdCreateAccount {
 		var account proto.CreateAccountRet
 		var origin []byte
 		err := msgpacker.UnMarshal(message.Msg, &origin)
-		fmt.Println("origin ", origin)
+		mylog.Debug("origin ", origin)
 		msgpacker.UnMarshal(origin, &account)
-		fmt.Println("recv message ", account, err)
+		mylog.Debug("recv message ", account, err)
 
 		if account.ErrCode == defines.ErrCommonSuccess {
 			t.login(account.Account)
 		} else {
-			fmt.Println("create account error ", account)
+			mylog.Debug("create account error ", account)
 		}
 
 	} else if message.Cmd == proto.CmdGamePlayerLogin {
 		var ret proto.PlayerLoginRet
 		var origin []byte
 		err := msgpacker.UnMarshal(message.Msg, &origin)
-		fmt.Println("origin ", origin)
+		mylog.Debug("origin ", origin)
 		msgpacker.UnMarshal(origin, &ret)
-		fmt.Println("login ret message ", ret, err)
+		mylog.Debug("login ret message ", ret, err)
 
 		if ret.ErrCode == defines.ErrPlayerLoginSuccess {
 			t.createRoom()
@@ -255,9 +263,9 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 		var ret proto.PlayerCreateRoomRet
 		var origin []byte
 		err := msgpacker.UnMarshal(message.Msg, &origin)
-		fmt.Println("origin ", origin)
+		mylog.Debug("origin ", origin)
 		msgpacker.UnMarshal(origin, &ret)
-		fmt.Println("create room ret message ", ret, err)
+		mylog.Debug("create room ret message ", ret, err)
 
 		if ret.ErrCode == defines.ErrCommonSuccess {
 			t.enterRoom(ret.RoomId, 0)
@@ -269,12 +277,12 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 		var ret proto.PlayerEnterRoomRet
 		var origin []byte
 		err := msgpacker.UnMarshal(message.Msg, &origin)
-		fmt.Println("origin ", origin)
+		mylog.Debug("origin ", origin)
 		msgpacker.UnMarshal(origin, &ret)
-		fmt.Println("enter room ret message ", ret, err)
+		mylog.Debug("enter room ret message ", ret, err)
 
 		if ret.ErrCode == defines.ErrCommonSuccess {
-			fmt.Println("send user ready message")
+			mylog.Debug("send user ready message")
 		} else if ret.ErrCode == defines.ErrEnterRoomQueryConf {
 			t.enterRoom(lastRoomId, uint32(ret.ServerId))
 		}
@@ -283,31 +291,31 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 		var origin []byte
 		err := msgpacker.UnMarshal(message.Msg, &origin)
 		msgpacker.UnMarshal(origin, &ret)
-		fmt.Println("create club ", ret, err)
+		mylog.Debug("create club ", ret, err)
 	} else if message.Cmd == proto.CmdBaseSynceClubInfo {
 		var ret proto.SyncClubInfo
 		var origin []byte
 		msgpacker.UnMarshal(message.Msg, &origin)
 		msgpacker.UnMarshal(origin, &ret)
-		fmt.Println("club info ", ret)
+		mylog.Debug("club info ", ret)
 	} else if message.Cmd == proto.CmdUserJoinClub {
 		var ret proto.ClientJoinClubRet
 		var origin []byte
 		msgpacker.UnMarshal(message.Msg, &origin)
 		msgpacker.UnMarshal(origin, &ret)
-		fmt.Println("join club ", ret)
+		mylog.Debug("join club ", ret)
 	} else if message.Cmd == proto.CmdUserLeaveClub {
 		var ret proto.ClientLeaveClubRet
 		var origin []byte
 		msgpacker.UnMarshal(message.Msg, &origin)
 		msgpacker.UnMarshal(origin, &ret)
-		fmt.Println("leave club ", ret)
+		mylog.Debug("leave club ", ret)
 	} else if message.Cmd == proto.CmdGamePlayerLeaveRoom {
 		var ret proto.PlayerLeaveRoomRet
 		var origin []byte
 		msgpacker.UnMarshal(message.Msg, &origin)
 		msgpacker.UnMarshal(origin, &ret)
-		fmt.Println("leave room", ret)
+		mylog.Debug("leave room", ret)
 	}
 }
 
@@ -317,7 +325,7 @@ func startClient() {
 
 	c := network.NewTcpClient(&defines.NetClientOption{
 		SendChSize: 10,
-		Host: "192.168.1.123:9890",
+		Host: "192.168.1.122:9890",
 		ConnectCb: func(client defines.ITcpClient) error {
 			return nil
 		},
@@ -334,15 +342,40 @@ func startClient() {
 
 	err := c.Connect()
 	t.ITcpClient = c
-	fmt.Println("connect  err ", err)
+	mylog.Debug("connect  err ", err)
 
-	t.login("name_111")
+	t.login("name_111xx")
 }
 
 func StartProgram(p string, data interface{}) {
-	fmt.Println("stgart progoram ", p, data, runtime.NumCPU())
+	mylog.Debug("stgart progoram ", p, data, runtime.NumCPU())
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	//ts := time.Now().Format("20060102-150405")
+
+	//logdir := workdir + "log" + ts + "/"
+	logdir := workdir + "log" + "/"
+	logfile := logdir + p + ".log"
+
+	/*
+	if err := os.Mkdir(logdir, os.ModePerm); err != nil {
+		fmt.Println("create dir failed ", logdir)
+	}
+	*/
+
+	file, err := os.OpenFile(logfile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	fmt.Println("open file ", file, logfile)
+	if err == nil {
+		mylog.SetOutput(file)
+		mylog.SetLevel(mylog.DebugLevel)
+		mylog.SetFormatter(new(mylog.GameFormatter))
+	} else {
+	 	fmt.Println("Failed to log to file, using default stderr", err)
+		return
+	}
+
+	mylog.Infoln("start programa")
 
 	if p == "client" {
 		startClient()

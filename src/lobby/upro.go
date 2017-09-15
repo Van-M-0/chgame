@@ -2,8 +2,8 @@ package lobby
 
 import (
 	"sync"
-	"fmt"
 	"runtime/debug"
+	"mylog"
 )
 
 type handlerFunc func()
@@ -37,7 +37,7 @@ func newUserProcessorMgr() *userProcessorManager {
 func (upm *userProcessorManager) call(req handlerFunc) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("user process recover, exception stack")
+			mylog.Debug("user process recover, exception stack")
 			debug.PrintStack()
 		}
 	}()

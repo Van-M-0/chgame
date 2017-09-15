@@ -12,6 +12,7 @@ import (
 	"strings"
 	"strconv"
 	"net/http"
+	"mylog"
 )
 /*
 func testpb() {
@@ -134,6 +135,15 @@ func test1() {
 }
 
 func main() {
+
+	logger := mylog.New()
+	logger.Formatter = new(mylog.GameFormatter)
+	logger.Out = os.Stdout
+	logger.Warn("hello .........", []int{1, 2, 3})
+	logger.Info("hello .........", []int{1, 2, 3})
+
+
+	mylog.Error()
 
 	downlaod := func(w http.ResponseWriter, r *http.Request) {
 

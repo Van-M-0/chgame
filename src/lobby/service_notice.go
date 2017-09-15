@@ -32,7 +32,7 @@ func (ns *noticeService) start() {
 		ns.notices[n.Id] = n
 	}
 	ns.noticeLock.Unlock()
-	//fmt.Println("ns notices map", ns.notices)
+	//mylog.Debug("ns notices map", ns.notices)
 }
 
 func (ns *noticeService) noticeUpdate(data interface{}) {
@@ -109,7 +109,7 @@ func (ns *noticeService) noticeUpdate(data interface{}) {
 
 	ns.noticeLock.Unlock()
 
-	//fmt.Println("broad cast update notice ", l)
+	//mylog.Debug("broad cast update notice ", l)
 
 	// broadcast message
 	ns.lb.broadcastWorldMessage(proto.CmdNoticeUpdate, &proto.NoticeUpdate{List: l})
@@ -126,6 +126,6 @@ func (ns *noticeService) handleLoadNotices(uid uint32, req *proto.LoadNoticeList
 	var res proto.LoadNoticeListRet
 	res.List = l
 
-	//fmt.Println("notice res.List ", res.List)
+	//mylog.Debug("notice res.List ", res.List)
 	ns.lb.send2player(uid, proto.CmdUserLoadNotice, &res)
 }

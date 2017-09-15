@@ -4,7 +4,7 @@ import (
 	"exportor/defines"
 	"net"
 	"time"
-	"fmt"
+	"mylog"
 )
 
 type tcpServer struct {
@@ -39,7 +39,7 @@ func (server *tcpServer) Start() error {
 		for {
 			select {
 			case <- server.closeChn:
-				fmt.Println("tcp server stop")
+				mylog.Debug("tcp server stop")
 			default:
 				conn, err := l.Accept()
 				if err != nil {
@@ -72,7 +72,7 @@ func (server *tcpServer) startSendLoop() {
 
 	//var xxcountr [60]int32
 	fmtcounter := func() {
-		//fmt.Println("time sa", xxcountr)
+		//mylog.Debug("time sa", xxcountr)
 	}
 
 	go func() {
@@ -86,21 +86,21 @@ func (server *tcpServer) startSendLoop() {
 
 	for i := 0; i < 1256; i++ {
 		go func() {
-			fmt.Println("send loop start ", i)
+			mylog.Debug("send loop start ", i)
 			for {
 				select {
 				case client := <- server.sendChan:
 					if !client.IsClosed() {
 						timediff := time.Now().Sub(client.lastInTime)
 						if timediff > time.Second * 1 {
-							///fmt.Println("process queu time is ", timediff)
+							///mylog.Debug("process queu time is ", timediff)
 						}
 						client.lastInTime = time.Now()
 						if len(client.sendCh) > 0 {
 							count := client.FlushSendBuffer()
 							for cur := len(client.sendCh); cur > 0;  {
 								count += client.FlushSendBuffer()
-								//fmt.Println("packet still more than > 50", client.GetId())
+								//mylog.Debug("packet still more than > 50", client.GetId())
 							}
 							//atomic.AddInt32(&xxcountr[time.Now().Second()], 1)
 						}
@@ -124,7 +124,7 @@ func (server *tcpServer) handleClient(conn net.Conn) {
 	client.configureConn(conn)
 
 	defer func() {
-		fmt.Println("server client close")
+		mylog.Debug("server client close")
 		server.opt.CloseCb(client)
 		client.Close()
 	}()
@@ -149,21 +149,21 @@ func (server *tcpServer) handleClient(conn net.Conn) {
 			for {
 				headerBuf := make([]byte, 8)
 				if _, err := io.ReadFull(client.conn, headerBuf); err != nil {
-					fmt.Println(" srecv lopp err 1", err)
+					mylog.Debug(" srecv lopp err 1", err)
 					return
 				}
 				header, err := client.packer.Unpack(headerBuf)
 				if err != nil {
-					fmt.Println(" srecv lopp err 2", err)
+					mylog.Debug(" srecv lopp err 2", err)
 					return
 				}
 				body := make([]byte, header.Len)
 				if _, err := io.ReadFull(client.conn, body[:]); err != nil {
-					fmt.Println(" srecv lopp err 3", err)
+					mylog.Debug(" srecv lopp err 3", err)
 					return
 				}
 				header.Msg = body
-				fmt.Println("recv header .... ", header)
+				mylog.Debug("recv header .... ", header)
 				server.opt.MsgCb(client, header)
 			}
 		}
@@ -180,7 +180,7 @@ func (server *tcpServer) handleClient(conn net.Conn) {
 		}
 		m, err := client.readMessage()
 		if err != nil {
-			fmt.Println("read smsg err : ", err)
+			mylog.Debug("read smsg err : ", err)
 			return
 		}
 		server.opt.MsgCb(client, m)

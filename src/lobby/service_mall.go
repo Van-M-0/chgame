@@ -27,7 +27,7 @@ func (ms *mallService) start() {
 	ms.ItemConfigList = r.ItemConfigList
 	ms.itemsLock.Unlock()
 
-	//fmt.Println("local item config", r)
+	//mylog.Debug("local item config", r)
 }
 
 func (ms *mallService) onUserLoadMalls(uid uint32, req *proto.ClientLoadMallList) {
@@ -55,7 +55,7 @@ func (ms *mallService) onUserLoadMalls(uid uint32, req *proto.ClientLoadMallList
 func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 	var item proto.ItemConfig
 	user := ms.lb.userMgr.getUser(uid)
-	//fmt.Println("user buy", user)
+	//mylog.Debug("user buy", user)
 
 	if user == nil {
 		ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
@@ -87,6 +87,20 @@ func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 		return
 	}
 
+	if item.Category == defines.MallItemCategoryGold || item.Category == defines.MallItemCategoryItem {
+		if item.Buyvalue > user.diamond {
+			ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
+				ErrCode: defines.ErrClientBuyItemMoneyNotEnough,
+			})
+			return
+		} else if ms.lb.userMgr.updateUserProp(user, defines.PpDiamond, int(-item.Buyvalue)) == false {
+			ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
+				ErrCode: defines.ErrClientBuyConsumeErr,
+			})
+			return
+		}
+	}
+
 	if item.Category == defines.MallItemCategoryGold {
 		ms.lb.userMgr.updateUserProp(user, defines.PpGold, int64(item.Nums))
 	} else if item.Category == defines.MallItemCategoryDiamond {
@@ -95,7 +109,7 @@ func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 		ms.lb.userMgr.updateUserItem(user, item.Itemid, item.Nums)
 	}
 
-	//fmt.Println("client buy item success ", item)
+	//mylog.Debug("client buy item success ", item)
 
 	ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
 		ErrCode: defines.ErrCommonSuccess,
@@ -107,7 +121,7 @@ func (ms *mallService) GetItemConfig(itemid []int) []proto.ItemConfig {
 	defer func() {
 		ms.itemsLock.Unlock()
 	}()
-	//fmt.Println("get item config ", ms.ItemConfigList)
+	//mylog.Debug("get item config ", ms.ItemConfigList)
 	items := []proto.ItemConfig{}
 	for _, id := range itemid {
 		for _, item := range ms.ItemConfigList {

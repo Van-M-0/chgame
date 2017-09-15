@@ -4,6 +4,7 @@ import (
 	"exportor/defines"
 	"github.com/jinzhu/gorm"
 	"fmt"
+	"mylog"
 )
 
 /*
@@ -29,13 +30,13 @@ type dbClient struct {
 	uri 		string
 }
 
-func newDbClient() *dbClient {
+func newDbClient(cfg *defines.StartConfigFile) *dbClient {
 	dc := &dbClient{}
 	opt := &defines.DatabaseOption{
 		Host: "127.0.0.1:3306",
-		User: "root",
-		Pass: "1",
-		Name: "gamemaster",
+		User: cfg.DbUser,
+		Pass: cfg.DbPwd,
+		Name: cfg.DbName,
 		DetailLog: true,
 		Singular: true,
 	}
@@ -45,10 +46,10 @@ func newDbClient() *dbClient {
 		opt.Host,
 		opt.Name,
 	)
-	fmt.Println("db proxy connection info ", uri)
+	mylog.Debug("db proxy connection info ", uri)
 	db, err := gorm.Open("mysql", uri)
 	if err != nil {
-		fmt.Println("create db proxy err ", err)
+		mylog.Debug("create db proxy err ", err)
 		return nil
 	}
 
