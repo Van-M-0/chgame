@@ -43,6 +43,7 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 				Account: req.Acc,
 				Password: pwd,
 			})
+
 			var userSuccess *table.T_Users
 			if r {
 				userSuccess = &table.T_Users{
@@ -66,7 +67,9 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 		//service.lock.Lock()
 		ret = service.db.GetUserInfo(req.Acc, &userInfo)
 		//service.lock.Unlock()
-
+		service.db.db.Create(&table.T_ActionForbid{
+			Userid: userInfo.Userid,
+		})
 		userInfo.Headimg = req.Headimg
 	} else {
 		if !ret {
@@ -99,6 +102,9 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 		//service.lock.Lock()
 		ret = service.db.GetUserInfo(req.Acc, &userInfo)
 		//service.lock.Unlock()
+		service.db.db.Create(&table.T_ActionForbid{
+			Userid: userInfo.Userid,
+		})
 	}
 
 	mylog.Debug("user login ", req)

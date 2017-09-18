@@ -239,7 +239,7 @@ func (dc *dbClient) InitTable() {
 		dc.db.CreateTable(&table.T_Activity{})
 		dc.db.Create(&table.T_Activity{
 			Id: 101,
-			Desc: "首冲有礼",
+			Desc: "首充有礼",
 			Actype: "always",
 			Starttime: time.Now(),
 			Finishtime: time.Now(),
