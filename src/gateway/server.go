@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"sync/atomic"
 	"mylog"
+	"tools"
 )
 
 type gateway struct {
@@ -175,7 +176,7 @@ func (gw *gateway) Start() error {
 }
 
 func (gw *gateway) startRpc() {
-	gw.msClient = rpcd.StartClient(defines.MSServicePort)
+	gw.msClient = rpcd.StartClient(tools.GetMasterServiceHost())
 }
 
 func (gw *gateway) authClient(client defines.ITcpClient) error {

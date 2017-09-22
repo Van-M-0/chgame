@@ -367,6 +367,18 @@ func (service *DBService) SaveIdentifyInfo(req *proto.MsSaveIdentifyInfoArg, rep
 	return nil
 }
 
+func (service *DBService) UpdateUserProp(req *proto.MsUpdateUserPropArg, rep *proto.MsUpdateUserPropReply) error {
+	if req.Key == "diamond" {
+		var userInfo table.T_Users
+		if service.db.db.Where("userid = ?", req.UserId).Find(&userInfo).RowsAffected != 0 {
+			service.db.db.Model(&table.T_Users{Userid: req.UserId}).Update(table.T_Users{Diamond: uint32(req.Diamond) + userInfo.Diamond})
+		} else {
+			mylog.Info("user not exists when udpate prop", req.UserId, req)
+		}
+	}
+	return nil
+}
+
 func (service *DBService) LoadClubInfo(req *proto.MsLoadClubInfoReq, rep *proto.MsLoadClubInfoReply) error {
 	var cc []table.T_Club
 	var ce []table.T_ClubMember

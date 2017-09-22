@@ -4,6 +4,8 @@ import (
 	"exportor/defines"
 	"rpcd"
 	"net/rpc"
+	"exportor/proto"
+	"tools"
 )
 
 type Master struct {
@@ -12,9 +14,11 @@ type Master struct {
 	wdClient *rpcd.RpcdClient
 }
 
-func NewMasterServer (cfg *defines.StartConfigFile) defines.IServer {
+var _masterId int
+
+func NewMasterServer () defines.IServer {
 	ms := &Master{}
-	ms.hp = newHttpProxy(cfg.HttpHost)
+	ms.hp = newHttpProxy()
 	ms.sdk = newSdkService(ms)
 	return ms
 }
@@ -42,7 +46,13 @@ func (ms *Master) StartRpc() {
 		rpc.Register(ms.sdk)
 		rpcd.StartServer(defines.MSServicePort)
 	}
-	//ms.wdClient = rpcd.StartClient(defines.WDServicePort)
+	ms.wdClient = rpcd.StartClient(tools.GetWorldServiceHost())
+	var rep proto.WsGetMasterIdReply
+	if err := ms.wdClient.Call("MasterService.GetMasterId", &proto.WsGetMasterIdArg{}, &rep); err != nil {
+		panic("get master id error" + err.Error())
+		return
+	}
+	_masterId = rep.Id
 	go start()
 }
 

@@ -5,7 +5,6 @@ import (
 	"communicator/mq/broker"
 	"communicator/mq/client"
 	"time"
-	"fmt"
 	"mylog"
 )
 

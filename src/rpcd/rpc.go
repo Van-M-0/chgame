@@ -20,7 +20,7 @@ func StartServer(port string) error {
 	l, e := net.Listen("tcp", port)
 	if e != nil {
 		mylog.Debug("listen err", e)
-		panic("")
+		panic("start server " + e.Error())
 	}
 	http.Serve(l, nil)
 	return nil
@@ -30,7 +30,7 @@ func StartClient(port string) *RpcdClient {
 	c, err := rpc.DialHTTP("tcp", port)
 	if err != nil {
 		mylog.Debug("dail rpc server error ", err)
-		panic("")
+		panic(err.Error())
 	}
 	return &RpcdClient{
 		Client:	c,

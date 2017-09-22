@@ -84,6 +84,8 @@ func (rm *room) safeCall() {
 			rm.onUserReenter(n)
 		} else if n.cmd == InnerCmdUserOffline {
 			rm.onUserOffline(n)
+		} else if n.cmd == InnerCmdUserLeaveCoinRoom {
+			rm.onUserLeaveCoin(n)
 		}
 	case <- rm.quit:
 		mylog.Debug("room destroy", rm.id)
@@ -143,6 +145,7 @@ func (rm *room) onCreate(notify *roomNotify) bool {
 		return false
 	} else {
 		if err := rm.game.OnGameCreate(&notify.user, &defines.CreateRoomConf{
+			Type: msg.Kind,
 			RoomId: rm.id,
 			Conf: msg.Conf,
 		}); err != nil {
@@ -202,6 +205,25 @@ func (rm *room) onUserLeave(notify *roomNotify) {
 	}
 
 	*/
+}
+
+func (rm *room) onUserLeaveCoin(notify *roomNotify) {
+	mylog.Debug("user leave coin", notify.user.Uid, notify.user.UserId, rm.id)
+	rm.game.OnUserLeave(&notify.user)
+	oldRoomId := notify.user.RoomId
+	rm.updateProp(notify.user.UserId, defines.PpRoomId, uint32(0))
+	delete(rm.users, notify.user.UserId)
+
+	rm.SendUserMessage(&defines.PlayerInfo{
+		Uid: notify.user.Uid,
+		RoomId: oldRoomId,
+	}, proto.CmdGameEnterCoinRoom, &proto.PlayerGameEnterCoinRoomRet{ErrCode: defines.ErrCommonSuccess})
+
+	rm.manager.sm.sceneNotify <- &request{kind: requestRoom, cmd :"coinchgroom2", data: rm.id}
+
+	if len(rm.users) == 0 {
+		rm.ReleaseRoom()
+	}
 }
 
 func (rm *room) onUserReenter(notify *roomNotify) {

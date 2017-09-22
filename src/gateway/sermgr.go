@@ -6,6 +6,7 @@ import (
 	"exportor/defines"
 	"msgpacker"
 	"mylog"
+	"fmt"
 )
 
 
@@ -176,8 +177,13 @@ func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Mes
 			return
 		}
 		var res proto.MsSelectGameServerReply
-		mgr.gateway.msClient.Call("ServerService.SelectGameServer", &proto.MsSelectGameServerArg{Kind: createRoomMessage.Kind}, &res)
-		send(uint32(res.ServerId))
+		mgr.gateway.msClient.Call("RoomService.SelectGameServer", &proto.MsSelectGameServerArg{Kind: createRoomMessage.Kind}, &res)
+		fmt.Println("select game ser", res)
+		if res.ServerId != -1 {
+			send(uint32(res.ServerId))
+		} else {
+			mylog.Info("kind server not alive")
+		}
 		return
 	} else if message.Cmd == proto.CmdGameEnterRoom {
 		var enterRoomMessage proto.PlayerEnterRoom
@@ -212,6 +218,40 @@ func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Mes
 		} else {
 			send(enterRoomMessage.ServerId)
 		}
+		return
+	} else if message.Cmd == proto.CmdGameEnterCoinRoom {
+		var enterRoomMessage proto.PlayerGameEnterCoinRoom
+		if err := msgpacker.UnMarshal(message.Msg, &enterRoomMessage); err != nil {
+			return
+		}
+
+		if enterRoomMessage.RoomId == 0 && enterRoomMessage.Kind == 0 {
+			mylog.Info("enter coin room error")
+			return
+		}
+
+		var res proto.MsGetRoomKindReply
+		ce := mgr.gateway.msClient.Call("RoomService.GetRoomKindServerId", &proto.MsGetRoomKindIdArg{
+			Kind: enterRoomMessage.Kind,
+			RoomId: enterRoomMessage.RoomId,
+		}, &res)
+
+		if ce != nil || res.ServerId == -1 || res.Alive == false {
+			clearRoom, err := msgpacker.Marshal(&proto.ClearUserInfo{
+				Type: defines.PpRoomId,
+			})
+			if err != nil {
+				mylog.Info("pack clearroom err", err)
+				return
+			}
+			mgr.client2Lobby(client, &proto.Message{
+				Cmd: proto.CmdClearPlayerInfo,
+				Msg: clearRoom,
+			})
+			return
+		}
+		send(uint32(res.ServerId))
+
 		return
 	}
 

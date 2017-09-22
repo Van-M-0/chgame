@@ -63,28 +63,16 @@ func (ss *ServerService) ServerDisconnected(req *proto.MsServerDiscArg, res *pro
 	}
 	ss.serLoc.Unlock()
 	mylog.Debug("release serverid", req.Id, res)
+
+	if res.ErrCode == "ok" {
+		GameModService.modLock.Lock()
+		delete(GameModService.serverModules, req.Id)
+		GameModService.modLock.Unlock()
+	}
+
 	return nil
 }
 
 func (ss *ServerService) GsStatus (req *proto.MsGsStatusArg, res *proto.MsGsStatusReply) error {
 	return nil
-}
-
-func (ss *ServerService) SelectGameServer(req *proto.MsSelectGameServerArg, res *proto.MsSelectGameServerReply) error {
-	ss.serLoc.Lock()
-	res.ServerId = -1
-	for _, ser := range ss.servers {
-		if ser.typo == "game" {
-			res.ServerId = ser.id
-		}
-	}
-	ss.serLoc.Unlock()
-	return nil
-}
-
-func (ss *ServerService) alive(id int) bool {
-	ss.serLoc.Lock()
-	defer ss.serLoc.Unlock()
-	_, ok := ss.servers[id]
-	return ok
 }

@@ -136,6 +136,25 @@ func test1() {
 
 func main() {
 
+	type AAATest struct {
+		a 		int
+	}
+
+	mmaps := make(map[int]map[int]*AAATest)
+
+	if _, ok := mmaps[1]; !ok {
+		mmaps[1] = make(map[int]*AAATest)
+	}
+	mmaps[1][1] = &AAATest{
+		a: 1111,
+	}
+	fmt.Println("mmaps ", mmaps[1][1])
+
+	if true {
+		return
+	}
+
+
 	logger := mylog.New()
 	logger.Formatter = new(mylog.GameFormatter)
 	logger.Out = os.Stdout

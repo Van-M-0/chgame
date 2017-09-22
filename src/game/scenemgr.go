@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 	"math/rand"
 	"mylog"
+	"tools"
 )
 
 const (
@@ -67,8 +68,8 @@ func (sm *sceneManager) start() {
 	sm.con.Start()
 	sm.pub.Start()
 	sm.cc.Start()
-	sm.lbService = rpcd.StartClient(defines.LbServicePort)
-	sm.msService = rpcd.StartClient(defines.MSServicePort)
+	sm.lbService = rpcd.StartClient(tools.GetLobbyServiceHost())
+	sm.msService = rpcd.StartClient(tools.GetMasterServiceHost())
 	//sm.getMessageFromBroker()
 	sm.startHandleRequest()
 }
@@ -111,8 +112,12 @@ func (sm *sceneManager) processRequest(r *request) {
 	} else if r.kind == requetKindBroker {
 		sm.onBrokerMessage(r.cmd, r.data)
 	} else if r.kind == requestRoom {
-		if r.cmd == "closeroom"	{
+		if r.cmd == "closeroom" {
 			sm.roomMgr.destroyRoom(r.data.(uint32))
+		} else if r.cmd == "coinchgroom2" {
+			userId := r.data.(uint32)
+			player := sm.playerMgr.getPlayerById(userId)
+			sm.roomMgr.coinChangeRoom_2(player)
 		}
 	}
 }
@@ -191,7 +196,7 @@ func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
 	}
 
 	var player *defines.PlayerInfo
-	if cmd == proto.CmdGameCreateRoom || cmd == proto.CmdGameEnterRoom {
+	if cmd == proto.CmdGameCreateRoom || cmd == proto.CmdGameEnterRoom || cmd == proto.CmdGameEnterCoinRoom {
 		userId := sm.cc.GetUserCidUserId(uid)
 		if userId == -1 {
 			mylog.Debug("........... update player error ............ 1")
@@ -221,6 +226,8 @@ func (sm *sceneManager) onGwPlayerMessage(uid uint32, cmd uint32, data []byte) {
 		sm.onGwPlayerCreateRoom(player, data)
 	case proto.CmdGameEnterRoom:
 		sm.onGwPlayerEnterRoom(player, data)
+	case proto.CmdGameEnterCoinRoom:
+		sm.onGwPlayerEnterCoinRoom(player, data)
 	case proto.CmdGamePlayerLeaveRoom:
 		sm.onGwPlayerLeaveRoom(player, data)
 	case proto.CmdGamePlayerMessage:
@@ -314,6 +321,37 @@ func (sm *sceneManager) onGwPlayerEnterRoom(player *defines.PlayerInfo, data []b
 		sm.roomMgr.reEnter(player)
 	} else {
 		sm.SendMessageRIndex(player.Uid, proto.CmdGameEnterRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomNotSame})
+	}
+}
+
+func (sm *sceneManager) onGwPlayerEnterCoinRoom(player *defines.PlayerInfo, data []byte) {
+	var message proto.PlayerGameEnterCoinRoom
+	if err := msgpacker.UnMarshal(data, &message); err != nil {
+		return
+	}
+
+	if message.ChangeRoom == true && message.RoomId != 0{	//换房间
+		if player.RoomId == uint32(message.RoomId) {
+			sm.roomMgr.coinChangeRoom_1(player, player.RoomId)
+		} else {
+			sm.SendMessageRIndex(player.Uid, proto.CmdGameEnterCoinRoom, &proto.PlayerGameEnterCoinRoomRet{ErrCode: defines.ErrEnterCoinRoomChangeNotSame})
+		}
+	} else if message.RoomId != 0 {	// 再次进入
+		if player.RoomId == uint32(message.RoomId) {
+			//直接进入到对应房间
+			sm.roomMgr.coinReEnterRoom(player, player.RoomId)
+		} else {
+			sm.SendMessageRIndex(player.Uid, proto.CmdGameEnterCoinRoom, &proto.PlayerGameEnterCoinRoomRet{ErrCode: defines.ErrEnterCoinRoomEnterNotSame})
+		}
+	} else if message.Kind != 0 { //首次进入房间
+		if player.RoomId == 0 {
+			//找房间加入
+			sm.roomMgr.coinEnterNewRoom(player, message.Kind)
+		} else {
+			sm.SendMessageRIndex(player.Uid, proto.CmdGameEnterCoinRoom, &proto.PlayerGameEnterCoinRoomRet{ErrCode: defines.ErrEnterCoinRoomHaveRoom})
+		}
+	} else { //错误
+		sm.SendMessageRIndex(player.Uid, proto.CmdGameEnterCoinRoom, &proto.PlayerGameEnterCoinRoomRet{ErrCode: defines.ErrEnterCoinRoomInvalidReq})
 	}
 }
 

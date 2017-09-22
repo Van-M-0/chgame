@@ -11,6 +11,7 @@ import (
 const (
 	InnerCmdUserOffline = 512
 	InnerCmdUserReEnter = 513
+	InnerCmdUserLeaveCoinRoom = 514
 )
 
 type roomManager struct {
@@ -247,3 +248,29 @@ func (rm *roomManager) broadcastMessage(players []*defines.PlayerInfo, cmd uint3
 	rm.sm.BroadcastMessage(players, cmd, data)
 }
 
+
+func (rm *roomManager) coinChangeRoom_1(info *defines.PlayerInfo, oldRoom uint32) {
+	r := rm.getRoom(oldRoom)
+	if r == nil {
+		rm.sendMessage(info, proto.CmdGameEnterCoinRoom, &proto.PlayerCreateRoomRet{ErrCode: defines.ErrEnterCoinOldRoomNotExist})
+		return
+	}
+	r.notify <- &roomNotify{
+		cmd: InnerCmdUserLeaveCoinRoom,
+		user: *info,
+	}
+}
+
+func (rm *roomManager) coinChangeRoom_2(info *defines.PlayerInfo) {
+	if info == nil {
+
+	}
+}
+
+func (rm *roomManager) coinEnterNewRoom(info *defines.PlayerInfo, kind int) {
+
+}
+
+func (rm *roomManager) coinReEnterRoom(info *defines.PlayerInfo, room uint32) {
+
+}

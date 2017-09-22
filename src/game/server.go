@@ -8,6 +8,7 @@ import (
 	"rpcd"
 	"errors"
 	"mylog"
+	"tools"
 )
 
 type gameServer struct {
@@ -46,7 +47,6 @@ func (gs *gameServer) Start() error {
 					modList = append(modList, proto.MsModuleItem{
 						Kind: m.Type,
 						GameConf: m.GameConf,
-						GatewayHost: gs.opt.ClientHost,
 					})
 				}
 				err := gs.msClient.Call("GameModuleService.RegisterModule", &proto.MsGameMoudleRegisterArg{
@@ -105,7 +105,7 @@ func (gs *gameServer) Start() error {
 }
 
 func (gs *gameServer) startRpc() {
-	gs.msClient = rpcd.StartClient(defines.MSServicePort)
+	gs.msClient = rpcd.StartClient(tools.GetMasterServiceHost())
 }
 
 func (gs *gameServer) Stop() error {

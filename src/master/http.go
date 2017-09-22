@@ -10,6 +10,12 @@ import (
 	"io/ioutil"
 	"os"
 	"mylog"
+	"strings"
+	"crypto/md5"
+	"fmt"
+	"strconv"
+	"rpcd"
+	"tools"
 )
 
 type appInfo struct {
@@ -32,11 +38,12 @@ type http2Proxy struct {
 	httpAddr 		string
 	ln 				net.Listener
 	pub 			defines.IMsgPublisher
+	lbClient 		*rpcd.RpcdClient
 }
 
-func newHttpProxy(addr string) *http2Proxy {
+func newHttpProxy() *http2Proxy {
 	return &http2Proxy{
-		httpAddr: addr,
+		httpAddr: defines.GlobalConfig.HttpHost,
 		pub: communicator.NewMessagePulisher(),
 	}
 }
@@ -133,7 +140,6 @@ func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (hp *http2Proxy) notice(w http.ResponseWriter, r *http.Request) {
-	mylog.Debug("notices visited")
 	r.ParseForm()
 	v := r.Form["a"]
 	body, err := ioutil.ReadAll(r.Body)
@@ -160,17 +166,22 @@ func (hp *http2Proxy) notice(w http.ResponseWriter, r *http.Request) {
 func (hp *http2Proxy) getGameModules(w http.ResponseWriter, r *http.Request) {
 	mylog.Debug("game moudles visited", r)
 	r.ParseForm()
-	v := r.Form["province"]
+	v := r.Form["pid"]
 
 	type clientModReply struct {
 		ErrCode 	string
+		PayNotify 	string
 		List 		[]proto.ModuleInfo
 	}
 
-	rep := clientModReply{ErrCode:"ok"}
+	rep := clientModReply{ErrCode:"ok", PayNotify: tools.GetPayNotifyHost()}
 	if GameModService != nil {
 		rep.ErrCode = "ok"
-		l := GameModService.getModuleList(v[0])
+		provinceId, _ := strconv.Atoi(v[0])
+		l := GameModService.getModuleList(provinceId)
+		if l == nil {
+			rep.ErrCode = "iderror"
+		}
 		rep.List = l
 	}
 
@@ -242,19 +253,83 @@ func (hp *http2Proxy) downloadFile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+var PayRemoteIp = map[string]bool {
+	"47.93.0.230":true,
+	"47.94.174.165":true,
+	"123.56.31.112":true,
+	"47.94.128.179":true,
+}
+
+func (hp *http2Proxy) payNotify(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	vals := strings.Split(r.RemoteAddr, ":")
+	if !(len(vals) > 0 && PayRemoteIp[vals[0]]) {
+		mylog.Debug("remote ip error", r.RemoteAddr)
+		w.Write([]byte("remote ip error "+r.RemoteAddr))
+		return
+	}
+	order := r.PostForm["p2_order"][0]
+	mylog.Info("order notify ", order)
+
+	if hp.lbClient == nil {
+		hp.lbClient = rpcd.StartClient(tools.GetLobbyServiceHost())
+	}
+	var res proto.MsPayNotifyReply
+	hp.lbClient.Call("MallService.UserPayReturn", &proto.MsPayNotifyArg{Order: order}, &res)
+
+	w.Write([]byte("success"))
+}
+
+func (hp *http2Proxy) payReturn(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	mylog.Debug("--------------------------return------------------1")
+	mylog.Debug(r.Form)
+	mylog.Debug(r.PostForm)
+	mylog.Debug("--------------------------return------------------1")
+}
+
+func (hp *http2Proxy) prepay(w http.ResponseWriter, r *http.Request) {
+	val := r.Form["request"][0]
+	type prereq struct {
+		ClusterId 	string
+		UserId 		int
+		Name 		string
+		GoodId		int
+		Price 		int
+	}
+
+	req := &prereq{}
+	if err := json.Unmarshal([]byte(val), req); err != nil {
+		mylog.Debug("prereq error", val)
+		w.WriteHeader(403)
+		return
+	}
+
+	data := []byte(val)
+	has := md5.Sum(data)
+	md5str1 := fmt.Sprintf("%x", has) //将[]byte转成16进制
+	fmt.Println("client req", md5str1)
+
+	w.Write([]byte(md5str1))
+}
+
 func (hp *http2Proxy) serve() {
 	hp.pub.Start()
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		mylog.Debug("index visited")
 	})
+
+	http.HandleFunc("/prepay", hp.prepay)
+	http.HandleFunc("/paynotify", hp.payNotify)
+	http.HandleFunc("/payreturn", hp.payReturn)
+
 	http.HandleFunc("/wechat", hp.wechatLogin)
 	http.HandleFunc("/notices", hp.notice)
 	http.HandleFunc("/clientList", hp.getGameModules)
-	http.HandleFunc("/OpenList", hp.getOpenList)
+
 	//http.HandleFunc("/download", hp.downloadFile)
 	http.Handle("/download/", http.StripPrefix("/download/", http.FileServer(http.Dir("file"))))
-
 	mylog.Debug("http server start...", hp.httpAddr)
 
 	if err := http.ListenAndServe(hp.httpAddr, nil); err != nil {

@@ -8,6 +8,8 @@ import (
 	"msgpacker"
 	"rpcd"
 	"mylog"
+	"tools"
+	"net/rpc"
 )
 
 type lobby struct {
@@ -16,7 +18,7 @@ type lobby struct {
 	opt 			*defines.LobbyOption
 	processor 		*userProcessorManager
 	bpro 			*brokerProcessor
-	mall 			*mallService
+	mall 			*MallService
 	hp 				*http2Proxy
 	ns 				*noticeService
 	rs 				*rankService
@@ -28,6 +30,7 @@ type lobby struct {
 	dbClient 		*rpcd.RpcdClient
 	msClient 		*rpcd.RpcdClient
 	serverId 		int
+	rrs 			*RemoteRpcService
 }
 
 func newLobby(option *defines.LobbyOption) *lobby {
@@ -44,6 +47,7 @@ func newLobby(option *defines.LobbyOption) *lobby {
 	lb.qs = newQuestService(lb)
 	lb.is = newIdentifyService(lb)
 	lb.clubs = newAgentClub(lb)
+	lb.rrs = newRemoteRpcService(lb)
 	return lb
 }
 
@@ -94,9 +98,10 @@ func (lb *lobby) Start() error {
 }
 
 func (lb *lobby) StartRpc() {
-	lb.msClient = rpcd.StartClient(defines.MSServicePort)
-	lb.dbClient = rpcd.StartClient(defines.DBSerivcePort)
+	lb.msClient = rpcd.StartClient(tools.GetMasterServiceHost())
+	lb.dbClient = rpcd.StartClient(tools.GetDbServiceHost())
 	start := func() {
+		rpc.Register(lb.rrs)
 		rpcd.StartServer(defines.LbServicePort)
 	}
 	go start()
@@ -210,6 +215,13 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 			return
 		}
 		lb.mall.OnUserBy(uid, &req)
+	case proto.CmdUserPreayInfo:
+		var req proto.UserPrepay
+		if err := msgpacker.UnMarshal(data, &req); err != nil {
+			mylog.Debug("unmarshal client account errr", err)
+			return
+		}
+		lb.mall.OnUserPreyInfo(uid, &req)
 	case proto.CmdUserLoadRank:
 		var req proto.ClientLoadUserRank
 		if err := msgpacker.UnMarshal(data, &req); err != nil {

@@ -28,7 +28,6 @@ import (
 	"mylog"
 )
 
-var cfg defines.StartConfigFile
 var workdir string
 
 var _gate_ defines.IServer
@@ -52,27 +51,31 @@ func init() {
 		panic(fmt.Errorf("read file err %v", err).Error())
 	}
 
-	if err := json.Unmarshal(content, &cfg); err != nil {
+	if err := json.Unmarshal(content, &defines.GlobalConfig); err != nil {
 		panic(fmt.Errorf("config file invalid err %v", err).Error())
 	}
 
-	defines.WDServicePort = cfg.WorldHost
+	defines.WDServicePort = defines.GlobalConfig.WorldService
+	defines.MSServicePort = defines.GlobalConfig.MSservice
+	defines.DBSerivcePort = defines.GlobalConfig.DBService
+	defines.LbServicePort = defines.GlobalConfig.LobbyService
 
-	mylog.Debug(cfg)
+	fmt.Println("cfg ", file, defines.GlobalConfig)
+	mylog.Debug(defines.GlobalConfig)
 }
 
 func startMaster() {
-	master.NewMasterServer(&cfg).Start()
+	master.NewMasterServer().Start()
 }
 
 func startWorld() {
-	world.NewWorldServer(&cfg).Start()
+	world.NewWorldServer().Start()
 }
 
 func startGate() {
 	_gate_ = gateway.NewGateServer(&defines.GatewayOption{
-		FrontHost: cfg.FrontHost,
-		BackHost: cfg.BackendHost,
+		FrontHost: defines.GlobalConfig.FrontHost,
+		BackHost: defines.GlobalConfig.BackendHost,
 		MaxClient: 100,
 	})
 	_gate_.Start()
@@ -84,7 +87,7 @@ func StopGate() {
 
 func startLobby() {
 	lobby.NewLobby(&defines.LobbyOption{
-		GwHost: cfg.BackendHost,
+		GwHost: defines.GlobalConfig.BackendHost,
 	}).Start()
 }
 
@@ -100,10 +103,14 @@ func startGame(moduels []defines.GameModule) {
 			mylog.Error("game moudle player count == 0 ", m.Type)
 			return
 		}
+		if m.GameType == defines.GameTypeInvalid {
+			mylog.Error("must specify game type(GameModule.GameType)")
+			return
+		}
 	}
 
 	checkMap := map[int]bool {}
-	for _, k := range cfg.GameModules {
+	for _, k := range defines.GlobalConfig.GameModules {
 		checkMap[k] = true
 	}
 
@@ -122,17 +129,16 @@ func startGame(moduels []defines.GameModule) {
 	}
 
 	game.NewGameServer(&defines.GameOption{
-		ClientHost: cfg.ClientHost,
-		GwHost: cfg.BackendHost,
+		GwHost: defines.GlobalConfig.BackendHost,
 		Moudles: moduels,
 	}).Start()
 }
 
 func startDbProxy() {
 	dbproxy.NewDbProxy(&defines.DbProxyOption{
-		Name: cfg.DbName,
-		User: cfg.DbUser,
-		Pwd: cfg.DbPwd,
+		Name: defines.GlobalConfig.DbName,
+		User: defines.GlobalConfig.DbUser,
+		Pwd: defines.GlobalConfig.DbPwd,
 	}).Start()
 }
 
