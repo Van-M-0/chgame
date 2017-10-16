@@ -102,7 +102,6 @@ func (f *GameFormatter) needsQuoting(text string) bool {
 }
 
 func (f *GameFormatter) appendKeyValue(b *bytes.Buffer, key string, value interface{}) {
-
 	b.WriteString(key)
 	b.WriteByte('=')
 	f.appendValue(b, value)

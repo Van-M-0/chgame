@@ -7,6 +7,8 @@ import (
 	"mylog"
 	"tools"
 	"fmt"
+	"configs"
+	"exportor/defines"
 )
 
 var GameModService = newGameModuleService()
@@ -32,41 +34,41 @@ func newGameModuleService() *GameModuleService {
 }
 
 func (gms *GameModuleService) load() {
-	gms.dbClient = rpcd.StartClient(tools.GetDbServiceHost())
+	//gms.dbClient = rpcd.StartClient(tools.GetDbServiceHost())
 	gms.wdClient = rpcd.StartClient(tools.GetWorldServiceHost())
-	var r proto.MsLoadGameLibsReply
-	err := gms.dbClient.Call("DBService.LoadGameLibs", &proto.MsLoadGameLibsArg{}, &r)
-	if err == nil && r.ErrCode == "ok" {
-		idstart := 1
+	//var r proto.MsLoadGameLibsReply
+	//err := gms.dbClient.Call("DBService.LoadGameLibs", &proto.MsLoadGameLibsArg{}, &r)
 
-		for _, l := range r.Libs {
+	//if err == nil && r.ErrCode == "ok" {
 
-			i := -1
-			if id, ok := gms.idsMap[l.Province]; ok {
-				i = id
-			} else {
-				gms.idsMap[l.Province] = idstart
-				i = idstart
-				idstart++
-			}
-
-			gms.libs = append(gms.libs, proto.GameLibItemP{
-				GameLibItem: l,
-				Pid: i,
-			})
+	libs := []proto.GameLibItemP{}
+	configLibs := configs.GetGameLibs()
+	for _, l := range configLibs {
+		if l.Pid == defines.GlobalConfig.ClusterId {
+			libs = append(libs, l)
 		}
+	}
+	gms.libs = libs
 
-		for _, lib := range gms.libs {
-			gms.cfgModules[lib.Id]	= &proto.ModuleInfo {
-				Kind: lib.Id,
-				Name: lib.Name,
-				Province: lib.Province,
-				City: lib.City,
-			}
+	for _, lib := range gms.libs {
+		gms.cfgModules[lib.Id]	= &proto.ModuleInfo {
+			Kind: lib.Id,
+			Name: lib.Name,
+			Province: lib.Province,
+			City: lib.City,
+			Area: lib.Area,
 		}
-	} else {
-		mylog.Debug("load game lib err, ", err, r.ErrCode)
-		panic("..........stop.................")
+	}
+
+	var rep proto.WsRegisterLibsReply
+	err := gms.wdClient.Call("MasterService.RegisterOpenList", &proto.WsRegisterLibsArgs{
+		Id:	defines.GlobalConfig.ClusterId,
+		MasterIp: tools.GetMasterIp(),
+		Items: gms.libs,
+	}, &rep)
+
+	if err != nil {
+		panic("register game libs error")
 	}
 }
 
@@ -88,18 +90,6 @@ func (gms *GameModuleService) RegisterModule(req *proto.MsGameMoudleRegisterArg,
 		}
 	}
 
-	var rep proto.WsRegisterLibsReply
-	err := gms.wdClient.Call("MasterService.RegisterOpenList", &proto.WsRegisterLibsArgs{
-		Id:	_masterId,
-		MasterIp: tools.GetMasterIp(),
-		Items: gms.libs,
-	}, &rep)
-
-	if err != nil {
-		panic("register game libs error")
-		return nil
-	}
-
 	gms.modLock.Lock()
 	defer gms.modLock.Unlock()
 
@@ -110,6 +100,7 @@ func (gms *GameModuleService) RegisterModule(req *proto.MsGameMoudleRegisterArg,
 			Id: cfg.Id,
 			Province: cfg.Province,
 			City: cfg.City,
+			Area: cfg.Area,
 			Name: cfg.Name,
 			Kind: cfg.Kind,
 			GateIp: tools.GetClientVisitHost(),
@@ -149,6 +140,7 @@ func (gms *GameModuleService) getModuleList(province int) []proto.ModuleInfo {
 			c := proto.ModuleInfo{
 				Province: m.Province,
 				City:     m.City,
+				Area: 	  m.Area,
 				Name: 	  m.Name,
 				Kind:     m.Kind,
 				Conf:	  m.Conf,

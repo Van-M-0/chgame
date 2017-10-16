@@ -33,6 +33,11 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 
 	//service.lock.Lock()
 	ret := service.db.GetUserInfo(req.Acc, &userInfo)
+	res.New = false
+	if !ret {
+		res.New = true
+	}
+
 	//service.lock.Unlock()
 	mylog.Debug("luser login ", req, res)
 	if req.LoginType == defines.LoginTypeWechat {
@@ -454,5 +459,47 @@ func (service *DBService) ClubOperation(req *proto.MsClubOperationReq, rep *prot
 	rep.Club = req.Club
 	rep.UserId = req.UserId
 
+	return nil
+}
+
+func (service *DBService) GetAgentUser(req *proto.MsGetAgentUserReq, rep *proto.MsGetAgentUserReply) error {
+	if req.AgentId > 0 {
+		var agents []*table.T_Agents
+		if req.AgentType == "A0" {
+			service.db.db.Where("agent0 = ?", req.AgentId).Find(&agents)
+		} else if req.AgentType == "A1" {
+			service.db.db.Where("agent1 = ?", req.AgentId).Find(&agents)
+		} else if req.AgentType == "A2" {
+			service.db.db.Where("agent2 = ?", req.AgentId).Find(&agents)
+		} else {
+			rep.ErrCode = "AgentTypeInvalid"
+			return nil
+		}
+
+		agentM := map[uint32]bool{}
+		for _, a := range agents {
+			agentM[a.Agent2] = true
+		}
+
+		rep.ErrCode = "not-find"
+		for agent, _ := range agentM {
+			u := &table.T_Users{}
+			if service.db.db.Where("agentid = ?", agent).Select("userid").Find(u).RowsAffected != 0 {
+				club := table.T_Club{}
+				if service.db.db.Where("creatorid = ?", agent).Select("id").Find(club).RowsAffected != 0 {
+					var members []*table.T_ClubMember
+					if service.db.db.Where("clubid = ?", agent).Select("userid").Find(members).RowsAffected != 0 {
+						for _, m := range members {
+							rep.Uids[m.Userid] = true
+						}
+						rep.ErrCode = "ok"
+					}
+				}
+			}
+		}
+
+	} else {
+		rep.ErrCode = "AgentIdInvalid"
+	}
 	return nil
 }

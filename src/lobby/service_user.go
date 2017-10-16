@@ -402,6 +402,10 @@ func (um *userManager) handleUserLogin(uid uint32, login *proto.ClientLogin) {
 						}
 						//mylog.Debug("user auth info ", res.Identify)
 
+						if res.New {
+							um.lb.sc.UserRegister(u.userId, "")
+						}
+						um.lb.sc.UserLogin(u.userId, "")
 					}
 				} else {
 					replyErr(defines.ErrCommonCache)

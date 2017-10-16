@@ -1,6 +1,8 @@
 package main
 
-import "starter"
+import (
+	"starter"
+)
 
 func main() {
 	starter.StartProgram("master", nil)

@@ -10,6 +10,8 @@ import (
 	"mylog"
 	"tools"
 	"net/rpc"
+	"fmt"
+	"statics"
 )
 
 type lobby struct {
@@ -31,6 +33,7 @@ type lobby struct {
 	msClient 		*rpcd.RpcdClient
 	serverId 		int
 	rrs 			*RemoteRpcService
+	sc 				*statics.StaticsClient
 }
 
 func newLobby(option *defines.LobbyOption) *lobby {
@@ -48,6 +51,7 @@ func newLobby(option *defines.LobbyOption) *lobby {
 	lb.is = newIdentifyService(lb)
 	lb.clubs = newAgentClub(lb)
 	lb.rrs = newRemoteRpcService(lb)
+	lb.sc = statics.NewStaticsClient()
 	return lb
 }
 
@@ -94,6 +98,7 @@ func (lb *lobby) Start() error {
 	lb.qs.start()
 	lb.is.start()
 	lb.clubs.start()
+	lb.sc.Start()
 	return nil
 }
 
@@ -164,6 +169,7 @@ func (lb *lobby) handleClientMessage(uid uint32, cmd uint32, data []byte) {
 			return
 		}
 		go func() {
+			fmt.Println("client wechat login", login)
 			var res proto.MsSdkWechatLoginReply
 			err := lb.msClient.Call("SdkService.WechatLogin", &proto.MsSdkWechatLoginArg{
 				Code: login.Code,

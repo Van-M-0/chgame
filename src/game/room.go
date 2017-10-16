@@ -13,6 +13,22 @@ import (
 )
 
 
+type timerNotify struct {
+	id 		int
+	data 	interface{}
+}
+
+type roomTimerHandle struct {
+	id 		int
+	t 		*time.Timer
+	kill 	chan bool
+	stop	int32
+}
+
+func (h *roomTimerHandle) GetId() int {
+	return h.id
+}
+
 type voter struct {
 	user 	*defines.PlayerInfo
 	agreed 	int	//0, 1 a 2 disa
@@ -25,6 +41,7 @@ type roomNotify struct {
 }
 
 type room struct {
+	category 		int
 	module 			defines.GameModule
 	game 			defines.IGame
 	id 				uint32
@@ -32,6 +49,7 @@ type room struct {
 	manager 		*roomManager
 	notify 			chan *roomNotify
 	quit 			chan bool
+	bcquit 			chan bool
 	users 			map[uint32]*defines.PlayerInfo
 	closed 			int32
 
@@ -40,6 +58,9 @@ type room struct {
 	isReleased 		bool
 
 	logPrefix		string
+
+	timeChan 		chan *timerNotify
+	timerId 		int
 }
 
 func newRoom(manager *roomManager) *room {
@@ -47,6 +68,8 @@ func newRoom(manager *roomManager) *room {
 		manager: manager,
 		notify: make(chan *roomNotify, 1024),
 		quit: make(chan bool),
+		bcquit: make(chan bool),
+		timeChan: make(chan *timerNotify, 5),
 		users: make(map[uint32]*defines.PlayerInfo),
 		releaseVoter: make(map[uint32]*voter),
 	}
@@ -68,7 +91,7 @@ func (rm *room) safeCall() {
 			return
 		}
 
-		if n.cmd == proto.CmdEnterRoom {
+		if n.cmd == proto.CmdGameEnterRoom {
 			rm.onUserEnter(n)
 		} else if n.cmd == proto.CmdGamePlayerLeaveRoom {
 			rm.onUserLeave(n)
@@ -89,8 +112,12 @@ func (rm *room) safeCall() {
 		}
 	case <- rm.quit:
 		mylog.Debug("room destroy", rm.id)
+		rm.closed = 2
+		close(rm.bcquit)
 	case <- rm.timeoutCheck.C:
 		rm.releaseTimeoutCheck()
+	case t := <-rm.timeChan:
+		rm.game.OnTimer(uint32(t.id), t.data)
 	}
 }
 
@@ -99,6 +126,10 @@ func (rm *room) run() {
 	go func () {
 		for {
 			rm.safeCall()
+			if rm.closed == 2 {
+				mylog.Debug("room closed ", rm.closed)
+				return
+			}
 		}
 	}()
 }
@@ -110,7 +141,7 @@ func (rm *room) destroy() {
 func (rm *room) onCreate(notify *roomNotify) bool {
 
 	replyErr := func(err int) {
-		rm.SendUserMessage(&notify.user, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{ErrCode: err})
+		rm.SendUserMessage(&notify.user, notify.cmd, &proto.PlayerCreateRoomRet{ErrCode: err})
 	}
 
 	rm.game = rm.module.Creator()
@@ -131,11 +162,7 @@ func (rm *room) onCreate(notify *roomNotify) bool {
 
 	rm.logPrefix = "[" + strconv.Itoa(int(rm.id)) + "] "
 
-	rm.DebugLog("create room success")
-	rm.InfoLog("create room success")
-	rm.ErrLog("create room success")
-
-	if err := rm.game.OnInit(rm, rm.module.GameData); err != nil {
+	if err := rm.game.OnInit(rm, rm.module); err != nil {
 		replyErr(defines.ErrCreateRoomGameMoudele)
 		return false
 	}
@@ -154,8 +181,10 @@ func (rm *room) onCreate(notify *roomNotify) bool {
 		}
 	}
 
+	mylog.Info("create room success ", rm.id)
+
 	rm.run()
-	rm.SendUserMessage(&notify.user, proto.CmdGameCreateRoom, &proto.PlayerCreateRoomRet{
+	rm.SendUserMessage(&notify.user, notify.cmd, &proto.PlayerCreateRoomRet{
 		ErrCode: defines.ErrCommonSuccess,
 		RoomId: rm.id,
 		ServerId: rm.manager.sm.gameServer.serverId,
@@ -164,26 +193,27 @@ func (rm *room) onCreate(notify *roomNotify) bool {
 	return true
 }
 
-func (rm *room) onUserEnter(notify *roomNotify) {
+func (rm *room) onUserEnter(notify *roomNotify) bool {
 
 	if rm.GetUserInfoFromCache(&notify.user) != nil {
-		rm.SendUserMessage(&notify.user, proto.CmdGameEnterRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrCommonCache})
-		return
+		rm.SendUserMessage(&notify.user, notify.cmd, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrCommonCache})
+		return false
 	}
 
 	notify.user.RoomId = rm.id
 	if err := rm.game.OnUserEnter(&notify.user); err != nil {
-		rm.SendUserMessage(&notify.user, proto.CmdGameEnterRoom, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomMoudle})
+		rm.SendUserMessage(&notify.user, notify.cmd, &proto.PlayerEnterRoomRet{ErrCode: defines.ErrEnterRoomMoudle})
 		notify.user.RoomId = 0
 	} else {
 		rm.users[notify.user.UserId] = &notify.user
 		rm.updateProp(notify.user.UserId, defines.PpRoomId, rm.id)
-		rm.SendUserMessage(&notify.user, proto.CmdGameEnterRoom, &proto.PlayerEnterRoomRet{
+		rm.SendUserMessage(&notify.user, notify.cmd, &proto.PlayerEnterRoomRet{
 			ErrCode: defines.ErrCommonSuccess,
 			ServerId: rm.manager.sm.gameServer.serverId,
 		})
 	}
 	mylog.Debug("onuser enter ", rm.users)
+	return notify.user.RoomId != 0
 }
 
 func (rm *room) onUserLeave(notify *roomNotify) {
@@ -219,20 +249,25 @@ func (rm *room) onUserLeaveCoin(notify *roomNotify) {
 		RoomId: oldRoomId,
 	}, proto.CmdGameEnterCoinRoom, &proto.PlayerGameEnterCoinRoomRet{ErrCode: defines.ErrCommonSuccess})
 
-	rm.manager.sm.sceneNotify <- &request{kind: requestRoom, cmd :"coinchgroom2", data: rm.id}
+	rm.manager.sm.sceneNotify <- &request{kind: requestRoom, cmd :"coinchgroom2", data: &coinRoomChangeContext{
+		userid: notify.user.UserId,
+		roomid: rm.id,
+		kind: rm.module.Type,
+	}}
 
 	if len(rm.users) == 0 {
 		rm.ReleaseRoom()
 	}
 }
 
-func (rm *room) onUserReenter(notify *roomNotify) {
+func (rm *room) onUserReenter(notify *roomNotify) bool {
 	rm.users[notify.user.UserId] = &notify.user
 	rm.game.OnUserReEnter(&notify.user)
 	rm.SendUserMessage(&notify.user, proto.CmdGameEnterRoom, &proto.PlayerEnterRoomRet{
 		ErrCode: defines.ErrCommonSuccess,
 		ServerId: rm.manager.sm.gameServer.serverId,
 	})
+	return true
 }
 
 func (rm *room) onUserOffline(notify *roomNotify) {
@@ -436,7 +471,6 @@ func (rm *room) OnStop() {
 
 	rm.game.OnRelease()
 
-
 	mylog.Debug("user stop ")
 	for _, u := range rm.users {
 		mylog.Debug(u)
@@ -450,6 +484,8 @@ func (rm *room) OnStop() {
 			RoomId: oldRoomId,
 		}, proto.CmdGamePlayerReturn2lobby, &proto.PlayerReturn2Lobby{ErrCode: defines.ErrCommonSuccess})
 	}
+
+	rm.quit <- true
 }
 
 func (rm *room) SendGameMessage(info *defines.PlayerInfo, cmd uint32, data interface{}) {
@@ -476,14 +512,51 @@ func (rm *room) BroadcastMessage(info []*defines.PlayerInfo, cmd uint32, data in
 	})
 }
 
-func (rm *room) SetTimer(id uint32, data interface{}) error {
-	mylog.Debug("SetTimer not implement")
-	return nil
+func (rm *room) SetTimer(t uint32, data interface{}) defines.TimerHandle {
+	id := rm.timerId + 1
+	rm.timerId = id
+
+	tm := time.NewTimer(time.Duration(t) * time.Millisecond * 10)
+	handle := &roomTimerHandle{
+		id: id,
+		t: tm,
+		kill: make(chan bool),
+	}
+
+	go func() {
+		select {
+		case <- rm.bcquit:
+			return
+		case <- tm.C:
+			atomic.AddInt32(&handle.stop, 1)
+			mylog.Debug("time coming ", id)
+			rm.timeChan <- &timerNotify{
+				id: id,
+				data: data,
+			}
+		case <- handle.kill:
+			atomic.AddInt32(&handle.stop, 1)
+			close(handle.kill)
+			return
+		}
+	}()
+
+	return handle
 }
 
-func (rm *room) KillTimer(id uint32) error {
-	mylog.Debug("KillTimer not implement")
-	return nil
+func (rm *room) KillTimer(handle defines.TimerHandle) bool {
+	timerHandle, ok := handle.(*roomTimerHandle)
+	if !ok {
+		mylog.Debug("kill timer, handle error" )
+		return false
+	}
+
+	if atomic.LoadInt32(&timerHandle.stop) > 0 {
+		mylog.Debug("kill timer, already stopped" )
+		return false
+	}
+	timerHandle.kill <- true
+	return true
 }
 
 func (rm *room) updateProp(userId uint32, prop int, value interface{}) {
@@ -498,10 +571,19 @@ func (rm *room) updateProp(userId uint32, prop int, value interface{}) {
 				}
 				user.RoomId = newRoomId
 			} else if prop == defines.PpGold {
+				newGold := value.(int64)
+				if user.Gold - newGold > 0 {
+					rm.manager.sm.sc.ConsumeCoin(userId, int(user.Gold - newGold))
+				}
 				user.Gold = value.(int64)
 			} else if prop == defines.PpDiamond {
-				user.Diamond = value.(int)
+				newDiamond := value.(int)
+				user.Diamond = newDiamond
 			} else if prop == defines.PpRoomCard {
+				newRoomCard := value.(int)
+				if user.RoomCard - newRoomCard > 0 {
+					rm.manager.sm.sc.ConsumeRoomCard(userId, user.RoomCard - newRoomCard)
+				}
 				user.RoomCard = value.(int)
 			} else if prop == defines.PpScore {
 				user.Score = value.(int)

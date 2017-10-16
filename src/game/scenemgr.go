@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"mylog"
 	"tools"
+	"statics"
 )
 
 const (
@@ -36,6 +37,7 @@ type sceneManager struct {
 	sceneNotify 	chan *request
 	lbService 		*rpcd.RpcdClient
 	msService 		*rpcd.RpcdClient
+	sc 				*statics.StaticsClient
 }
 
 func newSceneManager(gs *gameServer) *sceneManager {
@@ -47,6 +49,7 @@ func newSceneManager(gs *gameServer) *sceneManager {
 	sm.pub = communicator.NewMessagePulisher()
 	sm.con = communicator.NewMessageConsumer()
 	sm.sceneNotify = make(chan *request, 1024)
+	sm.sc = statics.NewStaticsClient()
 	return sm
 }
 
@@ -68,6 +71,7 @@ func (sm *sceneManager) start() {
 	sm.con.Start()
 	sm.pub.Start()
 	sm.cc.Start()
+	sm.sc.Start()
 	sm.lbService = rpcd.StartClient(tools.GetLobbyServiceHost())
 	sm.msService = rpcd.StartClient(tools.GetMasterServiceHost())
 	//sm.getMessageFromBroker()
@@ -115,9 +119,12 @@ func (sm *sceneManager) processRequest(r *request) {
 		if r.cmd == "closeroom" {
 			sm.roomMgr.destroyRoom(r.data.(uint32))
 		} else if r.cmd == "coinchgroom2" {
-			userId := r.data.(uint32)
-			player := sm.playerMgr.getPlayerById(userId)
-			sm.roomMgr.coinChangeRoom_2(player)
+			ctx, err := r.data.(*coinRoomChangeContext)
+			if err == false {
+				mylog.Debug("cast coinRoomChangeContext error ", r.data)
+				return
+			}
+			sm.roomMgr.coinChangeRoom_2(ctx)
 		}
 	}
 }
@@ -330,27 +337,39 @@ func (sm *sceneManager) onGwPlayerEnterCoinRoom(player *defines.PlayerInfo, data
 		return
 	}
 
-	if message.ChangeRoom == true && message.RoomId != 0{	//换房间
+	if message.EnterType == 1 {
 		if player.RoomId == uint32(message.RoomId) {
 			sm.roomMgr.coinChangeRoom_1(player, player.RoomId)
 		} else {
 			sm.SendMessageRIndex(player.Uid, proto.CmdGameEnterCoinRoom, &proto.PlayerGameEnterCoinRoomRet{ErrCode: defines.ErrEnterCoinRoomChangeNotSame})
 		}
-	} else if message.RoomId != 0 {	// 再次进入
+	} else if message.EnterType == 2 {
 		if player.RoomId == uint32(message.RoomId) {
 			//直接进入到对应房间
 			sm.roomMgr.coinReEnterRoom(player, player.RoomId)
 		} else {
 			sm.SendMessageRIndex(player.Uid, proto.CmdGameEnterCoinRoom, &proto.PlayerGameEnterCoinRoomRet{ErrCode: defines.ErrEnterCoinRoomEnterNotSame})
 		}
-	} else if message.Kind != 0 { //首次进入房间
+	} else if message.EnterType == 3 {
+		if player.RoomId != 0 {
+			sm.SendMessageRIndex(player.Uid, proto.CmdGameEnterCoinRoom, &proto.PlayerGameEnterCoinRoomRet{ErrCode: defines.ErrCreateRoomHaveRoom})
+		} else {
+			sm.roomMgr.coinCreateRoom(player, message.Kind, message.Conf)
+		}
+	} else if message.EnterType == 4 {
+		if player.RoomId != 0 {
+			sm.SendMessageRIndex(player.Uid, proto.CmdGameEnterCoinRoom, &proto.PlayerGameEnterCoinRoomRet{ErrCode: defines.ErrCreateRoomHaveRoom})
+		} else {
+			sm.roomMgr.coinRoomEnterWithRoomId(player, uint32(message.RoomId))
+		}
+	} else if message.EnterType == 5 {
 		if player.RoomId == 0 {
 			//找房间加入
-			sm.roomMgr.coinEnterNewRoom(player, message.Kind)
+			sm.roomMgr.coinEnterShareRoom(player, message.Kind, EnterCoinShareRoomMaxCount)
 		} else {
 			sm.SendMessageRIndex(player.Uid, proto.CmdGameEnterCoinRoom, &proto.PlayerGameEnterCoinRoomRet{ErrCode: defines.ErrEnterCoinRoomHaveRoom})
 		}
-	} else { //错误
+	} else {
 		sm.SendMessageRIndex(player.Uid, proto.CmdGameEnterCoinRoom, &proto.PlayerGameEnterCoinRoomRet{ErrCode: defines.ErrEnterCoinRoomInvalidReq})
 	}
 }

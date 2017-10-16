@@ -220,43 +220,85 @@ func (mgr *serManager) client2game(client defines.ITcpClient, message *proto.Mes
 		}
 		return
 	} else if message.Cmd == proto.CmdGameEnterCoinRoom {
+		curServer := client.Get("gameid")
+		serverId := -1
+
+		replyErr := func(err int) {
+			data,_ := msgpacker.Marshal(&proto.PlayerGameEnterCoinRoomRet{
+				ErrCode: err,
+			})
+			client.Send(proto.CmdGameEnterCoinRoom, data)
+		}
+
 		var enterRoomMessage proto.PlayerGameEnterCoinRoom
 		if err := msgpacker.UnMarshal(message.Msg, &enterRoomMessage); err != nil {
 			return
 		}
 
-		if enterRoomMessage.RoomId == 0 && enterRoomMessage.Kind == 0 {
-			mylog.Info("enter coin room error")
-			return
-		}
-
-		var res proto.MsGetRoomKindReply
-		ce := mgr.gateway.msClient.Call("RoomService.GetRoomKindServerId", &proto.MsGetRoomKindIdArg{
-			Kind: enterRoomMessage.Kind,
-			RoomId: enterRoomMessage.RoomId,
-		}, &res)
-
-		if ce != nil || res.ServerId == -1 || res.Alive == false {
-			clearRoom, err := msgpacker.Marshal(&proto.ClearUserInfo{
-				Type: defines.PpRoomId,
-			})
-			if err != nil {
-				mylog.Info("pack clearroom err", err)
+		if enterRoomMessage.EnterType == 1 {
+			if curServer == nil {
+				replyErr(defines.ErrEnterCoinRoomChangeInvalid)
 				return
 			}
-			mgr.client2Lobby(client, &proto.Message{
-				Cmd: proto.CmdClearPlayerInfo,
-				Msg: clearRoom,
-			})
-			return
-		}
-		send(uint32(res.ServerId))
+			serverId, _ = curServer.(int)
+		} else if enterRoomMessage.EnterType == 2 {
 
+			if enterRoomMessage.RoomId == 0 || curServer != nil {
+				mylog.Info("enter coin room error . invalid req")
+				replyErr(defines.ErrEnterCoinRoomInvalidReq)
+				return
+			}
+
+			var res proto.MsGetRoomServerIdReply
+			mgr.gateway.msClient.Call("RoomService.GetRoomServerId", &proto.MsGetRoomServerIdArg{RoomId: uint32(enterRoomMessage.RoomId)}, &res)
+
+			if res.ServerId == -1 || res.Alive == false {
+				clearRoom, err := msgpacker.Marshal(&proto.ClearUserInfo{
+					Type: defines.PpRoomId,
+				})
+				if err != nil {
+					return
+				}
+				mgr.client2Lobby(client, &proto.Message{
+					Cmd: proto.CmdClearPlayerInfo,
+					Msg: clearRoom,
+				})
+				return
+			}
+			serverId, _ = curServer.(int)
+		} else if enterRoomMessage.EnterType == 3 || enterRoomMessage.EnterType == 5 {
+
+			if enterRoomMessage.Kind == 0 {
+				mylog.Info("enter coin room error . invalid req")
+				replyErr(defines.ErrEnterCoinRoomInvalidReq)
+				return
+			}
+
+			var res proto.MsSelectGameServerReply
+			mgr.gateway.msClient.Call("RoomService.SelectGameServer", &proto.MsSelectGameServerArg{Kind: enterRoomMessage.Kind}, &res)
+			fmt.Println("select game ser", res)
+			if res.ServerId == -1 {
+				replyErr(defines.ErrCreateRoomCreate)
+				return
+			}
+			serverId = res.ServerId
+		} else if enterRoomMessage.EnterType == 4 {
+			var res proto.MsGetRoomServerIdReply
+			mgr.gateway.msClient.Call("RoomService.GetRoomServerId", &proto.MsGetRoomServerIdArg{RoomId: uint32(enterRoomMessage.RoomId)}, &res)
+
+			if res.ServerId == -1 || res.Alive == false {
+				replyErr(defines.ErrEnterCoinRoomInvalidReq)
+				return
+			}
+			serverId = res.ServerId
+		}
+		send(uint32(serverId))
 		return
 	}
 
 	igame := client.Get("gameid")
 	if igame == nil {
+		mylog.Debug("gameid is nil ", client.GetId(), message.Cmd)
 		return
 	} else {
 		gameid := igame.(uint32)

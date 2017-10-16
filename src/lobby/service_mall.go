@@ -9,6 +9,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"mylog"
+	"configs"
 )
 
 type orderKey struct {
@@ -42,11 +43,11 @@ func newMallService(lb *lobby) *MallService {
 }
 
 func (ms *MallService) start() {
-	var r proto.MsLoadItemConfigReply
-	ms.lb.dbClient.Call("DBService.LoadItemConfig", &proto.MsLoadItemConfigReply{}, &r)
-	ms.itemsLock.Lock()
-	ms.ItemConfigList = r.ItemConfigList
-	ms.itemsLock.Unlock()
+	//var r proto.MsLoadItemConfigReply
+	//ms.lb.dbClient.Call("DBService.LoadItemConfig", &proto.MsLoadItemConfigReply{}, &r)
+	//ms.itemsLock.Lock()
+	ms.ItemConfigList = configs.GetItemsConfig()
+	//ms.itemsLock.Unlock()
 
 	//mylog.Debug("local item config", r)
 }
@@ -95,7 +96,7 @@ func (ms *MallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 		return
 	}
 
-	if req.Item	< 0 {
+	if req.Item	< 0 || req.Num <= 0 {
 		ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
 			ErrCode: defines.ErrClientBuyInvalid,
 		})
@@ -111,12 +112,23 @@ func (ms *MallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 	}
 
 	if item.Category == defines.MallItemCategoryGold || item.Category == defines.MallItemCategoryItem {
-		if item.Buyvalue > user.diamond {
+
+		buyNum := 0
+		needDiamond := 0
+		if item.Category == defines.MallItemCategoryItem {
+			buyNum = req.Num
+			needDiamond = req.Num * 1
+		} else if item.Category == defines.MallItemCategoryGold {
+			buyNum = req.Num
+			needDiamond = buyNum / 100
+		}
+
+		if needDiamond > user.diamond {
 			ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
 				ErrCode: defines.ErrClientBuyItemMoneyNotEnough,
 			})
 			return
-		} else if ms.lb.userMgr.updateUserProp(user, defines.PpDiamond, int(-item.Buyvalue)) == false {
+		} else if ms.lb.userMgr.updateUserProp(user, defines.PpDiamond, int(-needDiamond)) == false {
 			ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
 				ErrCode: defines.ErrClientBuyConsumeErr,
 			})
@@ -125,17 +137,18 @@ func (ms *MallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 	}
 
 	if item.Category == defines.MallItemCategoryGold {
-		ms.lb.userMgr.updateUserProp(user, defines.PpGold, int64(item.Nums))
+		ms.lb.userMgr.updateUserProp(user, defines.PpGold, int64(req.Num))
 	} else if item.Category == defines.MallItemCategoryDiamond {
 		ms.lb.userMgr.updateUserProp(user, defines.PpDiamond, item.Nums)
 	} else if item.Category == defines.MallItemCategoryItem {
-		ms.lb.userMgr.updateUserItem(user, item.Itemid, item.Nums)
+		ms.lb.userMgr.updateUserItem(user, item.Itemid, req.Num)
 	}
 
 	//mylog.Debug("client buy item success ", item)
 
 	ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
 		ErrCode: defines.ErrCommonSuccess,
+		Item: req.Item,
 	})
 }
 
@@ -204,6 +217,7 @@ func (ms *MallService) OnUserPreyInfo(uid uint32, req *proto.UserPrepay) {
 	ms.lb.send2player(uid, proto.CmdUserPreayInfo, &proto.UserPrepayRet{
 		ErrCode: defines.ErrCommonSuccess,
 		OrderId: order,
+		Price: req.Price,
 	})
 }
 
@@ -212,6 +226,7 @@ func (ms *MallService) UserPayReturn(req *proto.MsPayNotifyArg, res *proto.MsPay
 	ms.orderLock.Lock()
 	order, ok := ms.orders[key]
 	ms.orderLock.Unlock()
+	mylog.Debug("pay return ", req, ok)
 	if ok {
 		od := ms.getOrder(order.tm, order.user, order.uid, order.item)
 		if od != req.Order {
@@ -222,6 +237,8 @@ func (ms *MallService) UserPayReturn(req *proto.MsPayNotifyArg, res *proto.MsPay
 			delete(ms.orders, key)
 			ms.orderLock.Unlock()
 
+			mylog.Debug("pay return item is ", order)
+
 			item := ms.getItem(order.item)
 			if item.Itemid == 0 {
 				mylog.Debug("item no more exists ", order.item)
@@ -230,15 +247,25 @@ func (ms *MallService) UserPayReturn(req *proto.MsPayNotifyArg, res *proto.MsPay
 
 			user := ms.lb.userMgr.getUserByAcc(order.acc)
 			if user != nil {
+
+				ms.lb.send2player(order.uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
+					ErrCode: defines.ErrCommonSuccess,
+					Item: order.item,
+				})
+
+				mylog.Debug("update user ppdiamond ", item.Nums)
 				ms.lb.userMgr.updateUserProp(user, defines.PpDiamond, item.Nums)
+
+				ms.lb.sc.UserPay(user.userId, order.item, item.Nums, item.Buyvalue)
+
 			} else {
 				mylog.Debug("user not online, update to db", order)
 				var res proto.MsUpdateUserPropReply
 				ms.lb.dbClient.Call("DBService.UpdateUserProp", &proto.MsUpdateUserPropArg{
 					UserId: order.user,
-					Key: "diamond",
+				Key: "diamond",
 					Diamond: item.Nums,
-				}, &res)
+			}, &res)
 			}
 		}
 	} else {

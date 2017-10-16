@@ -18,6 +18,7 @@ type T_GameArea struct {
 	Source 		string
 	Database 	string
 	Game 		string
+	StaticsQueryUrl string
 }
 
 /*	table defines end

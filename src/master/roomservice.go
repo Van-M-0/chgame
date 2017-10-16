@@ -5,13 +5,13 @@ import (
 	"sync"
 	"time"
 	"math/rand"
-	"exportor/defines"
 	"fmt"
 )
 
 type room struct {
 	ServerId 	int
 	Conf 		[]byte
+	GameType 	int
 }
 
 type RoomService struct {
@@ -27,35 +27,19 @@ func newRoomService() *RoomService {
 
 var lastRoomId uint32
 func (rs *RoomService) CreateRoomId(req *proto.MsCreateoomIdArg, res *proto.MsCreateRoomIdReply) error {
-	if req.GameType == defines.GameTypeCoin {
-		rs.rmLock.Lock()
-		res.RoomId = 0
-		rand.Seed(time.Now().UnixNano() + int64(lastRoomId))
-		for i := 0; i < 50; i++ {
-			id := uint32(rand.Intn(89999999) + 10000000)
-			if _, ok := rs.rooms[id]; !ok {
-				res.RoomId = id
-				break
-			}
+	rs.rmLock.Lock()
+	res.RoomId = 0
+	rand.Seed(time.Now().UnixNano() + int64(lastRoomId))
+	for i := 0; i < 50; i++ {
+		id := uint32(rand.Intn(899999) + 100000)
+		if _, ok := rs.rooms[id]; !ok {
+			res.RoomId = id
+			break
 		}
-		lastRoomId = res.RoomId
-		rs.rooms[res.RoomId] = &room{ServerId: req.ServerId, Conf: req.Conf}
-		rs.rmLock.Unlock()
-	} else {
-		rs.rmLock.Lock()
-		res.RoomId = 0
-		rand.Seed(time.Now().UnixNano() + int64(lastRoomId))
-		for i := 0; i < 50; i++ {
-			id := uint32(rand.Intn(899999) + 100000)
-			if _, ok := rs.rooms[id]; !ok {
-				res.RoomId = id
-				break
-			}
-		}
-		lastRoomId = res.RoomId
-		rs.rooms[res.RoomId] = &room{ServerId: req.ServerId, Conf: req.Conf}
-		rs.rmLock.Unlock()
 	}
+	lastRoomId = res.RoomId
+	rs.rooms[res.RoomId] = &room{ServerId: req.ServerId, Conf: req.Conf, GameType: req.GameType}
+	rs.rmLock.Unlock()
 	return nil
 }
 

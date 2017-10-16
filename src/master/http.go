@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"rpcd"
 	"tools"
+	"statics"
 )
 
 type appInfo struct {
@@ -25,24 +26,26 @@ type appInfo struct {
 
 var wechatAppInfo = map[string]appInfo {
 	"Android": appInfo{
-		appid:"wxe39f08522d35c80c",
-		secret:"fa88e3a3ca5a11b06499902cea4b9c01",
+		appid:"wxcecf847deb08a631",
+		secret:"f8fe001c12e0306591ed130e56c35099",
 	},
 	"iOS": appInfo{
-		appid:"wxcb508816c5c4e2a4",
-		secret:"7de38489ede63089269e3410d5905038",
+		appid:"wx6a9e8db3c0e2a8cf",
+		secret:"e3a584ea5cf53a28a72c0f6f72b64dc4",
 	},
 }
 
 type http2Proxy struct {
+	ms 				*Master
 	httpAddr 		string
 	ln 				net.Listener
 	pub 			defines.IMsgPublisher
 	lbClient 		*rpcd.RpcdClient
 }
 
-func newHttpProxy() *http2Proxy {
+func newHttpProxy(ms *Master) *http2Proxy {
 	return &http2Proxy{
+		ms: ms,
 		httpAddr: defines.GlobalConfig.HttpHost,
 		pub: communicator.NewMessagePulisher(),
 	}
@@ -56,8 +59,15 @@ func (hp *http2Proxy) clientWechatLogin(code, device string) (string, string){
 		GrantType string	`json:"grant_type"`
 	}
 
-	request := "appid=" + "wxcecf847deb08a631" + "&"+
-				"secret=" + "f8fe001c12e0306591ed130e56c35099"+ "&" +
+	info, ok := wechatAppInfo[device]
+	if !ok {
+		return "", ""
+	}
+
+	fmt.Println("client wechat login ", code, device)
+
+	request := "appid=" + info.appid + "&"+
+				"secret=" + info.secret + "&" +
 				"code=" + code + "&" +
 				"grant_type=authorization_code"
 
@@ -92,6 +102,7 @@ func (hp *http2Proxy) clientWechatLogin(code, device string) (string, string){
 	return AccToken, OpenId
 }
 
+/*
 func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	//code := r.Form["code"]
@@ -138,6 +149,7 @@ func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 		})
 	})
 }
+*/
 
 func (hp *http2Proxy) notice(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
@@ -275,7 +287,7 @@ func (hp *http2Proxy) payNotify(w http.ResponseWriter, r *http.Request) {
 		hp.lbClient = rpcd.StartClient(tools.GetLobbyServiceHost())
 	}
 	var res proto.MsPayNotifyReply
-	hp.lbClient.Call("MallService.UserPayReturn", &proto.MsPayNotifyArg{Order: order}, &res)
+	hp.lbClient.Call("RemoteRpcService.UserPayReturn", &proto.MsPayNotifyArg{Order: order}, &res)
 
 	w.Write([]byte("success"))
 }
@@ -313,6 +325,32 @@ func (hp *http2Proxy) prepay(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(md5str1))
 }
 
+func (hp *http2Proxy) query(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	args := &statics.QueryArgs{}
+	args.Typo = r.Form["type"][0]
+
+	if args.Typo == "agentincome" {
+		args.AgentType = r.Form["agenttype"][0]
+		aid, _ := strconv.Atoi(r.Form["agentid"][0])
+		args.AgentId = uint32(aid)
+		args.StartDay = r.Form["startday"][0]
+		args.FinishDay = r.Form["finishday"][0]
+	} else if args.Typo == "statics" {
+		args.QueryDay = r.Form["date"][0]
+	} else {
+		w.Write([]byte("error"))
+		return
+	}
+
+	if ret, e := hp.ms.ss.Query(args); e != nil {
+		mylog.Debug("query error ", e.Error())
+		w.Write([]byte("error"))
+	} else {
+		w.Write(ret)
+	}
+}
+
 func (hp *http2Proxy) serve() {
 	hp.pub.Start()
 
@@ -324,9 +362,11 @@ func (hp *http2Proxy) serve() {
 	http.HandleFunc("/paynotify", hp.payNotify)
 	http.HandleFunc("/payreturn", hp.payReturn)
 
-	http.HandleFunc("/wechat", hp.wechatLogin)
+	//http.HandleFunc("/wechat", hp.wechatLogin)
 	http.HandleFunc("/notices", hp.notice)
 	http.HandleFunc("/clientList", hp.getGameModules)
+
+	http.HandleFunc("/staticsQuery", hp.query)
 
 	//http.HandleFunc("/download", hp.downloadFile)
 	http.Handle("/download/", http.StripPrefix("/download/", http.FileServer(http.Dir("file"))))

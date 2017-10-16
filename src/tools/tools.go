@@ -1,6 +1,10 @@
 package tools
 
-import "exportor/defines"
+import (
+	"exportor/defines"
+	"os"
+	"os/signal"
+)
 
 func SafeGo(fn func()) {
 	go fn()
@@ -34,6 +38,21 @@ func GetMasterServiceHost() string {
 	return defines.GlobalConfig.LocalIp + defines.GlobalConfig.MSservice
 }
 
+func FileExists(file string) bool {
+	if _, err := os.Stat(file); os.IsNotExist(err) {
+		return false
+	}
+	return true
+}
 
+func WaitForSignal() os.Signal {
+	signalChan := make(chan os.Signal, 1)
+	defer close(signalChan)
+
+	signal.Notify(signalChan, os.Kill, os.Interrupt)
+	s := <-signalChan
+	signal.Stop(signalChan)
+	return s
+}
 
 

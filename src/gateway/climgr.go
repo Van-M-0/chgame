@@ -7,6 +7,7 @@ import (
 	"msgpacker"
 	"time"
 	"mylog"
+	"fmt"
 )
 
 type cliManager struct {
@@ -73,6 +74,7 @@ func (mgr *cliManager) route2client(uids []uint32, cmd uint32, data []byte) {
 		if err := msgpacker.UnMarshal(data, &enterRes); err != nil {
 			return
 		}
+		fmt.Println("client enter room ret ", enterRes)
 		if enterRes.ErrCode == defines.ErrCommonSuccess {
 			mgr.Lock()
 			for _, uid := range uids {

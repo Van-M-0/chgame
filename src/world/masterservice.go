@@ -3,6 +3,7 @@ package world
 import (
 	"exportor/proto"
 	"sync"
+	"mylog"
 )
 
 type opens struct {
@@ -32,13 +33,14 @@ func NewMasterService(ws *World) *MasterService {
 }
 
 func (ms *MasterService) GetMasterId(req *proto.WsGetMasterIdArg, rep *proto.WsGetMasterIdReply) error {
-	rep.Id = ms.ws.getMasterId()
 	return nil
 }
 
 func (ms *MasterService) RegisterOpenList(req *proto.WsRegisterLibsArgs, rep *proto.WsRegisterLibsReply) error {
 	ms.lock.Lock()
 	defer ms.lock.Unlock()
+
+	mylog.Info("register GameLibItems ", req.Id, req.MasterIp, req.Items)
 
 	ms.libs[req.Id] = &ClusterGameLibs{
 		Id: req.Id,
@@ -65,4 +67,38 @@ func (ms *MasterService) getOpenList() map[string][]opens {
 	}
 
 	return rets
+}
+
+func (ms *MasterService) getMergedOpenList() map[string][]opens {
+	ms.lock.Lock()
+	defer ms.lock.Unlock()
+
+	rets := make(map[string][]opens)
+	for _, c := range ms.libs {
+		if len(c.Items) > 0 {
+			i := c.Items[0]
+			rets[i.Province] = append(rets[i.Province], opens{
+				Id: c.Id,
+				Ip: c.Ip,
+				ProvinceId:i.Pid,
+			})
+		}
+	}
+
+	return rets
+}
+
+func (ms *MasterService) getMasterIp(province, city, area string) string {
+	ms.lock.Lock()
+	defer ms.lock.Unlock()
+
+	for _, cluster := range ms.libs {
+		for _, lib := range cluster.Items {
+			if lib.Province == province && lib.City == city && lib.Area == area {
+				return cluster.Ip
+			}
+		}
+	}
+
+	return "null"
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"gopkg.in/vmihailenco/msgpack.v2"
 	"net"
 	"encoding/binary"
 	"io"
@@ -13,6 +12,7 @@ import (
 	"strconv"
 	"net/http"
 	"mylog"
+	"gopkg.in/vmihailenco/msgpack.v2"
 )
 /*
 func testpb() {
@@ -134,7 +134,49 @@ func test1() {
 	fmt.Println(data, err)
 }
 
+func timetest() {
+	TimeKeyFormat := "2006-01-02"
+	t := time.Now().Format(TimeKeyFormat)
+	fmt.Println("format time is ", t)
+
+	t2, e:= time.Parse(TimeKeyFormat, "2017-10-3")
+	ts := t2.Format(TimeKeyFormat)
+	fmt.Println("parse time is ", t2, ts, e)
+
+	fmt.Println("time comparation ", t > ts)
+
+
+}
+
+func closechantest() {
+	ch := make(chan bool)
+	close(ch)
+}
+
+func timeaddtest() {
+	i := "2006-01-02"
+	TimeKeyFormat := "2006-01-02"
+	t, _ := time.Parse(TimeKeyFormat, i)
+	t = t.Add(time.Duration(time.Hour) * 24)
+	i = t.Format(TimeKeyFormat)
+
+	fmt.Println("time i ", i)
+}
+
 func main() {
+
+	fmt.Println("xxxxxxxxxxxxxxxxx")
+
+	timeaddtest()
+
+	closechantest()
+	//timetest()
+
+
+
+	if true {
+		return
+	}
 
 	type AAATest struct {
 		a 		int

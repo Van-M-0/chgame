@@ -181,3 +181,9 @@ type T_ClubMember struct {
 	Userid 		uint32 		`gorm:"primary_key"`
 	Clubid	 	int 		`gorm:"index:acc_index;not null"`
 }
+
+type T_Agents struct {
+	Agent0		uint32		`gorm:"unique_index:idx_agent;not null"`
+	Agent1		uint32		`gorm:"unique_index:idx_agent;not null"`
+	Agent2		uint32		`gorm:"unique_index:idx_agent;not null"`
+}

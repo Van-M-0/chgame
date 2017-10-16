@@ -26,9 +26,8 @@ import (
 	"encoding/json"
 	"world"
 	"mylog"
+	"configs"
 )
-
-var workdir string
 
 var _gate_ defines.IServer
 func init() {
@@ -41,11 +40,11 @@ func init() {
 		panic(fmt.Errorf("get file path err %v", err).Error())
 	}
 	dir, _ := filepath.Split(path)
-	configFile := dir + "config"
+
+	defines.WorkDir = dir
+
+	configFile := dir + "config/config"
 	mylog.Debug("config file ", configFile)
-
-	workdir = dir
-
 	content, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		panic(fmt.Errorf("read file err %v", err).Error())
@@ -62,6 +61,8 @@ func init() {
 
 	fmt.Println("cfg ", file, defines.GlobalConfig)
 	mylog.Debug(defines.GlobalConfig)
+
+	configs.LoadConfigs(defines.WorkDir +"config/")
 }
 
 func startMaster() {
@@ -109,23 +110,12 @@ func startGame(moduels []defines.GameModule) {
 		}
 	}
 
-	checkMap := map[int]bool {}
-	for _, k := range defines.GlobalConfig.GameModules {
-		checkMap[k] = true
-	}
-
 	for _, m := range moduels {
-		if _, ok := checkMap[m.Type]; ok {
-			delete(checkMap, m.Type)
-		} else {
+		mod := configs.GetKindConfig(m.Type)
+		if mod == nil || mod.Enabled == false || m.GameType != mod.GameType {
 			mylog.Error("register moulde not match config game moudles")
 			return
 		}
-	}
-
-	for range checkMap {
-		mylog.Error("register moulde not match config game moudles")
-		return
 	}
 
 	game.NewGameServer(&defines.GameOption{
@@ -231,7 +221,7 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 			t.createAcc()
 		} else if loginRet.ErrCode == defines.ErrCommonSuccess{
 			mylog.Debug("user login ret______ ok ", loginRet)
-			t.createRoom()
+			//t.createRoom()
 
 			//t.sendCreateClub()
 			//t.joinClub()
@@ -350,7 +340,7 @@ func startClient() {
 	t.ITcpClient = c
 	mylog.Debug("connect  err ", err)
 
-	t.login("name_111xx")
+	t.login("name_111xx3242342")
 }
 
 func StartProgram(p string, data interface{}) {
@@ -361,7 +351,7 @@ func StartProgram(p string, data interface{}) {
 	//ts := time.Now().Format("20060102-150405")
 
 	//logdir := workdir + "log" + ts + "/"
-	logdir := workdir + "log" + "/"
+	logdir := defines.WorkDir + "log" + "/"
 	logfile := logdir + p + ".log"
 
 	/*
@@ -401,7 +391,7 @@ func StartProgram(p string, data interface{}) {
 		startWorld()
 	}
 
-	if p != "gate"  && p != "lobby" {
+	if p != "gate"  && p != "lobby" && p != "master"{
 		wg := new(sync.WaitGroup)
 		wg.Add(1)
 		wg.Wait()
