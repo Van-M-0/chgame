@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"mylog"
 	"gopkg.in/vmihailenco/msgpack.v2"
+	"sync"
+	"sync/atomic"
 )
 /*
 func testpb() {
@@ -163,9 +165,83 @@ func timeaddtest() {
 	fmt.Println("time i ", i)
 }
 
+func ticktest() {
+	t := time.NewTicker(time.Duration(time.Second * 3))
+
+	go func() {
+		for {
+			select {
+			case <-t.C:
+				fmt.Println("ticker comming")
+			}
+		}
+	}()
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	wg.Wait()
+}
+
+type roomTimerHandle struct {
+	id 		int
+	t 		*time.Timer
+	kill 	chan bool
+	stop	int32
+}
+
+func (h *roomTimerHandle) GetId() int {
+	return h.id
+}
+
+func timerTest() {
+
+	bcquit := make(chan bool)
+
+	fmt.Println("time set ", time.Now())
+	tm := time.NewTimer(time.Duration(300) * time.Millisecond * 10)
+	handle := &roomTimerHandle{
+		id:1,
+		t: tm,
+		kill: make(chan bool),
+	}
+
+	go func() {
+		select {
+		case <- bcquit:
+			fmt.Println("time quit")
+			return
+		case <- tm.C:
+			atomic.AddInt32(&handle.stop, 1)
+			fmt.Println("time coming ", time.Now())
+		case <- handle.kill:
+			fmt.Println("time kill")
+			atomic.AddInt32(&handle.stop, 1)
+			close(handle.kill)
+			return
+		}
+	}()
+
+	handle.kill <- true
+
+	fmt.Println("waiting")
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	wg.Wait()
+}
+
+
 func main() {
 
 	fmt.Println("xxxxxxxxxxxxxxxxx")
+
+	timerTest()
+
+	ticktest()
+
+	if true {
+		return
+	}
 
 	timeaddtest()
 

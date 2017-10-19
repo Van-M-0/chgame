@@ -529,7 +529,7 @@ func (rm *room) SetTimer(t uint32, data interface{}) defines.TimerHandle {
 			return
 		case <- tm.C:
 			atomic.AddInt32(&handle.stop, 1)
-			mylog.Debug("time coming ", id)
+			mylog.Debug("time coming ", id, data, time.Now())
 			rm.timeChan <- &timerNotify{
 				id: id,
 				data: data,

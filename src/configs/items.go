@@ -40,7 +40,6 @@ func readItemsConfig() {
 			GameKind: int(atoi(record[6])),
 			Description: record[7],
 		})
-		fmt.Println("record is ", configItemList[len(configItemList) - 1])
 	}
 }
 
