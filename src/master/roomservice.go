@@ -5,11 +5,13 @@ import (
 	"sync"
 	"time"
 	"math/rand"
+	"fmt"
 )
 
 type room struct {
 	ServerId 	int
 	Conf 		[]byte
+	GameType 	int
 }
 
 type RoomService struct {
@@ -36,7 +38,7 @@ func (rs *RoomService) CreateRoomId(req *proto.MsCreateoomIdArg, res *proto.MsCr
 		}
 	}
 	lastRoomId = res.RoomId
-	rs.rooms[res.RoomId] = &room{ServerId: req.ServerId, Conf: req.Conf}
+	rs.rooms[res.RoomId] = &room{ServerId: req.ServerId, Conf: req.Conf, GameType: req.GameType}
 	rs.rmLock.Unlock()
 	return nil
 }
@@ -46,10 +48,22 @@ func (rs *RoomService) ReleaseRoom(req *proto.MsReleaseRoomArg, res *proto.MsRel
 	res.ErrCode = "error"
 	if room, ok := rs.rooms[req.RoomId]; ok {
 		if room.ServerId == req.ServerId {
+			delete(rs.rooms, req.RoomId)
 			res.ErrCode = "ok"
 		}
 	}
 	rs.rmLock.Unlock()
+	return nil
+}
+
+func (rs *RoomService) SelectGameServer(req *proto.MsSelectGameServerArg, res *proto.MsSelectGameServerReply) error {
+	fmt.Println("room service . select game server", req)
+	ids := GameModService.getServerIds(req.Kind)
+	res.ServerId = -1
+	if len(ids) != 0 {
+		res.ServerId = ids[rand.Intn(len(ids))]
+	}
+	fmt.Println("room service . select game server", ids, res.ServerId)
 	return nil
 }
 
@@ -61,5 +75,28 @@ func (rs *RoomService) GetRoomServerId(req *proto.MsGetRoomServerIdArg, res *pro
 		res.Conf = ser.Conf
 	}
 	rs.rmLock.Unlock()
+	res.Alive = GameModService.alive(res.ServerId)
 	return nil
 }
+
+func (rs *RoomService) GetRoomKindServerId(req *proto.MsGetRoomKindIdArg, res *proto.MsGetRoomKindReply) error {
+	res.ErrCode = "error"
+	res.ServerId = -1
+	if req.Kind != 0 {
+		ids := GameModService.getServerIds(req.Kind)
+		if len(ids) > 0 {
+			res.ErrCode = "ok"
+			res.ServerId = rand.Intn(len(ids))
+		}
+	} else if req.RoomId != 0 {
+		rs.rmLock.Lock()
+		if s, ok := rs.rooms[uint32(req.RoomId)]; ok {
+			res.ErrCode = "ok"
+			res.ServerId = s.ServerId
+		}
+		rs.rmLock.Unlock()
+		res.Alive = GameModService.alive(res.ServerId)
+	}
+	return nil
+}
+

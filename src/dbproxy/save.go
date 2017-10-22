@@ -4,9 +4,9 @@ import (
 	"time"
 	"exportor/defines"
 	"cacher"
-	"fmt"
 	"runtime/debug"
 	"dbproxy/table"
+	"mylog"
 )
 
 type user_item_key struct {
@@ -39,10 +39,10 @@ func (ds *dataSaver) safeRoutine(fn func()) {
 	safeCall := func() {
 		defer func() {
 			if err := recover(); err != nil {
-				fmt.Println("------save data error------")
-				fmt.Println(err)
+				mylog.Debug("------save data error------")
+				mylog.Debug(err)
 				debug.PrintStack()
-				fmt.Println("--------------------------")
+				mylog.Debug("--------------------------")
 			}
 		}()
 		fn()
@@ -79,7 +79,7 @@ func (ds *dataSaver) start() {
 		}
 	}
 	ds.safeRoutine(func() {
-		timeoutFn(1, ds.collect)
+		timeoutFn(2, ds.collect)
 	})
 	ds.safeRoutine(ds.save)
 }
@@ -90,12 +90,11 @@ func (ds *dataSaver) stop() {
 
 func (ds *dataSaver) collect() {
 	getUsers := func() {
-		users, err := ds.cc.GetAllUsers()
-		fmt.Println("collect users", err, users)
+		users, _ := ds.cc.GetAllUsers()
 		if users != nil {
 			l := []*table.T_Users{}
 			for _, user := range users {
-				fmt.Println("collect users", *user)
+				//mylog.Debug("collect users", *user)
 				l = append(l, &table.T_Users{
 					Userid: uint32(user.Uid),
 					Account: user.Account,
@@ -186,7 +185,7 @@ func (ds *dataSaver) save() {
 					}
 				}
 			default:
-				fmt.Println("no handler data ", d)
+				mylog.Debug("no handler data ", d)
 			}
 		}
 	}

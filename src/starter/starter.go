@@ -24,10 +24,12 @@ import (
 	"path/filepath"
 	"io/ioutil"
 	"encoding/json"
+	"world"
+	"mylog"
+	"configs"
 )
 
-var cfg defines.StartConfigFile
-
+var _gate_ defines.IServer
 func init() {
 	file, err := exec.LookPath(os.Args[0])
 	if err != nil {
@@ -38,82 +40,96 @@ func init() {
 		panic(fmt.Errorf("get file path err %v", err).Error())
 	}
 	dir, _ := filepath.Split(path)
-	configFile := dir + "config"
-	fmt.Println("config file ", configFile)
 
+	defines.WorkDir = dir
+
+	configFile := dir + "config/config"
+	mylog.Debug("config file ", configFile)
 	content, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		panic(fmt.Errorf("read file err %v", err).Error())
 	}
 
-	if err := json.Unmarshal(content, &cfg); err != nil {
+	if err := json.Unmarshal(content, &defines.GlobalConfig); err != nil {
 		panic(fmt.Errorf("config file invalid err %v", err).Error())
 	}
 
-	defines.WDServicePort = cfg.WorldHost
+	defines.WDServicePort = defines.GlobalConfig.WorldService
+	defines.MSServicePort = defines.GlobalConfig.MSservice
+	defines.DBSerivcePort = defines.GlobalConfig.DBService
+	defines.LbServicePort = defines.GlobalConfig.LobbyService
 
-	fmt.Println(cfg)
+	fmt.Println("cfg ", file, defines.GlobalConfig)
+	mylog.Debug(defines.GlobalConfig)
+
+	configs.LoadConfigs(defines.WorkDir +"config/")
 }
 
 func startMaster() {
-	master.NewMasterServer(&cfg).Start()
+	master.NewMasterServer().Start()
+}
+
+func startWorld() {
+	world.NewWorldServer().Start()
 }
 
 func startGate() {
-	gateway.NewGateServer(&defines.GatewayOption{
-		FrontHost: cfg.FrontHost,
-		BackHost: cfg.BackendHost,
+	_gate_ = gateway.NewGateServer(&defines.GatewayOption{
+		FrontHost: defines.GlobalConfig.FrontHost,
+		BackHost: defines.GlobalConfig.BackendHost,
 		MaxClient: 100,
-	}).Start()
+	})
+	_gate_.Start()
+}
+
+func StopGate() {
+	_gate_.Stop()
 }
 
 func startLobby() {
 	lobby.NewLobby(&defines.LobbyOption{
-		GwHost: cfg.BackendHost,
+		GwHost: defines.GlobalConfig.BackendHost,
 	}).Start()
 }
 
 func startGame(moduels []defines.GameModule) {
-	fmt.Println("start game server")
+	mylog.Debug("start game server")
 
 	for _, m := range moduels {
 		if m.Creator == nil || m.Releaser == nil {
-			fmt.Println("game ctor/dtor is nil", m.Type)
+			mylog.Error("game ctor/dtor is nil", m.Type)
 			return
 		}
 		if m.PlayerCount == 0 {
-			fmt.Println("game moudle player count == 0 ", m.Type)
+			mylog.Error("game moudle player count == 0 ", m.Type)
 			return
 		}
-	}
-
-	checkMap := map[int]bool {}
-	for _, k := range cfg.GameModules {
-		checkMap[k] = true
+		if m.GameType == defines.GameTypeInvalid {
+			mylog.Error("must specify game type(GameModule.GameType)")
+			return
+		}
 	}
 
 	for _, m := range moduels {
-		if _, ok := checkMap[m.Type]; ok {
-			delete(checkMap, m.Type)
-		} else {
-			fmt.Println("register moulde not match config game moudles")
+		mod := configs.GetKindConfig(m.Type)
+		if mod == nil || mod.Enabled == false || m.GameType != mod.GameType {
+			mylog.Error("register moulde not match config game moudles")
 			return
 		}
 	}
 
-	for range checkMap {
-		fmt.Println("register moulde not match config game moudles")
-		return
-	}
-
 	game.NewGameServer(&defines.GameOption{
-		GwHost: cfg.BackendHost,
+		GwHost: defines.GlobalConfig.BackendHost,
 		Moudles: moduels,
 	}).Start()
 }
 
 func startDbProxy() {
-	dbproxy.NewDbProxy().Start()
+	dbproxy.NewDbProxy(&defines.DbProxyOption{
+		Name: defines.GlobalConfig.DbName,
+		User: defines.GlobalConfig.DbUser,
+		Pwd: defines.GlobalConfig.DbPwd,
+	}).Start()
 }
 
 func startCommunicator() {
@@ -125,6 +141,7 @@ type tclient struct {
 }
 
 func (t *tclient) login(acc string) {
+	mylog.Debug("login .....")
 	t.Send(proto.CmdClientLogin, &proto.ClientLogin{
 		Account: acc,
 	})
@@ -167,47 +184,73 @@ func (t *tclient) sendReady() {
 	})
 }
 
+func (t *tclient) leaveRoom(room uint32) {
+	t.Send(proto.CmdGamePlayerLeaveRoom, &proto.PlayerLeaveRoom{
+		RoomId: room,
+	})
+}
+
+func (t *tclient) joinClub() {
+	t.Send(proto.CmdUserJoinClub, &proto.ClientJoinClub{
+		ClubId: 897885,
+	})
+}
+
+func (t *tclient) leaveClub() {
+	t.Send(proto.CmdUserLeaveClub, &proto.ClientLeaveClub{
+		ClubId: 897885,
+	})
+}
+
+func (t *tclient) sendCreateClub() {
+	t.Send(proto.CmdUserCreatClub, &proto.ClientCreateClub{})
+}
+
 func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 	if message.Cmd == proto.CmdClientLogin {
 		var loginRet proto.ClientLoginRet
 		var origin []byte
 		err := msgpacker.UnMarshal(message.Msg, &origin)
-		fmt.Println("origin ", origin)
+		mylog.Debug("origin ", origin)
 		msgpacker.UnMarshal(origin, &loginRet)
-		fmt.Println("recv message ", loginRet, err)
+		mylog.Debug("recv message ", loginRet, err)
 
-		fmt.Println("__________login ret _______", loginRet.ErrCode)
+		mylog.Debug("__________login ret _______", loginRet.ErrCode)
 
 		if loginRet.ErrCode == defines.ErrClientLoginNeedCreate {
 			t.createAcc()
 		} else if loginRet.ErrCode == defines.ErrCommonSuccess{
-			fmt.Println("user login ret______ ok ", loginRet)
-			t.createRoom()
+			mylog.Debug("user login ret______ ok ", loginRet)
+			//t.createRoom()
+
+			//t.sendCreateClub()
+			//t.joinClub()
+			//t.leaveClub()
 		} else {
-			fmt.Println("__________login ret _______", loginRet.ErrCode)
+			mylog.Debug("__________login ret _______", loginRet.ErrCode)
 		}
 
 	} else if message.Cmd == proto.CmdCreateAccount {
 		var account proto.CreateAccountRet
 		var origin []byte
 		err := msgpacker.UnMarshal(message.Msg, &origin)
-		fmt.Println("origin ", origin)
+		mylog.Debug("origin ", origin)
 		msgpacker.UnMarshal(origin, &account)
-		fmt.Println("recv message ", account, err)
+		mylog.Debug("recv message ", account, err)
 
 		if account.ErrCode == defines.ErrCommonSuccess {
 			t.login(account.Account)
 		} else {
-			fmt.Println("create account error ", account)
+			mylog.Debug("create account error ", account)
 		}
 
 	} else if message.Cmd == proto.CmdGamePlayerLogin {
 		var ret proto.PlayerLoginRet
 		var origin []byte
 		err := msgpacker.UnMarshal(message.Msg, &origin)
-		fmt.Println("origin ", origin)
+		mylog.Debug("origin ", origin)
 		msgpacker.UnMarshal(origin, &ret)
-		fmt.Println("login ret message ", ret, err)
+		mylog.Debug("login ret message ", ret, err)
 
 		if ret.ErrCode == defines.ErrPlayerLoginSuccess {
 			t.createRoom()
@@ -216,9 +259,9 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 		var ret proto.PlayerCreateRoomRet
 		var origin []byte
 		err := msgpacker.UnMarshal(message.Msg, &origin)
-		fmt.Println("origin ", origin)
+		mylog.Debug("origin ", origin)
 		msgpacker.UnMarshal(origin, &ret)
-		fmt.Println("create room ret message ", ret, err)
+		mylog.Debug("create room ret message ", ret, err)
 
 		if ret.ErrCode == defines.ErrCommonSuccess {
 			t.enterRoom(ret.RoomId, 0)
@@ -230,16 +273,45 @@ func (t *tclient) msgcb(client defines.ITcpClient, message *proto.Message) {
 		var ret proto.PlayerEnterRoomRet
 		var origin []byte
 		err := msgpacker.UnMarshal(message.Msg, &origin)
-		fmt.Println("origin ", origin)
+		mylog.Debug("origin ", origin)
 		msgpacker.UnMarshal(origin, &ret)
-		fmt.Println("enter room ret message ", ret, err)
+		mylog.Debug("enter room ret message ", ret, err)
 
 		if ret.ErrCode == defines.ErrCommonSuccess {
-			fmt.Println("send user ready message")
-			t.sendReady()
+			mylog.Debug("send user ready message")
 		} else if ret.ErrCode == defines.ErrEnterRoomQueryConf {
 			t.enterRoom(lastRoomId, uint32(ret.ServerId))
 		}
+	} else if message.Cmd == proto.CmdUserCreatClub {
+		var ret proto.ClientCreateClubRet
+		var origin []byte
+		err := msgpacker.UnMarshal(message.Msg, &origin)
+		msgpacker.UnMarshal(origin, &ret)
+		mylog.Debug("create club ", ret, err)
+	} else if message.Cmd == proto.CmdBaseSynceClubInfo {
+		var ret proto.SyncClubInfo
+		var origin []byte
+		msgpacker.UnMarshal(message.Msg, &origin)
+		msgpacker.UnMarshal(origin, &ret)
+		mylog.Debug("club info ", ret)
+	} else if message.Cmd == proto.CmdUserJoinClub {
+		var ret proto.ClientJoinClubRet
+		var origin []byte
+		msgpacker.UnMarshal(message.Msg, &origin)
+		msgpacker.UnMarshal(origin, &ret)
+		mylog.Debug("join club ", ret)
+	} else if message.Cmd == proto.CmdUserLeaveClub {
+		var ret proto.ClientLeaveClubRet
+		var origin []byte
+		msgpacker.UnMarshal(message.Msg, &origin)
+		msgpacker.UnMarshal(origin, &ret)
+		mylog.Debug("leave club ", ret)
+	} else if message.Cmd == proto.CmdGamePlayerLeaveRoom {
+		var ret proto.PlayerLeaveRoomRet
+		var origin []byte
+		msgpacker.UnMarshal(message.Msg, &origin)
+		msgpacker.UnMarshal(origin, &ret)
+		mylog.Debug("leave room", ret)
 	}
 }
 
@@ -248,7 +320,8 @@ func startClient() {
 	var t tclient
 
 	c := network.NewTcpClient(&defines.NetClientOption{
-		Host: "192.168.1.121:9890",
+		SendChSize: 10,
+		Host: "192.168.1.122:9890",
 		ConnectCb: func(client defines.ITcpClient) error {
 			return nil
 		},
@@ -263,16 +336,42 @@ func startClient() {
 		},
 	})
 
-	c.Connect()
+	err := c.Connect()
 	t.ITcpClient = c
+	mylog.Debug("connect  err ", err)
 
-	t.login("name_9431023")
+	t.login("name_111xx3242342")
 }
 
 func StartProgram(p string, data interface{}) {
-	fmt.Println("stgart progoram ", p, data, runtime.NumCPU())
+	mylog.Debug("stgart progoram ", p, data, runtime.NumCPU())
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	//ts := time.Now().Format("20060102-150405")
+
+	//logdir := workdir + "log" + ts + "/"
+	logdir := defines.WorkDir + "log" + "/"
+	logfile := logdir + p + ".log"
+
+	/*
+	if err := os.Mkdir(logdir, os.ModePerm); err != nil {
+		fmt.Println("create dir failed ", logdir)
+	}
+	*/
+
+	file, err := os.OpenFile(logfile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	fmt.Println("open file ", file, logfile)
+	if err == nil {
+		mylog.SetOutput(file)
+		mylog.SetLevel(mylog.DebugLevel)
+		mylog.SetFormatter(new(mylog.GameFormatter))
+	} else {
+	 	fmt.Println("Failed to log to file, using default stderr", err)
+		return
+	}
+
+	mylog.Infoln("start programa")
 
 	if p == "client" {
 		startClient()
@@ -288,9 +387,13 @@ func StartProgram(p string, data interface{}) {
 		startGame(data.([]defines.GameModule))
 	} else if p == "master" {
 		startMaster()
+	} else if p == "world" {
+		startWorld()
 	}
 
-	wg := new(sync.WaitGroup)
-	wg.Add(1)
-	wg.Wait()
+	if p != "gate"  && p != "lobby" && p != "master"{
+		wg := new(sync.WaitGroup)
+		wg.Add(1)
+		wg.Wait()
+	}
 }

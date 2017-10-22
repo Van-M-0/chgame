@@ -2,13 +2,21 @@ package master
 
 import (
 	"encoding/json"
-	"fmt"
 	"exportor/defines"
 	"exportor/proto"
 	"net/http"
 	"net"
 	"communicator"
 	"io/ioutil"
+	"os"
+	"mylog"
+	"strings"
+	"crypto/md5"
+	"fmt"
+	"strconv"
+	"rpcd"
+	"tools"
+	"statics"
 )
 
 type appInfo struct {
@@ -18,24 +26,27 @@ type appInfo struct {
 
 var wechatAppInfo = map[string]appInfo {
 	"Android": appInfo{
-		appid:"wxe39f08522d35c80c",
-		secret:"fa88e3a3ca5a11b06499902cea4b9c01",
+		appid:"wxcecf847deb08a631",
+		secret:"f8fe001c12e0306591ed130e56c35099",
 	},
 	"iOS": appInfo{
-		appid:"wxcb508816c5c4e2a4",
-		secret:"7de38489ede63089269e3410d5905038",
+		appid:"wx6a9e8db3c0e2a8cf",
+		secret:"e3a584ea5cf53a28a72c0f6f72b64dc4",
 	},
 }
 
 type http2Proxy struct {
+	ms 				*Master
 	httpAddr 		string
 	ln 				net.Listener
 	pub 			defines.IMsgPublisher
+	lbClient 		*rpcd.RpcdClient
 }
 
-func newHttpProxy(addr string) *http2Proxy {
+func newHttpProxy(ms *Master) *http2Proxy {
 	return &http2Proxy{
-		httpAddr: addr,
+		ms: ms,
+		httpAddr: defines.GlobalConfig.HttpHost,
 		pub: communicator.NewMessagePulisher(),
 	}
 }
@@ -48,8 +59,15 @@ func (hp *http2Proxy) clientWechatLogin(code, device string) (string, string){
 		GrantType string	`json:"grant_type"`
 	}
 
-	request := "appid=" + "wx85469eaffc224f1b" + "&"+
-				"secret=" + "76c8d4ba5c7b27820f6da88d712d21fd" + "&" +
+	info, ok := wechatAppInfo[device]
+	if !ok {
+		return "", ""
+	}
+
+	fmt.Println("client wechat login ", code, device)
+
+	request := "appid=" + info.appid + "&"+
+				"secret=" + info.secret + "&" +
 				"code=" + code + "&" +
 				"grant_type=authorization_code"
 
@@ -74,16 +92,17 @@ func (hp *http2Proxy) clientWechatLogin(code, device string) (string, string){
 			AccToken = r.AccToken
 			OpenId = r.OpenId
 		} else {
-			fmt.Println("wechatlogin error")
-			fmt.Println(request)
-			fmt.Println(d)
-			fmt.Println(err)
+			mylog.Debug("wechatlogin error")
+			mylog.Debug(request)
+			mylog.Debug(d)
+			mylog.Debug(err)
 		}
 	})
 
 	return AccToken, OpenId
 }
 
+/*
 func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	//code := r.Form["code"]
@@ -105,7 +124,7 @@ func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 		GrantType: "authorization_code",
 	})
 	if err != nil {
-		fmt.Println("json.marshal access error ")
+		mylog.Debug("json.marshal access error ")
 		return
 	}
 
@@ -122,7 +141,7 @@ func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 			Openid: openid,
 		})
 		if err != nil {
-			fmt.Println("get state marshal errr", err)
+			mylog.Debug("get state marshal errr", err)
 			return
 		}
 		hp.get2("https://api.weixin.qq.com/sns/userinfo", string(d), true, func(suc bool, data interface{}) {
@@ -130,24 +149,24 @@ func (hp *http2Proxy) wechatLogin(w http.ResponseWriter, r *http.Request) {
 		})
 	})
 }
+*/
 
 func (hp *http2Proxy) notice(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("notices visited")
 	r.ParseForm()
 	v := r.Form["a"]
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		fmt.Println("read notice err ", err)
+		mylog.Debug("read notice err ", err)
 		return
 	}
-	fmt.Println(v[0], body, err)
+	mylog.Debug(v[0], body, err)
 
 	type notice struct {
 		Content 	string
 	}
 	var n notice
 	if err := json.Unmarshal([]byte(v[0]), &n); err != nil {
-		fmt.Println("unmarshal data error ", err)
+		mylog.Debug("unmarshal data error ", err)
 		return
 	}
 
@@ -157,19 +176,24 @@ func (hp *http2Proxy) notice(w http.ResponseWriter, r *http.Request) {
 }
 
 func (hp *http2Proxy) getGameModules(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("game moudles visited")
+	mylog.Debug("game moudles visited", r)
 	r.ParseForm()
-	v := r.Form["province"]
+	v := r.Form["pid"]
 
 	type clientModReply struct {
 		ErrCode 	string
+		PayNotify 	string
 		List 		[]proto.ModuleInfo
 	}
 
-	rep := clientModReply{ErrCode:"ok"}
+	rep := clientModReply{ErrCode:"ok", PayNotify: tools.GetPayNotifyHost()}
 	if GameModService != nil {
 		rep.ErrCode = "ok"
-		l := GameModService.getModuleList(v[0])
+		provinceId, _ := strconv.Atoi(v[0])
+		l := GameModService.getModuleList(provinceId)
+		if l == nil {
+			rep.ErrCode = "iderror"
+		}
 		rep.List = l
 	}
 
@@ -186,10 +210,10 @@ func (hp *http2Proxy) getGameModules(w http.ResponseWriter, r *http.Request) {
 	*/
 
 
-	fmt.Println("rep >", rep, GameModService != nil)
+	mylog.Debug("rep >", rep, GameModService != nil)
 
 	data, err := json.Marshal(rep)
-	fmt.Println("data", data)
+	mylog.Debug("data", data, string(data))
 	if err != nil {
 		w.Write([]byte(`{"ErrCode":"error"}`))
 	} else {
@@ -213,33 +237,145 @@ func (hp *http2Proxy) getOpenList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data, err := json.Marshal(rep)
-	fmt.Println("data", data)
+	mylog.Debug("data", data)
 	if err != nil {
 		w.Write([]byte(`{"ErrCode":"error"}`))
 	} else {
 		w.Write(data)
 	}
 
-	fmt.Println("rep >", rep, GameModService != nil)
+	mylog.Debug("rep >", rep, GameModService != nil)
+}
+
+func (hp *http2Proxy) downloadFile(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	v := r.Form["file"]
+	mylog.Debug("downlaod file", v[0])
+
+
+	file := "./file/"+v[0]
+	if _, err := os.Stat(file); err != nil {
+		mylog.Debug("stat file ", err, os.IsNotExist(err))
+		mylog.Debug("file not exists")
+		w.WriteHeader(403)
+	} else {
+		w.Header().Set("Content-Disposition", "attachment; filename=" + v[0])
+		w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
+		http.ServeFile(w, r, file)
+	}
+}
+
+var PayRemoteIp = map[string]bool {
+	"47.93.0.230":true,
+	"47.94.174.165":true,
+	"123.56.31.112":true,
+	"47.94.128.179":true,
+}
+
+func (hp *http2Proxy) payNotify(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	vals := strings.Split(r.RemoteAddr, ":")
+	if !(len(vals) > 0 && PayRemoteIp[vals[0]]) {
+		mylog.Debug("remote ip error", r.RemoteAddr)
+		w.Write([]byte("remote ip error "+r.RemoteAddr))
+		return
+	}
+	order := r.PostForm["p2_order"][0]
+	mylog.Info("order notify ", order)
+
+	if hp.lbClient == nil {
+		hp.lbClient = rpcd.StartClient(tools.GetLobbyServiceHost())
+	}
+	var res proto.MsPayNotifyReply
+	hp.lbClient.Call("RemoteRpcService.UserPayReturn", &proto.MsPayNotifyArg{Order: order}, &res)
+
+	w.Write([]byte("success"))
+}
+
+func (hp *http2Proxy) payReturn(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	mylog.Debug("--------------------------return------------------1")
+	mylog.Debug(r.Form)
+	mylog.Debug(r.PostForm)
+	mylog.Debug("--------------------------return------------------1")
+}
+
+func (hp *http2Proxy) prepay(w http.ResponseWriter, r *http.Request) {
+	val := r.Form["request"][0]
+	type prereq struct {
+		ClusterId 	string
+		UserId 		int
+		Name 		string
+		GoodId		int
+		Price 		int
+	}
+
+	req := &prereq{}
+	if err := json.Unmarshal([]byte(val), req); err != nil {
+		mylog.Debug("prereq error", val)
+		w.WriteHeader(403)
+		return
+	}
+
+	data := []byte(val)
+	has := md5.Sum(data)
+	md5str1 := fmt.Sprintf("%x", has) //将[]byte转成16进制
+	fmt.Println("client req", md5str1)
+
+	w.Write([]byte(md5str1))
+}
+
+func (hp *http2Proxy) query(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	args := &statics.QueryArgs{}
+	args.Typo = r.Form["type"][0]
+
+	if args.Typo == "agentincome" {
+		args.AgentType = r.Form["agenttype"][0]
+		aid, _ := strconv.Atoi(r.Form["agentid"][0])
+		args.AgentId = uint32(aid)
+		args.StartDay = r.Form["startday"][0]
+		args.FinishDay = r.Form["finishday"][0]
+	} else if args.Typo == "statics" {
+		args.QueryDay = r.Form["date"][0]
+	} else {
+		w.Write([]byte("error"))
+		return
+	}
+
+	if ret, e := hp.ms.ss.Query(args); e != nil {
+		mylog.Debug("query error ", e.Error())
+		w.Write([]byte("error"))
+	} else {
+		w.Write(ret)
+	}
 }
 
 func (hp *http2Proxy) serve() {
 	hp.pub.Start()
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("index visited")
+		mylog.Debug("index visited")
 	})
-	http.HandleFunc("/wechat", hp.wechatLogin)
+
+	http.HandleFunc("/prepay", hp.prepay)
+	http.HandleFunc("/paynotify", hp.payNotify)
+	http.HandleFunc("/payreturn", hp.payReturn)
+
+	//http.HandleFunc("/wechat", hp.wechatLogin)
 	http.HandleFunc("/notices", hp.notice)
 	http.HandleFunc("/clientList", hp.getGameModules)
-	http.HandleFunc("/OpenList", hp.getOpenList)
 
-	fmt.Println("http server start...", hp.httpAddr)
+	http.HandleFunc("/staticsQuery", hp.query)
+
+	//http.HandleFunc("/download", hp.downloadFile)
+	http.Handle("/download/", http.StripPrefix("/download/", http.FileServer(http.Dir("file"))))
+	mylog.Debug("http server start...", hp.httpAddr)
 
 	if err := http.ListenAndServe(hp.httpAddr, nil); err != nil {
 		panic("listen http error " + hp.httpAddr + err.Error())
 	} else {
-		fmt.Println("http server listen port", hp.httpAddr)
+		mylog.Debug("http server listen port", hp.httpAddr)
 	}
 }
 
@@ -253,7 +389,7 @@ func (hp *http2Proxy) get2(url string, content string, bHttps bool, cb func(bool
 
 	if res.StatusCode == 200 {
 		body, _ := ioutil.ReadAll(res.Body)
-		fmt.Println("get ", request, res, err, string(body))
+		mylog.Debug("get ", request, res, err, string(body))
 		cb(true, body)
 	} else {
 		cb(false, nil)

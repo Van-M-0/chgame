@@ -2,8 +2,8 @@ package lobby
 
 import (
 	"sync"
-	"fmt"
 	"runtime/debug"
+	"mylog"
 )
 
 type handlerFunc func()
@@ -26,7 +26,7 @@ type userProcessorManager struct {
 func newUserProcessorMgr() *userProcessorManager {
 	upm := &userProcessorManager{}
 	upm.wg = new(sync.WaitGroup)
-	upm.size = 255
+	upm.size = 1024
 	upm.processor = make([]chan *handlerTask, upm.size)
 	for i := 0; i < upm.size; i++ {
 		upm.processor[i] = make(chan *handlerTask, 10)
@@ -37,7 +37,7 @@ func newUserProcessorMgr() *userProcessorManager {
 func (upm *userProcessorManager) call(req handlerFunc) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("user process recover, exception stack")
+			mylog.Debug("user process recover, exception stack")
 			debug.PrintStack()
 		}
 	}()
@@ -54,7 +54,7 @@ func (upm *userProcessorManager) Start() error {
 			for {
 				task := <- upm.processor[index]
 				if task.req != nil {
-					task.req()
+					upm.call(task.req)
 				} else if task.quit == true {
 					return
 				}

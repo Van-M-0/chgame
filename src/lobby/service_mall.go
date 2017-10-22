@@ -3,35 +3,56 @@ package lobby
 import (
 	"exportor/defines"
 	"exportor/proto"
-	"fmt"
 	"sync"
+	"time"
+	"strconv"
+	"crypto/md5"
+	"fmt"
+	"mylog"
+	"configs"
 )
 
-type mallService struct {
+type orderKey struct {
+	order 		string
+}
+
+type orderVal struct {
+	user 		uint32
+	uid 		uint32
+	acc 		string
+	item 		int
+	tm	 		time.Time
+}
+
+type MallService struct {
 	lb 			*lobby
 	itemsLock 	sync.RWMutex
 
 	ItemConfigList []proto.ItemConfig
 	ItemAreaList   []proto.ItemArea
+
+	orderLock 	sync.RWMutex
+	orders 		map[orderKey]orderVal
 }
 
-func newMallService(lb *lobby) *mallService {
-	ms := &mallService{}
+func newMallService(lb *lobby) *MallService {
+	ms := &MallService{}
 	ms.lb = lb
+	ms.orders = make(map[orderKey]orderVal)
 	return ms
 }
 
-func (ms *mallService) start() {
-	var r proto.MsLoadItemConfigReply
-	ms.lb.dbClient.Call("DBService.LoadItemConfig", &proto.MsLoadItemConfigReply{}, &r)
-	ms.itemsLock.Lock()
-	ms.ItemConfigList = r.ItemConfigList
-	ms.itemsLock.Unlock()
+func (ms *MallService) start() {
+	//var r proto.MsLoadItemConfigReply
+	//ms.lb.dbClient.Call("DBService.LoadItemConfig", &proto.MsLoadItemConfigReply{}, &r)
+	//ms.itemsLock.Lock()
+	ms.ItemConfigList = configs.GetItemsConfig()
+	//ms.itemsLock.Unlock()
 
-	fmt.Println("local item config", r)
+	//mylog.Debug("local item config", r)
 }
 
-func (ms *mallService) onUserLoadMalls(uid uint32, req *proto.ClientLoadMallList) {
+func (ms *MallService) onUserLoadMalls(uid uint32, req *proto.ClientLoadMallList) {
 	l := []proto.MallItem{}
 	ms.itemsLock.Lock()
 	for _, item := range ms.ItemConfigList {
@@ -53,10 +74,20 @@ func (ms *mallService) onUserLoadMalls(uid uint32, req *proto.ClientLoadMallList
 	})
 }
 
-func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
-	var item proto.ItemConfig
+func (ms *MallService) getItem(itemid int) proto.ItemConfig {
+	ms.itemsLock.Lock()
+	defer ms.itemsLock.Unlock()
+	for _, i := range ms.ItemConfigList {
+		if int(i.Itemid) == itemid{
+			return i
+		}
+	}
+	return proto.ItemConfig{}
+}
+
+func (ms *MallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 	user := ms.lb.userMgr.getUser(uid)
-	fmt.Println("user buy", user)
+	//mylog.Debug("user buy", user)
 
 	if user == nil {
 		ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
@@ -65,22 +96,14 @@ func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 		return
 	}
 
-	if req.Item	< 0 {
+	if req.Item	< 0 || req.Num <= 0 {
 		ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
 			ErrCode: defines.ErrClientBuyInvalid,
 		})
 		return
 	}
 
-	ms.itemsLock.Lock()
-	for _, i := range ms.ItemConfigList {
-		if int(i.Itemid) == req.Item {
-			item = i
-			break
-		}
-	}
-	ms.itemsLock.Unlock()
-
+	item := ms.getItem(req.Item)
 	if item.Itemid == 0 {
 		ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
 			ErrCode: defines.ErrClientBuyItemNotExists,
@@ -88,27 +111,176 @@ func (ms *mallService) OnUserBy(uid uint32, req *proto.ClientBuyReq) {
 		return
 	}
 
+	if item.Category == defines.MallItemCategoryGold || item.Category == defines.MallItemCategoryItem {
+
+		buyNum := 0
+		needDiamond := 0
+		if item.Category == defines.MallItemCategoryItem {
+			buyNum = req.Num
+			needDiamond = req.Num * 1
+		} else if item.Category == defines.MallItemCategoryGold {
+			buyNum = req.Num
+			needDiamond = buyNum / 100
+		}
+
+		if needDiamond > user.diamond {
+			ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
+				ErrCode: defines.ErrClientBuyItemMoneyNotEnough,
+			})
+			return
+		} else if ms.lb.userMgr.updateUserProp(user, defines.PpDiamond, int(-needDiamond)) == false {
+			ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
+				ErrCode: defines.ErrClientBuyConsumeErr,
+			})
+			return
+		}
+	}
+
 	if item.Category == defines.MallItemCategoryGold {
-		ms.lb.userMgr.updateUserProp(user, defines.PpGold, item.Nums)
+		ms.lb.userMgr.updateUserProp(user, defines.PpGold, int64(req.Num))
 	} else if item.Category == defines.MallItemCategoryDiamond {
 		ms.lb.userMgr.updateUserProp(user, defines.PpDiamond, item.Nums)
 	} else if item.Category == defines.MallItemCategoryItem {
-		ms.lb.userMgr.updateUserItem(user, item.Itemid, item.Nums)
+		ms.lb.userMgr.updateUserItem(user, item.Itemid, req.Num)
 	}
 
-	fmt.Println("client buy item success ", item)
+	//mylog.Debug("client buy item success ", item)
 
 	ms.lb.send2player(uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
 		ErrCode: defines.ErrCommonSuccess,
+		Item: req.Item,
 	})
 }
 
-func (ms *mallService) GetItemConfig(itemid []int) []proto.ItemConfig {
+func (ms *MallService) getOrder(tm time.Time, user uint32, uid uint32,item int) string {
+	seed := strconv.FormatInt(tm.Unix(), 10) + strconv.FormatUint(uint64(user * uid * uint32(item)), 10)
+	has := md5.Sum([]byte(seed))
+	return fmt.Sprintf("%x", has)
+}
+
+func (ms *MallService) OnUserPreyInfo(uid uint32, req *proto.UserPrepay) {
+	user := ms.lb.userMgr.getUser(uid)
+
+	if user == nil {
+		ms.lb.send2player(uid, proto.CmdUserPreayInfo, &proto.UserPrepayRet{
+			ErrCode: defines.ErrComononUserNotIn,
+		})
+		return
+	}
+
+	if req.Item	< 0 {
+		ms.lb.send2player(uid, proto.CmdUserPreayInfo, &proto.UserPrepayRet{
+			ErrCode: defines.ErrClientBuyInvalid,
+		})
+		return
+	}
+
+	item := ms.getItem(req.Item)
+	if item.Itemid == 0 {
+		ms.lb.send2player(uid, proto.CmdUserPreayInfo, &proto.UserPrepayRet{
+			ErrCode: defines.ErrClientBuyItemNotExists,
+		})
+		return
+	}
+
+	if item.Category != defines.MallItemCategoryDiamond {
+		ms.lb.send2player(uid, proto.CmdUserPreayInfo, &proto.UserPrepayRet{
+			ErrCode: defines.ErrClientBuyInvalid,
+		})
+		return
+	}
+
+	if item.Buyvalue != req.Price {
+		ms.lb.send2player(uid, proto.CmdUserPreayInfo, &proto.UserPrepayRet{
+			ErrCode: defines.ErrClientBuyItemMoneyNotEnough,
+		})
+		return
+	}
+
+	tm := time.Now()
+	order := ms.getOrder(tm, user.userId, user.uid, req.Item)
+
+	ms.orderLock.Lock()
+	ms.orders[orderKey{
+		order: order,
+	}]	= orderVal{
+		user: user.userId,
+		uid: user.uid,
+		acc: user.account,
+		item: req.Item,
+		tm: tm,
+	}
+	ms.orderLock.Unlock()
+
+	mylog.Info("create order ", tm, order, ms.orders[orderKey{order:order}])
+
+	ms.lb.send2player(uid, proto.CmdUserPreayInfo, &proto.UserPrepayRet{
+		ErrCode: defines.ErrCommonSuccess,
+		OrderId: order,
+		Price: req.Price,
+	})
+}
+
+func (ms *MallService) UserPayReturn(req *proto.MsPayNotifyArg, res *proto.MsPayNotifyReply) error {
+	key := orderKey{order: req.Order}
+	ms.orderLock.Lock()
+	order, ok := ms.orders[key]
+	ms.orderLock.Unlock()
+	mylog.Debug("pay return ", req, ok)
+	if ok {
+		od := ms.getOrder(order.tm, order.user, order.uid, order.item)
+		if od != req.Order {
+			mylog.Info("order not same ?", req.Order, od, order)
+		} else {
+
+			ms.orderLock.Lock()
+			delete(ms.orders, key)
+			ms.orderLock.Unlock()
+
+			mylog.Debug("pay return item is ", order)
+
+			item := ms.getItem(order.item)
+			if item.Itemid == 0 {
+				mylog.Debug("item no more exists ", order.item)
+				return nil
+			}
+
+			user := ms.lb.userMgr.getUserByAcc(order.acc)
+			if user != nil {
+
+				ms.lb.send2player(order.uid, proto.CmdClientBuyItem, &proto.ClientBuyMallItemRet{
+					ErrCode: defines.ErrCommonSuccess,
+					Item: order.item,
+				})
+
+				mylog.Debug("update user ppdiamond ", item.Nums)
+				ms.lb.userMgr.updateUserProp(user, defines.PpDiamond, item.Nums)
+
+				ms.lb.sc.UserPay(user.userId, order.item, item.Nums, item.Buyvalue)
+
+			} else {
+				mylog.Debug("user not online, update to db", order)
+				var res proto.MsUpdateUserPropReply
+				ms.lb.dbClient.Call("DBService.UpdateUserProp", &proto.MsUpdateUserPropArg{
+					UserId: order.user,
+				Key: "diamond",
+					Diamond: item.Nums,
+			}, &res)
+			}
+		}
+	} else {
+		mylog.Info("order not exists, ", order)
+	}
+
+	return nil
+}
+
+func (ms *MallService) GetItemConfig(itemid []int) []proto.ItemConfig {
 	ms.itemsLock.Lock()
 	defer func() {
 		ms.itemsLock.Unlock()
 	}()
-	fmt.Println("get item config ", ms.ItemConfigList)
+
 	items := []proto.ItemConfig{}
 	for _, id := range itemid {
 		for _, item := range ms.ItemConfigList {

@@ -4,7 +4,7 @@ import (
 	"exportor/proto"
 	"exportor/defines"
 	"cacher"
-	"fmt"
+	"mylog"
 )
 
 type recordService struct {
@@ -27,6 +27,7 @@ func (rs *recordService) stop() {
 	rs.cc.Stop()
 }
 
+var _LastRecordId_ int
 func (rs *recordService) OnUserGetRecordList(uid uint32, req *proto.ClientGetRecordList) {
 	user := rs.lb.userMgr.getUser(uid)
 	if user == nil {
@@ -38,7 +39,7 @@ func (rs *recordService) OnUserGetRecordList(uid uint32, req *proto.ClientGetRec
 
 	m, err := rs.cc.GetGameRecordHead(int(user.userId))
 	if err != nil {
-		fmt.Println("on user get record list err", err)
+		mylog.Debug("on user get record list err", err)
 		rs.lb.send2player(uid, proto.CmdUserGetRecordList, &proto.ClientGetRecordListRet{
 			ErrCode: defines.ErrCommonCache,
 		})
@@ -47,6 +48,7 @@ func (rs *recordService) OnUserGetRecordList(uid uint32, req *proto.ClientGetRec
 
 	var res proto.ClientGetRecordListRet
 	for id, head := range m {
+		_LastRecordId_ = id
 		res.Records = append(res.Records, proto.RecordItem{
 			RecordId: id,
 			RecordData: head,
@@ -60,7 +62,7 @@ func (rs *recordService) OnUserGetRecordList(uid uint32, req *proto.ClientGetRec
 func (rs *recordService) OnUserGetRecord(uid uint32, req *proto.ClientGetRecord) {
 	data, err := rs.cc.GetGameRecordContent(req.RecordId)
 	if err != nil {
-		fmt.Println("on user get record error ", err)
+		mylog.Debug("on user get record error ", err)
 		rs.lb.send2player(uid, proto.CmdUserGetRecord, &proto.ClientGetRecordRet{
 			ErrCode: defines.ErrCommonCache,
 		})

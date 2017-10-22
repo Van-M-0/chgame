@@ -4,8 +4,8 @@ import (
 	"exportor/defines"
 	"communicator"
 	"sync"
-	"fmt"
 	"runtime/debug"
+	"mylog"
 )
 
 
@@ -37,7 +37,7 @@ func newBrokerProcessor() *brokerProcessor {
 func (p *brokerProcessor) call(n *brokerNotifyTask) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("broker process recover, exception stack")
+			mylog.Debug("broker process recover, exception stack")
 			debug.PrintStack()
 		}
 	}()

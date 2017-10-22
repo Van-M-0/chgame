@@ -58,7 +58,7 @@ type T_Users struct {
 	OpenId 		string		`gorm:"index:openid_index"`
 	Name 		string 		`gorm:"size:32;default:null"`
 	Sex 		uint8		`gorm:"not null"`
-	Headimg 	string		`gorm:"size:64;default:''"`
+	Headimg 	string		`gorm:"size:256;default:''"`
 	Level 		uint8 		`gorm:"default:1"`
 	Exp 		uint32		`gorm:"default:0"`
 	Diamond 	uint32 		`gorm:"default:0"`
@@ -169,4 +169,21 @@ type T_AuthInfo struct {
 	Phone 		string
 	Idcard 		string
 	Name 		string
+}
+
+type T_Club struct {
+	Id 			int 		`gorm:"primary_key"`
+	Creatorid 	uint32
+	Creatorname string
+}
+
+type T_ClubMember struct {
+	Userid 		uint32 		`gorm:"primary_key"`
+	Clubid	 	int 		`gorm:"index:acc_index;not null"`
+}
+
+type T_Agents struct {
+	Agent0		uint32		`gorm:"unique_index:idx_agent;not null"`
+	Agent1		uint32		`gorm:"unique_index:idx_agent;not null"`
+	Agent2		uint32		`gorm:"unique_index:idx_agent;not null"`
 }

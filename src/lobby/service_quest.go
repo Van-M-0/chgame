@@ -4,9 +4,9 @@ import (
 	"exportor/proto"
 	"exportor/defines"
 	"time"
-	"fmt"
 	"strings"
 	"strconv"
+	"mylog"
 )
 
 const (
@@ -51,7 +51,7 @@ func (qs *QuestService) load() {
 	qs.lb.dbClient.Call("DBService.LoadQuests", &proto.MsLoadQuestArg{}, &r)
 	qs.questItems = r.Quests
 	qs.questRewards = r.Rewards
-	fmt.Println(qs.questItems, qs.questRewards)
+	mylog.Debug(qs.questItems, qs.questRewards)
 }
 
 func (qs *QuestService) OnUserLoadQuest(uid uint32, req *proto.ClientLoadQuest) {
@@ -213,7 +213,7 @@ func (qs *QuestService) OnUserCompletionQuest(uid uint32, req *proto.ClientCompl
 		}
 	}
 	itemConfig := qs.lb.mall.GetItemConfig(r)
-	fmt.Println("quest completion items ", itemConfig)
+	//mylog.Debug("quest completion items ", itemConfig)
 
 	for _, item := range itemConfig {
 		qs.lb.userMgr.updateUserItem(user, item.Itemid, item.Nums)

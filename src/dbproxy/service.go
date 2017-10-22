@@ -3,12 +3,12 @@ package dbproxy
 import (
 	"sync"
 	"dbproxy/table"
-	"fmt"
 	"exportor/defines"
 	"cacher"
 	"strconv"
 	"time"
 	"exportor/proto"
+	"mylog"
 )
 
 type DBService struct {
@@ -31,10 +31,15 @@ func (service *DBService) start() {
 func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUserLoginReply) error {
 	var userInfo table.T_Users
 
-	service.lock.Lock()
+	//service.lock.Lock()
 	ret := service.db.GetUserInfo(req.Acc, &userInfo)
-	service.lock.Unlock()
+	res.New = false
+	if !ret {
+		res.New = true
+	}
 
+	//service.lock.Unlock()
+	mylog.Debug("luser login ", req, res)
 	if req.LoginType == defines.LoginTypeWechat {
 		if !ret {
 			name := req.Name
@@ -43,6 +48,7 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 				Account: req.Acc,
 				Password: pwd,
 			})
+
 			var userSuccess *table.T_Users
 			if r {
 				userSuccess = &table.T_Users{
@@ -63,10 +69,12 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 				r = service.db.AddUserInfo(userSuccess)
 			}
 		}
-		service.lock.Lock()
+		//service.lock.Lock()
 		ret = service.db.GetUserInfo(req.Acc, &userInfo)
-		service.lock.Unlock()
-
+		//service.lock.Unlock()
+		service.db.db.Create(&table.T_ActionForbid{
+			Userid: userInfo.Userid,
+		})
 		userInfo.Headimg = req.Headimg
 	} else {
 		if !ret {
@@ -96,29 +104,32 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 				r = service.db.AddUserInfo(userSuccess)
 			}
 		}
-		service.lock.Lock()
+		//service.lock.Lock()
 		ret = service.db.GetUserInfo(req.Acc, &userInfo)
-		service.lock.Unlock()
+		//service.lock.Unlock()
+		service.db.db.Create(&table.T_ActionForbid{
+			Userid: userInfo.Userid,
+		})
 	}
 
-	fmt.Println("user login ", req)
+	mylog.Debug("user login ", req)
 	if ret == true {
 
 		// restore cache data
 		var cacheUser proto.CacheUser
 		if err := service.cc.GetUserInfoById(userInfo.Userid, &cacheUser); err == nil {
 			userInfo.Roomid = uint32(cacheUser.RoomId)
-			fmt.Println("restore roomid is ", userInfo.Roomid)
+			mylog.Debug("restore roomid is ", userInfo.Roomid)
 		}
 
 		err := service.cc.SetUserInfo(&userInfo, ret)
 		if err != nil {
-			fmt.Println("set cache user error ", err)
+			mylog.Debug("set cache user error ", err)
 			res.Err = "cache"
 		} else {
 			res.Err = "ok"
 			var itemlist []table.T_UserItem
-			service.db.db.Find(&itemlist).Where("userid = ?",  userInfo.Userid)
+			service.db.db.Where("userid = ?",  userInfo.Userid).Find(&itemlist)
 
 			var items []proto.UserItem
 			for _, item := range itemlist {
@@ -146,17 +157,17 @@ func (service *DBService) UserLogin(req *proto.DbUserLoginArg, res *proto.DbUser
 	} else {
 		res.Err = "notexists"
 	}
-	fmt.Println("user login ", res)
+	mylog.Debug("user login ", res)
 	return nil
 }
 
 func (service *DBService) CreateAccount(req *proto.DbCreateAccountArg, res *proto.DbCreateAccountReply) error {
 	var user table.T_Users
 	var userSuccess *table.T_Users
-	fmt.Println("create account ", req)
-	service.lock.Lock()
+	mylog.Debug("create account ", req)
+	//service.lock.Lock()
 	ret := service.db.GetUserInfo(req.Acc, &user)
-	service.lock.Unlock()
+	//service.lock.Unlock()
 	if !ret {
 		name := "name_" + strconv.Itoa(int(time.Now().Unix()))
 		pwd := "123456"
@@ -174,6 +185,7 @@ func (service *DBService) CreateAccount(req *proto.DbCreateAccountArg, res *prot
 				Diamond: 10,
 				RoomCard: 1,
 				Score: 0,
+				Regtime: time.Now(),
 			}
 			r = service.db.AddUserInfo(userSuccess)
 			res.Err = "ok"
@@ -184,7 +196,7 @@ func (service *DBService) CreateAccount(req *proto.DbCreateAccountArg, res *prot
 	} else {
 		res.Err = "exists"
 	}
-	fmt.Println("create account ", res)
+	mylog.Debug("create account ", res)
 	return nil
 }
 
@@ -261,7 +273,7 @@ func (service *DBService) LoadUserRank(req *proto.MsLoadUserRankArg, res *proto.
 		}
 		res.ErrCode = "ok"
 	}
-	fmt.Println("serveice.loaduserrank ", users)
+	mylog.Debug("serveice.loaduserrank ", users)
 	return nil
 }
 
@@ -357,5 +369,137 @@ func (service *DBService) SaveIdentifyInfo(req *proto.MsSaveIdentifyInfoArg, rep
 		Idcard: req.Idcard,
 	})
 	rep.ErrCode = "ok"
+	return nil
+}
+
+func (service *DBService) UpdateUserProp(req *proto.MsUpdateUserPropArg, rep *proto.MsUpdateUserPropReply) error {
+	if req.Key == "diamond" {
+		var userInfo table.T_Users
+		if service.db.db.Where("userid = ?", req.UserId).Find(&userInfo).RowsAffected != 0 {
+			service.db.db.Model(&table.T_Users{Userid: req.UserId}).Update(table.T_Users{Diamond: uint32(req.Diamond) + userInfo.Diamond})
+		} else {
+			mylog.Info("user not exists when udpate prop", req.UserId, req)
+		}
+	}
+	return nil
+}
+
+func (service *DBService) LoadClubInfo(req *proto.MsLoadClubInfoReq, rep *proto.MsLoadClubInfoReply) error {
+	var cc []table.T_Club
+	var ce []table.T_ClubMember
+	service.db.db.Find(&cc)
+	service.db.db.Find(&ce)
+
+	rep.ErrCode = "ok"
+	for _, club := range cc {
+		rep.Clubs = append(rep.Clubs, &proto.ClubItem {
+			Id: club.Id,
+			CreatorName: club.Creatorname,
+			CreatorId: club.Creatorid,
+		})
+	}
+
+	for _, member := range ce {
+		rep.ClubMembers = append(rep.ClubMembers, &proto.ClubMemberItem {
+			UserId: member.Userid,
+			ClubId: member.Clubid,
+		})
+	}
+
+	return nil
+}
+
+func (service *DBService) ClubOperation(req *proto.MsClubOperationReq, rep *proto.MsClubOperationReply) error {
+	rep.ErrCode = "ok"
+	if req.Op == "create" {
+		var userInfo table.T_Users
+		e := service.db.db.Where("userid = ?", req.UserId).Find(&userInfo).RowsAffected != 0
+		if !e || userInfo.Agentid == 0 {
+			rep.ErrCode = "agent"
+		} else {
+			e1 := service.db.db.Create(&table.T_Club{
+				Id: req.Club.Id,
+				Creatorid: req.Club.CreatorId,
+				Creatorname: req.Club.CreatorName,
+			}).RowsAffected != 0
+			e2 := service.db.db.Create(&table.T_ClubMember{
+				Userid: req.UserId,
+				Clubid: req.Club.Id,
+			}).RowsAffected != 0
+			if !e1 || !e2 {
+				mylog.Debug(e1, e2)
+				rep.ErrCode = "err"
+			}
+		}
+	} else if req.Op == "join" {
+		e2 := service.db.db.Create(&table.T_ClubMember{
+			Userid: req.UserId,
+			Clubid: req.Club.Id,
+		}).RowsAffected != 0
+		if !e2  {
+			mylog.Debug(e2)
+			rep.ErrCode = "err"
+		}
+	} else if req.Op == "leave" {
+		var club table.T_Club
+		service.db.db.Where("id = ?", req.Club.Id).Find(&club)
+		var member table.T_ClubMember
+		service.db.db.Where("userid = ?", req.UserId).Find(&member)
+		if club.Id == 0 || member.Userid == 0 {
+			rep.ErrCode = "err"
+		} else {
+			del := service.db.db.Where("clubid = ? and userid = ?", member.Clubid, member.Userid).Delete(&member).RowsAffected
+			mylog.Debug("dele rowo ", del)
+			if del == 0 {
+				rep.ErrCode = "err"
+			}
+		}
+	}
+
+	rep.Club = req.Club
+	rep.UserId = req.UserId
+
+	return nil
+}
+
+func (service *DBService) GetAgentUser(req *proto.MsGetAgentUserReq, rep *proto.MsGetAgentUserReply) error {
+	if req.AgentId > 0 {
+		var agents []*table.T_Agents
+		if req.AgentType == "A0" {
+			service.db.db.Where("agent0 = ?", req.AgentId).Find(&agents)
+		} else if req.AgentType == "A1" {
+			service.db.db.Where("agent1 = ?", req.AgentId).Find(&agents)
+		} else if req.AgentType == "A2" {
+			service.db.db.Where("agent2 = ?", req.AgentId).Find(&agents)
+		} else {
+			rep.ErrCode = "AgentTypeInvalid"
+			return nil
+		}
+
+		agentM := map[uint32]bool{}
+		for _, a := range agents {
+			agentM[a.Agent2] = true
+		}
+
+		rep.ErrCode = "not-find"
+		for agent, _ := range agentM {
+			u := &table.T_Users{}
+			if service.db.db.Where("agentid = ?", agent).Select("userid").Find(u).RowsAffected != 0 {
+				club := table.T_Club{}
+				if service.db.db.Where("creatorid = ?", agent).Select("id").Find(club).RowsAffected != 0 {
+					var members []*table.T_ClubMember
+					if service.db.db.Where("clubid = ?", agent).Select("userid").Find(members).RowsAffected != 0 {
+						for _, m := range members {
+							rep.Uids[m.Userid] = true
+						}
+						rep.ErrCode = "ok"
+					}
+				}
+			}
+		}
+
+	} else {
+		rep.ErrCode = "AgentIdInvalid"
+	}
 	return nil
 }

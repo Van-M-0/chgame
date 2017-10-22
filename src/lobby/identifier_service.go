@@ -107,18 +107,18 @@ func check_id(id string) int { // len(id)= 17
 
 	/*
 		for p := 0; p < len(arry); p++ {
-			fmt.Println("arry[", p, "]", "=", arry[p])
+			mylog.Debug("arry[", p, "]", "=", arry[p])
 		}
 	*/
 
 	var wi [17]int = [...]int{7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2}
 	var res int
 	for i := 0; i < 17; i++ {
-		//fmt.Println("id =", i, byte2int(id[i]), wi[i])
+		//mylog.Debug("id =", i, byte2int(id[i]), wi[i])
 		res += arry[i] * wi[i]
 	}
 
-	//fmt.Println("res = ", res)
+	//mylog.Debug("res = ", res)
 
 	return (res % 11)
 }
@@ -131,7 +131,7 @@ func verify_id(verify int, id_v int) (bool, string) {
 	for i = 0; i < 11; i++ {
 		if i == verify {
 			temp = a18[i]
-			//fmt.Println("verify_id id",)
+			//mylog.Debug("verify_id id",)
 			// if a18[i] == 'X' ,let convert it to type string
 			if a18[i] == 88 {
 			} else {

@@ -120,7 +120,7 @@ func testredis() {
 
 	for key, val := range servers {
 		if _, err := conn.Do("HMSET", redis.Args{key}.AddFlat(val)...); err != nil {
-			log.Fatal(err)
+			mylog.Fatal(err)
 		}
 	}
 
@@ -130,7 +130,7 @@ func testredis() {
 	arg := redis.Args{"_SER_server1"}.AddFlat(si)
 	fmt.Println("arg ..", arg)
 	if _, err := conn.Do("HMSET", arg...); err != nil {
-		log.Fatal(err)
+		mylog.Fatal(err)
 	}
 
 	conn.Do("hset", "_SER_server2", "id", 100)

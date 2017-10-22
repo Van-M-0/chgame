@@ -4,6 +4,6 @@ package dbproxy
 
 import "exportor/defines"
 
-func NewDbProxy() defines.IDbProxy {
-	return newDBProxyServer()
+func NewDbProxy(opt *defines.DbProxyOption) defines.IDbProxy {
+	return newDBProxyServer(opt)
 }

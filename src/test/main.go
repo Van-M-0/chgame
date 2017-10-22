@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"gopkg.in/vmihailenco/msgpack.v2"
 	"net"
 	"encoding/binary"
 	"io"
@@ -11,6 +10,11 @@ import (
 	"os"
 	"strings"
 	"strconv"
+	"net/http"
+	"mylog"
+	"gopkg.in/vmihailenco/msgpack.v2"
+	"sync"
+	"sync/atomic"
 )
 /*
 func testpb() {
@@ -132,7 +136,168 @@ func test1() {
 	fmt.Println(data, err)
 }
 
+func timetest() {
+	TimeKeyFormat := "2006-01-02"
+	t := time.Now().Format(TimeKeyFormat)
+	fmt.Println("format time is ", t)
+
+	t2, e:= time.Parse(TimeKeyFormat, "2017-10-3")
+	ts := t2.Format(TimeKeyFormat)
+	fmt.Println("parse time is ", t2, ts, e)
+
+	fmt.Println("time comparation ", t > ts)
+
+
+}
+
+func closechantest() {
+	ch := make(chan bool)
+	close(ch)
+}
+
+func timeaddtest() {
+	i := "2006-01-02"
+	TimeKeyFormat := "2006-01-02"
+	t, _ := time.Parse(TimeKeyFormat, i)
+	t = t.Add(time.Duration(time.Hour) * 24)
+	i = t.Format(TimeKeyFormat)
+
+	fmt.Println("time i ", i)
+}
+
+func ticktest() {
+	t := time.NewTicker(time.Duration(time.Second * 3))
+
+	go func() {
+		for {
+			select {
+			case <-t.C:
+				fmt.Println("ticker comming")
+			}
+		}
+	}()
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	wg.Wait()
+}
+
+type roomTimerHandle struct {
+	id 		int
+	t 		*time.Timer
+	kill 	chan bool
+	stop	int32
+}
+
+func (h *roomTimerHandle) GetId() int {
+	return h.id
+}
+
+func timerTest() {
+
+	bcquit := make(chan bool)
+
+	fmt.Println("time set ", time.Now())
+	tm := time.NewTimer(time.Duration(300) * time.Millisecond * 10)
+	handle := &roomTimerHandle{
+		id:1,
+		t: tm,
+		kill: make(chan bool),
+	}
+
+	go func() {
+		select {
+		case <- bcquit:
+			fmt.Println("time quit")
+			return
+		case <- tm.C:
+			atomic.AddInt32(&handle.stop, 1)
+			fmt.Println("time coming ", time.Now())
+		case <- handle.kill:
+			fmt.Println("time kill")
+			atomic.AddInt32(&handle.stop, 1)
+			close(handle.kill)
+			return
+		}
+	}()
+
+	handle.kill <- true
+
+	fmt.Println("waiting")
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	wg.Wait()
+}
+
+
 func main() {
+
+	fmt.Println("xxxxxxxxxxxxxxxxx")
+
+	timerTest()
+
+	ticktest()
+
+	if true {
+		return
+	}
+
+	timeaddtest()
+
+	closechantest()
+	//timetest()
+
+
+
+	if true {
+		return
+	}
+
+	type AAATest struct {
+		a 		int
+	}
+
+	mmaps := make(map[int]map[int]*AAATest)
+
+	if _, ok := mmaps[1]; !ok {
+		mmaps[1] = make(map[int]*AAATest)
+	}
+	mmaps[1][1] = &AAATest{
+		a: 1111,
+	}
+	fmt.Println("mmaps ", mmaps[1][1])
+
+	if true {
+		return
+	}
+
+
+	logger := mylog.New()
+	logger.Formatter = new(mylog.GameFormatter)
+	logger.Out = os.Stdout
+	logger.Warn("hello .........", []int{1, 2, 3})
+	logger.Info("hello .........", []int{1, 2, 3})
+
+
+	mylog.Error()
+
+	downlaod := func(w http.ResponseWriter, r *http.Request) {
+
+		w.Header().Set("Content-Disposition", "attachment; filename=WHATEVER_YOU_WANT")
+		w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
+
+		file := "./file/a.txt"
+		http.ServeFile(w, r, file)
+	}
+
+	os.Mkdir("file", 0777)
+	//http.Handle("/pollux/", http.StripPrefix("/pollux/", http.FileServer(http.Dir("file"))))
+	http.HandleFunc("/pollux/", downlaod)
+	err := http.ListenAndServe(":8080", nil)
+	if err != nil {
+		fmt.Println("listen and serve error ", err)
+	}
 
 	tptr := time.NewTimer(time.Duration(3 * time.Second))
 	t := *tptr

@@ -1,0 +1,217 @@
+
+
+#### jsx 基本语法规则
+
+1. 以<开头，就用HTML规则解析
+2. 以{开头（代码块），就用javascript规则解析
+
+
+
+#### react 组件
+
+1. 通过 React.createClass({...}) 创建组件
+	{...} 里面则是 jsx语法的规则
+
+2. 组件首字母通常是大写，html标签则是小写
+
+3. 组件类只能包含一个顶级的标签，否则会报错（不能包含并列的标签）
+
+4. 动态组件代码实例
+	````c
+		var MyComponent = React.createClass({
+			propTypes: {
+				name: React.PropTypes.string.isRequired,
+			},
+			getInitialState: function() {
+				return {clickNum: 0}
+			},	
+			handleClick: function() {
+				var num = this.state.clickNum	
+				num++
+				this.setState({this.clickNum: num})
+			},
+			render: function() {
+				return (
+					<div>
+						<h1 onClick={this.handleClick}> click num : {this.state.clickNum} </h1>
+						<h1 style={{color:'red'}}> click {this.props.name} count : {this.state.clickNum} </h1>
+					</div>
+				)	
+			}	
+		})	
+
+
+		....
+		<MyComponent name="tony"/>
+		....
+
+	````
+
+	1>	this.props 是一个对象，是实例组件化的时候传入的，虽然可以动态改变，但是最好就做外部输入，不要改
+
+		+	html class属性要写成className, for 要写成 htmlFor	
+		+	style属性名规则需要写成骆驼峰形式
+		+	this.props.children是组件的子节点，如果没有则为undefined，如果有一个则是object，如果多个，则是arr[object]
+			官方建议采用map形式遍历
+
+	2>	this.state 是组件的一个动态数据，提供组件内部数据的交互
+
+		+	getInitialState，setState分别是获取状态，设置状态
+		+	不同的是每次值变化的时候，都回到用render函数
+
+
+#### 获取正式的Dom节点
+
+组件并不是真正的dom节点，而是内存中的一种数据结构
+
+1. 怎么和组件绑定在一起了
+2. 要获取正真的dom节点需要用到ref属性
+
+	````c
+		var MyComponent = React.createClass({
+			handleClick: function() {
+				this.ref.myTextInput.focus()	
+			},
+			render: function() {
+				return (
+					<div>	
+						<input type="text" ref="myTextInput" />
+						<input type="button" value="focus the text input" onClick={this.handleClick} />
+					</div>
+				)
+			}
+		})
+	````
+
+	react获取真实dom的时候，html对应的元素必须要有ref属性
+	虚拟dom必须插入文档以后，才能通过ref获取
+
+
+#### 求值表达式
+
+大括号中的javascript必须为求值表达式，或者包裹在函数中的求值表达式
+
+调用函数求值表达式的时候
+	
+	拿到的是函数的引用
+	render: function() {
+		return <div>{
+			(
+				function(self) {
+					....
+				}(this)
+			)
+		}</div>
+	}
+
+	拿到的是函数的值
+	render: function() {
+		return (<div>{
+			function(self) {
+				....
+			}(this)
+		}</div>)
+	}
+
+
+
+#### 组件的生命周期
+
+* Mounting:	已经插入真实的dom
+* Updating: 正在被重新渲染
+* Unmounting: 已经移除真实的dom
+
+每种状态有2个处理函数, will, did 分别是在进入前，进入后调用
+
+* componentWillMount()
+* componentDidMount()
+* componetWillUpdate(object nextProps, objext nextState)
+* componentDidUpdate(object preProps, object preState)
+* componentWillUnmount()
+
+此外，react还提供了2中额外的状态处理函数
+
+* componentWillReceiveProps(object nextProps)：已加载组件收到新的参数时调用
+* shouldComponentUpdate(object nextProps, object nextState)：组件判断是否重新渲染时调用
+
+
+#####. style 属性值
+
+所有核心的componnet，都接受style属性
+style属性是一个对象，里面的属性和css的属性是相同的，只不过接受骆驼峰的书写方式
+可以传递一个style的数组，最后一个属性将会被应用，同时会继承前面的style
+属性多的时候，可以通过StyleSheet.create创建属性
+
+
+####. 自定义组件的高宽
+
+1. 可以通过设置width, height来决定组建的宽，高，以像素为单位,设置的是绝对值
+2. 设置flex:1来设置相对高度，她会沾满所有的空间
+3. 如果一个componnet没有设置fixed width, height或者flex，则默认的dimentions为0
+
+	```js	
+		class FlexDimensionsBasics extends Component {
+			render: function() {
+				return (
+					<View style = {width:300, height:100>		
+						<View style={{height: 10, backgroundColor: 'powderblue'}} />
+        				<View style={{flex: 1, width:50, backgroundColor: 'skyblue'}} />
+        				<View style={{flex: 1, backgroundColor: 'steelblue'}} />
+					</View>
+				)
+			}
+		}
+	```
+
+####. layout with flexbox
+
+所有的布局都应该挂上一个父节点，否则子节点不好布局
+通过flexbox算法，来布局
+
+1. flexDirection
+	决定了布局的基本方向，可以是row, column
+
+2. justifyContent
+	前面的widht, heigth只是说明了component的大小，但是并没有说明componnet之间的间距
+	通过设置flex-start, flex-end, center, space-around, space-betwwen的选项来设置间距
+
+3. alignItems 
+	前面可以调整组建的大小，组建之间的间距，但是第二轴的位置无法调整
+	通过设置这个选项，flex-start, flex-end, center
+
+	但是还是没有位置？
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

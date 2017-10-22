@@ -4,10 +4,11 @@ import (
 	"exportor/defines"
 	"exportor/proto"
 	"network"
-	"fmt"
 	"msgpacker"
 	"rpcd"
 	"errors"
+	"mylog"
+	"tools"
 )
 
 type gameServer struct {
@@ -28,21 +29,24 @@ func newGameServer(option *defines.GameOption) *gameServer {
 func (gs *gameServer) Start() error {
 
 	gs.gwClient = network.NewTcpClient(&defines.NetClientOption{
+		SendActor: 1,
+		SendChSize: 10240,
 		Host: gs.opt.GwHost,
 		ConnectCb: func (client defines.ITcpClient) error {
-			fmt.Println("connect gate succcess, send auth info")
+			mylog.Debug("connect gate succcess, send auth info")
 			var res proto.MsServerIdReply
 			gs.msClient.Call("ServerService.GetServerId", &proto.MsServerIdArg{Type:"game"}, &res)
 			gs.serverId = res.Id
 
 			registerModules := func() string {
+				mylog.Debug("register game conf ...", gs.opt.Moudles)
 				var modReply proto.MsGameMoudleRegisterReply
 				modList := make([]proto.MsModuleItem, 0)
 				for _, m := range gs.opt.Moudles {
+					mylog.Debug("register game conf", m.GameConf)
 					modList = append(modList, proto.MsModuleItem{
 						Kind: m.Type,
 						GameConf: m.GameConf,
-						GatewayHost: gs.opt.GwHost,
 					})
 				}
 				err := gs.msClient.Call("GameModuleService.RegisterModule", &proto.MsGameMoudleRegisterArg{
@@ -50,13 +54,13 @@ func (gs *gameServer) Start() error {
 					ModList: modList,
 				}, &modReply)
 
-				fmt.Println("registe server reply", modReply, err)
+				mylog.Debug("registe server reply", modReply, err)
 
 				return modReply.ErrCode
 			}
 
 			if err := registerModules(); err != "ok" {
-				fmt.Println("register game moudles error ", err)
+				mylog.Debug("register game moudles error ", err)
 				return errors.New("register server module error")
 			}
 
@@ -67,7 +71,7 @@ func (gs *gameServer) Start() error {
 			return nil
 		},
 		CloseCb: func (client defines.ITcpClient) {
-			fmt.Println("gameserver closed")
+			mylog.Debug("gameserver closed")
 		},
 		AuthCb: func (client defines.ITcpClient) error {
 			return nil
@@ -75,7 +79,7 @@ func (gs *gameServer) Start() error {
 		MsgCb: func(client defines.ITcpClient, m *proto.Message) {
 			var header proto.GateGameHeader
 			if err := msgpacker.UnMarshal(m.Msg, &header); err != nil {
-				fmt.Println("unmarshal client route lobby header error")
+				mylog.Debug("unmarshal client route lobby header error")
 				return
 			}
 			gs.scmgr.onGwMessage(m.Cmd, &header)
@@ -101,7 +105,7 @@ func (gs *gameServer) Start() error {
 }
 
 func (gs *gameServer) startRpc() {
-	gs.msClient = rpcd.StartClient(defines.MSServicePort)
+	gs.msClient = rpcd.StartClient(tools.GetMasterServiceHost())
 }
 
 func (gs *gameServer) Stop() error {
@@ -112,22 +116,23 @@ func (gs *gameServer) authServer(message *proto.Message) {
 
 }
 
-func (gs *gameServer) send2players(uids[] uint32, cmd uint32, data interface{}) {
+func (gs *gameServer) send2players(uids[] uint32, index uint32, cmd uint32, data interface{}) {
 	if len(uids) == 0 {
-		fmt.Println("send player message empty uids")
+		mylog.Debug("send player message empty uids")
 		return
 	}
 	body, err := msgpacker.Marshal(data)
 	if err != nil {
-		fmt.Println("msg 2 player error", uids, data)
+		mylog.Debug("msg 2 player error", uids, data)
 		return
 	}
 	header := &proto.GameGateHeader{
 		Uids: uids,
 		Cmd: cmd,
+		Index: index,
 		Msg: body,
 	}
-	fmt.Println("game send 2 player ", header)
+	mylog.Debug("game send 2 player ", header.Uids, header.Cmd, header.Index)
 	gs.gwClient.Send(proto.GameRouteClient, &header)
 }
 
